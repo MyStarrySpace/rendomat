@@ -1,0 +1,31 @@
+{
+  "name": "vsl-generator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "remotion:preview": "remotion preview remotion/index.ts",
+    "remotion:render:square": "remotion render remotion/index.ts PolicyWrappedSquare policy-wrapped.mp4",
+    "remotion:render:ultrahuman": "remotion render remotion/index.ts UltrahumanVSL ultrahuman-vsl.mp4",
+    "remotion:ensure-browser": "remotion browser ensure",
+    "remotion:render:payload": "node scripts/render-policy-wrapped.mjs",
+    "render-server": "node server/render-server.mjs",
+    "generate-narration": "node scripts/generate-narration.mjs",
+    "seed-db": "node scripts/seed-database.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.390",
+    "@remotion/lambda": "^4.0.390",
+    "@remotion/renderer": "4.0.390",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "elevenlabs-js": "^1.2.6",
+    "express": "^4.19.2",
+    "remotion": "4.0.390"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.390"
+  }
+}

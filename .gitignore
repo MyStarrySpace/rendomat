@@ -1,0 +1,113 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+.remotion-bundle-server/
+.remotion/
+dist/
+build/
+out/
+
+# Next.js
+.next/
+app/.next/
+app/out/
+
+# Database files
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Cache directory
+cache/
+*.mp4
+*.webm
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Audio files (generated narrations)
+public/audio/
+remotion/public/audio/*.mp3
+remotion/public/audio/*.wav
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Turbo
+.turbo
+
+# Nimbalyst local plans (not checked into version control)
+nimbalyst-local/

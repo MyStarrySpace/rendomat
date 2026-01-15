@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(npx create-next-app@latest app --typescript --tailwind --app --no-src-dir --import-alias \"@/*\")",
+      "Bash(npx create-next-app:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run generate-narration:*)",
+      "Bash(npm run seed-db:*)",
+      "Bash(curl:*)",
+      "Bash(node scripts/migrate-optional-name.mjs:*)",
+      "Bash(test:*)"
+    ]
+  }
+}

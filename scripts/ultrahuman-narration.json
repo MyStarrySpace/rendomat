@@ -1,0 +1,61 @@
+{
+  "totalDuration": 345,
+  "scenes": [
+    {
+      "sceneId": 0,
+      "name": "Cold Open",
+      "startTime": 0,
+      "endTime": 10,
+      "narration": "When health data multiplies, design changes."
+    },
+    {
+      "sceneId": 1,
+      "name": "Respect the Ambition",
+      "startTime": 10,
+      "endTime": 50,
+      "narration": "Ultrahuman has built something rare. A Ring. A continuous glucose monitor. Blood panels. Environmental sensors. Four signal streams, unified. Most companies would call this a platform. You've called it a unified view of the human body. That precision matters."
+    },
+    {
+      "sceneId": 2,
+      "name": "The Inflection Point",
+      "startTime": 50,
+      "endTime": 100,
+      "narration": "But as the signals multiply, a question emerges. Sleep quality drops. Glucose spikes after lunch. A blood marker sits borderline. Air quality is poor. Which signal should matter most right now? And who decides?"
+    },
+    {
+      "sceneId": 3,
+      "name": "Naming the Hidden Problem",
+      "startTime": 100,
+      "endTime": 160,
+      "narration": "The system still asks the user to reconcile meaning. Here are your sleep scores. Here's your metabolic data. Here's your recovery index. The synthesis? That's on you. This isn't a critique of execution. It's the design challenge that emerges when you succeed at integration."
+    },
+    {
+      "sceneId": 4,
+      "name": "Dashboard-of-Dashboards Risk",
+      "startTime": 160,
+      "endTime": 200,
+      "narration": "We call this dashboard-of-dashboards risk. Multiple systems, each well-designed, each with its own logic. But they float beside each other, not through each other. The user is left to be the integrator. And most users aren't health data scientists."
+    },
+    {
+      "sceneId": 5,
+      "name": "Reframing the Opportunity",
+      "startTime": 200,
+      "endTime": 260,
+      "narration": "But here's the opportunity. The next layer isn't another dashboard. It's interpretation and decision support. Why this insight, why now, and how confident should you be in it? This is where the value compounds. Not in collecting more data, but in helping users act on what they already have."
+    },
+    {
+      "sceneId": 6,
+      "name": "Why You're Reaching Out",
+      "startTime": 260,
+      "endTime": 310,
+      "narration": "We've worked on multi-source health systems before. Systems that pull from wearables, labs, EHRs, and patient input. The pattern is consistent. The hard part isn't the pipes. It's the synthesis layer. How you present meaning without overwhelming the user."
+    },
+    {
+      "sceneId": 7,
+      "name": "Soft Close",
+      "startTime": 310,
+      "endTime": 345,
+      "narration": "You may already be working on this. If it's useful, we're happy to share the framework we've developed. No pitch. Just a conversation."
+    }
+  ]
+}
