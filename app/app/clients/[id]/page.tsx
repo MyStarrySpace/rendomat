@@ -2,21 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Video as VideoIcon, Plus, Play, Clock, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Video as VideoIcon, Plus, Play, Clock, CheckCircle, AlertCircle, Loader2, Trash2, Home } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { clientApi, videoApi, Client, Video } from "@/lib/api";
+import { useParams, useRouter } from "next/navigation";
+import { clientApi, videoApi, templateApi, Client, Video, Template } from "@/lib/api";
 
 export default function ClientDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const clientId = parseInt(params.id as string);
 
   const [client, setClient] = useState<Client | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
+    template_id: "ultrahuman-vsl",
     composition_id: "UltrahumanVSL",
     aspect_ratio: "16:9",
     duration_seconds: 345,
@@ -29,16 +32,31 @@ export default function ClientDetailPage() {
 
   async function loadData() {
     try {
-      const [clientData, videosData] = await Promise.all([
+      const [clientData, videosData, templatesData] = await Promise.all([
         clientApi.getById(clientId),
         videoApi.getAll(clientId),
+        templateApi.getAll(),
       ]);
       setClient(clientData);
       setVideos(videosData);
+      setTemplates(templatesData);
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  function handleTemplateChange(templateId: string) {
+    const template = templates.find(t => t.id === templateId);
+    if (template) {
+      setFormData({
+        ...formData,
+        template_id: templateId,
+        composition_id: template.id,
+        aspect_ratio: template.aspect_ratio,
+        duration_seconds: template.duration_seconds,
+      });
     }
   }
 
@@ -54,6 +72,7 @@ export default function ClientDetailPage() {
       });
       setFormData({
         title: "",
+        template_id: "ultrahuman-vsl",
         composition_id: "UltrahumanVSL",
         aspect_ratio: "16:9",
         duration_seconds: 345,
@@ -65,6 +84,36 @@ export default function ClientDetailPage() {
       alert("Failed to create video");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDeleteClient() {
+    if (!client) return;
+
+    if (!confirm(`Are you sure you want to delete ${client.company}? This will also delete all their videos and cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await clientApi.delete(clientId);
+      router.push('/clients');
+    } catch (error) {
+      console.error("Failed to delete client:", error);
+      alert("Failed to delete client");
+    }
+  }
+
+  async function handleDeleteVideo(videoId: number, videoTitle: string) {
+    if (!confirm(`Are you sure you want to delete "${videoTitle}"? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await videoApi.delete(videoId);
+      loadData();
+    } catch (error) {
+      console.error("Failed to delete video:", error);
+      alert("Failed to delete video");
     }
   }
 
@@ -118,12 +167,20 @@ export default function ClientDetailPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <div className="container mx-auto px-4 py-16">
-        <Link href="/clients">
-          <button className="flex items-center gap-2 text-purple-300 hover:text-purple-200 mb-6 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            Back to Clients
-          </button>
-        </Link>
+        <div className="flex items-center justify-between mb-6">
+          <Link href="/">
+            <button className="flex items-center gap-2 text-purple-300 hover:text-purple-200 transition-colors">
+              <Home className="w-5 h-5" />
+              Home
+            </button>
+          </Link>
+          <Link href="/clients">
+            <button className="flex items-center gap-2 text-purple-300 hover:text-purple-200 transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+              Back to Clients
+            </button>
+          </Link>
+        </div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -138,13 +195,22 @@ export default function ClientDetailPage() {
                 <p className="text-purple-300 text-sm mt-1">{client.industry}</p>
               )}
             </div>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              New Video
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDeleteClient}
+                className="flex items-center gap-2 bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 text-red-400 hover:text-red-300 px-4 py-2 rounded-lg transition-colors"
+              >
+                <Trash2 className="w-5 h-5" />
+                Delete Client
+              </button>
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                New Video
+              </button>
+            </div>
           </div>
         </motion.div>
 
@@ -169,43 +235,47 @@ export default function ClientDetailPage() {
                   placeholder="Product Launch VSL"
                 />
               </div>
-              <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-2">
+                  Template *
+                </label>
+                <select
+                  value={formData.template_id}
+                  onChange={(e) => handleTemplateChange(e.target.value)}
+                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
+                >
+                  {templates.map(template => (
+                    <option key={template.id} value={template.id}>
+                      {template.name} - {template.scene_count} scenes, {template.duration_seconds}s, {template.aspect_ratio}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-purple-300 text-xs mt-1">
+                  {templates.find(t => t.id === formData.template_id)?.description}
+                </p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-purple-200 mb-2">
-                    Composition
+                    Aspect Ratio <span className="text-purple-400 text-xs">(from template)</span>
                   </label>
-                  <select
-                    value={formData.composition_id}
-                    onChange={(e) => setFormData({ ...formData, composition_id: e.target.value })}
-                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
-                  >
-                    <option value="UltrahumanVSL">Ultrahuman VSL</option>
-                    <option value="PolicyWrappedSquare">Policy Wrapped (Square)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                    Aspect Ratio
-                  </label>
-                  <select
+                  <input
+                    type="text"
                     value={formData.aspect_ratio}
-                    onChange={(e) => setFormData({ ...formData, aspect_ratio: e.target.value })}
-                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
-                  >
-                    <option value="16:9">16:9 (YouTube)</option>
-                    <option value="1:1">1:1 (Square)</option>
-                    <option value="9:16">9:16 (Stories)</option>
-                  </select>
+                    disabled
+                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-purple-300 cursor-not-allowed"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-purple-200 mb-2">
-                    Duration (seconds)
+                    Duration (seconds) <span className="text-purple-400 text-xs">(from template)</span>
                   </label>
                   <input
                     type="number"
                     value={formData.duration_seconds}
-                    onChange={(e) => setFormData({ ...formData, duration_seconds: parseInt(e.target.value) })}
-                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
+                    disabled
+                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-purple-300 cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -257,9 +327,10 @@ export default function ClientDetailPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.1 }}
+                  className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all group relative"
                 >
                   <Link href={`/videos/${video.id}`}>
-                    <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer group">
+                    <div className="cursor-pointer">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                           <h3 className="text-xl font-bold text-white mb-2">{video.title}</h3>
@@ -281,6 +352,17 @@ export default function ClientDetailPage() {
                       </div>
                     </div>
                   </Link>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDeleteVideo(video.id, video.title);
+                    }}
+                    className="absolute top-4 right-4 p-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Delete video"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </motion.div>
               ))}
             </div>

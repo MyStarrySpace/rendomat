@@ -21,6 +21,7 @@ export interface Video {
   aspect_ratio: string | null;
   data: string | null;
   output_path: string | null;
+  render_progress: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -38,6 +39,15 @@ export interface Scene {
   cached_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  description: string;
+  duration_seconds: number;
+  aspect_ratio: string;
+  scene_count: number;
 }
 
 // Client API
@@ -150,6 +160,21 @@ export const sceneApi = {
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error('Failed to create scene');
+    return res.json();
+  },
+};
+
+// Template API
+export const templateApi = {
+  async getAll(): Promise<Template[]> {
+    const res = await fetch(`${API_BASE}/api/templates`);
+    if (!res.ok) throw new Error('Failed to fetch templates');
+    return res.json();
+  },
+
+  async getById(id: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/templates/${id}`);
+    if (!res.ok) throw new Error('Failed to fetch template');
     return res.json();
   },
 };

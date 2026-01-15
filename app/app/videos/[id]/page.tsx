@@ -16,7 +16,8 @@ import {
   X,
   Download,
   Zap,
-  Database
+  Database,
+  Home
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -32,12 +33,46 @@ export default function VideoDetailPage() {
   const [loading, setLoading] = useState(true);
   const [rendering, setRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState<string>("");
+  const [progressData, setProgressData] = useState<any>(null);
   const [editingScene, setEditingScene] = useState<number | null>(null);
   const [editData, setEditData] = useState<any>({});
 
   useEffect(() => {
     loadData();
   }, [videoId]);
+
+  // Poll for progress when rendering
+  useEffect(() => {
+    if (!rendering) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const videoData = await videoApi.getById(videoId);
+
+        // Parse render_progress if it exists
+        if (videoData.render_progress) {
+          const progress = JSON.parse(videoData.render_progress);
+          setProgressData(progress);
+
+          if (progress.status === 'stitching') {
+            setRenderProgress('Stitching scenes together...');
+          } else {
+            const cacheInfo = progress.cached_scenes > 0 ? ` (${progress.cached_scenes} cached)` : '';
+            setRenderProgress(`Rendering scene ${progress.rendered_scenes + 1} of ${progress.total_scenes}${cacheInfo}`);
+          }
+        }
+
+        // If video is no longer rendering, stop polling
+        if (videoData.status !== 'rendering') {
+          clearInterval(interval);
+        }
+      } catch (error) {
+        console.error("Failed to poll progress:", error);
+      }
+    }, 500); // Poll every 500ms
+
+    return () => clearInterval(interval);
+  }, [rendering, videoId]);
 
   async function loadData() {
     try {
@@ -62,13 +97,14 @@ export default function VideoDetailPage() {
   async function handleRender() {
     setRendering(true);
     setRenderProgress("Preparing to render...");
+    setProgressData({
+      rendered_scenes: 0,
+      total_scenes: scenes.length,
+      current_scene: 0,
+      percentage: 0
+    });
 
     try {
-      const cachedCount = scenes.filter(s => s.cache_path).length;
-      const totalScenes = scenes.length;
-
-      setRenderProgress(`Using cache for ${cachedCount}/${totalScenes} scenes...`);
-
       const blob = await videoApi.renderScenes(videoId);
 
       // Download the video
@@ -82,6 +118,7 @@ export default function VideoDetailPage() {
       URL.revokeObjectURL(url);
 
       setRenderProgress("Render complete!");
+      setProgressData(null);
       setTimeout(() => {
         setRenderProgress("");
         setRendering(false);
@@ -92,6 +129,7 @@ export default function VideoDetailPage() {
     } catch (error) {
       console.error("Failed to render video:", error);
       setRenderProgress("Render failed");
+      setProgressData(null);
       setTimeout(() => {
         setRenderProgress("");
         setRendering(false);
@@ -179,12 +217,20 @@ export default function VideoDetailPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <div className="container mx-auto px-4 py-16">
-        <Link href={`/clients/${video.client_id}`}>
-          <button className="flex items-center gap-2 text-purple-300 hover:text-purple-200 mb-6 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            Back to Client
-          </button>
-        </Link>
+        <div className="flex items-center justify-between mb-6">
+          <Link href="/">
+            <button className="flex items-center gap-2 text-purple-300 hover:text-purple-200 transition-colors">
+              <Home className="w-5 h-5" />
+              Home
+            </button>
+          </Link>
+          <Link href={`/clients/${video.client_id}`}>
+            <button className="flex items-center gap-2 text-purple-300 hover:text-purple-200 transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+              Back to Client
+            </button>
+          </Link>
+        </div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -240,14 +286,30 @@ export default function VideoDetailPage() {
               animate={{ opacity: 1, y: 0 }}
               className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-4 mb-6"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 mb-3">
                 {rendering ? (
                   <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
                 ) : (
                   <CheckCircle className="w-5 h-5 text-green-400" />
                 )}
-                <p className="text-white">{renderProgress}</p>
+                <p className="text-white font-medium">{renderProgress}</p>
               </div>
+              {progressData && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm text-purple-200">
+                    <span>
+                      Scene {progressData.rendered_scenes + 1} of {progressData.total_scenes}
+                    </span>
+                    <span className="font-semibold">{progressData.percentage}%</span>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-300"
+                      style={{ width: `${progressData.percentage}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -274,6 +336,28 @@ export default function VideoDetailPage() {
             </div>
           )}
         </motion.div>
+
+        {video.output_path && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              <VideoIcon className="w-6 h-6 text-purple-400" />
+              Output Video
+            </h2>
+            <div className="bg-white/10 backdrop-blur-lg rounded-lg p-4 border border-purple-500/20">
+              <video
+                controls
+                className="w-full rounded-lg"
+                src={`http://localhost:8787/api/videos/${videoId}/preview`}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </motion.div>
+        )}
 
         <div className="space-y-4">
           <h2 className="text-2xl font-bold text-white mb-4">Scenes</h2>
@@ -339,13 +423,33 @@ export default function VideoDetailPage() {
                               </button>
                             </div>
                           </div>
-                        ) : scene.data ? (
-                          <div className="mt-3 bg-white/5 rounded-lg p-3">
-                            <pre className="text-purple-200 text-xs font-mono overflow-x-auto">
-                              {JSON.stringify(JSON.parse(scene.data), null, 2)}
-                            </pre>
+                        ) : (
+                          <div className="mt-4 space-y-3">
+                            {scene.cache_path && (
+                              <div className="bg-white/5 rounded-lg p-3">
+                                <video
+                                  controls
+                                  className="w-full rounded-lg"
+                                  src={`http://localhost:8787/api/scenes/${scene.id}/preview`}
+                                >
+                                  Your browser does not support the video tag.
+                                </video>
+                              </div>
+                            )}
+                            {scene.data && (
+                              <details className="bg-white/5 rounded-lg">
+                                <summary className="cursor-pointer p-3 text-purple-300 text-sm font-medium hover:text-purple-200">
+                                  View Scene Data
+                                </summary>
+                                <div className="p-3 pt-0">
+                                  <pre className="text-purple-200 text-xs font-mono overflow-x-auto">
+                                    {JSON.stringify(JSON.parse(scene.data), null, 2)}
+                                  </pre>
+                                </div>
+                              </details>
+                            )}
                           </div>
-                        ) : null}
+                        )}
                       </div>
 
                       <div className="flex items-center gap-3 ml-4">

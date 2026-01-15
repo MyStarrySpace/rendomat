@@ -10,7 +10,20 @@
       "Bash(npm run seed-db:*)",
       "Bash(curl:*)",
       "Bash(node scripts/migrate-optional-name.mjs:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(node:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell \"Stop-Process -Id 35084 -Force\")",
+      "Bash(npm run render-server:*)",
+      "Bash(powershell \"Stop-Process -Id 38020 -Force\")",
+      "Bash(python:*)",
+      "Bash(powershell \"Stop-Process -Id 42824 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 29608 -Force\")",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(powershell \"Stop-Process -Id 35312 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 43624 -Force\")",
+      "Bash(ping:*)"
     ]
   }
 }

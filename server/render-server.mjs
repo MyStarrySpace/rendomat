@@ -11,6 +11,7 @@ import { fork } from 'node:child_process';
 import { bundle } from '@remotion/bundler';
 import { clientDb, videoDb, sceneDb } from './database.mjs';
 import { renderScene, stitchScenes, cleanCache } from './scene-renderer.mjs';
+import { getAllTemplates, getTemplate, createScenesFromTemplate } from './templates.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
 const DEBUG = String(process.env.RENDER_DEBUG || '').toLowerCase() === 'true';
@@ -552,6 +553,31 @@ app.delete('/api/clients/:id', (req, res) => {
 });
 
 // =============================
+// Template API
+// =============================
+
+app.get('/api/templates', (_req, res) => {
+  try {
+    const templates = getAllTemplates();
+    res.json(templates);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/templates/:id', (req, res) => {
+  try {
+    const template = getTemplate(req.params.id);
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    res.json(template);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================
 // Video Management API
 // =============================
 
@@ -579,7 +605,35 @@ app.get('/api/videos/:id', (req, res) => {
 
 app.post('/api/videos', (req, res) => {
   try {
-    const id = videoDb.create(req.body);
+    const { template_id, ...videoData } = req.body;
+
+    // If template_id is provided, get template defaults
+    let templateDefaults = {};
+    if (template_id) {
+      const template = getTemplate(template_id);
+      if (template) {
+        templateDefaults = {
+          composition_id: template.composition_id,
+          duration_seconds: template.duration_seconds,
+          aspect_ratio: template.aspect_ratio,
+        };
+      }
+    }
+
+    // Create video with template defaults merged with provided data
+    const id = videoDb.create({
+      ...templateDefaults,
+      ...videoData,
+    });
+
+    // Auto-create scenes if template is specified
+    if (template_id) {
+      const scenesData = createScenesFromTemplate(template_id, id);
+      scenesData.forEach(sceneData => {
+        sceneDb.create(sceneData);
+      });
+    }
+
     res.json(videoDb.getById(id));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -643,11 +697,45 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
       return res.status(400).json({ error: 'No scenes found for this video' });
     }
 
+    // Count cached vs non-cached scenes
+    const cachedScenes = scenes.filter(s => s.cache_path).length;
+    const scenesToRender = scenes.filter(s => !s.cache_path).length;
+    const totalScenes = scenes.length;
+
+    // Initialize progress tracking
+    videoDb.update(video.id, {
+      status: 'rendering',
+      render_progress: JSON.stringify({
+        rendered_scenes: 0,
+        total_scenes: scenesToRender,
+        cached_scenes: cachedScenes,
+        current_scene: 0,
+        percentage: 0
+      })
+    });
+
     const serveUrl = await getServeUrl();
     const scenePaths = [];
+    let renderedCount = 0;
 
     // Render each scene (using cache when possible)
-    for (const scene of scenes) {
+    for (let i = 0; i < scenes.length; i++) {
+      const scene = scenes[i];
+
+      // Skip progress update for cached scenes
+      if (!scene.cache_path) {
+        // Update progress: starting this scene
+        videoDb.update(video.id, {
+          render_progress: JSON.stringify({
+            rendered_scenes: renderedCount,
+            total_scenes: scenesToRender,
+            cached_scenes: cachedScenes,
+            current_scene: scene.scene_number,
+            percentage: scenesToRender > 0 ? Math.round((renderedCount / scenesToRender) * 100) : 100
+          })
+        });
+      }
+
       const inputProps = video.data ? JSON.parse(video.data) : {};
       const scenePath = await renderScene(
         scene.id,
@@ -656,17 +744,52 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
         inputProps,
         (progress) => {
           console.log(`Scene ${scene.scene_number} progress: ${(progress * 100).toFixed(1)}%`);
+
+          // Only update progress for non-cached scenes
+          if (!scene.cache_path) {
+            const sceneProgress = renderedCount + progress;
+            videoDb.update(video.id, {
+              render_progress: JSON.stringify({
+                rendered_scenes: renderedCount,
+                total_scenes: scenesToRender,
+                cached_scenes: cachedScenes,
+                current_scene: scene.scene_number,
+                percentage: scenesToRender > 0 ? Math.round((sceneProgress / scenesToRender) * 100) : 100
+              })
+            });
+          }
         }
       );
       scenePaths.push(scenePath);
+
+      // Increment rendered count only for non-cached scenes
+      if (!scene.cache_path) {
+        renderedCount++;
+      }
     }
+
+    // Update progress: stitching
+    videoDb.update(video.id, {
+      render_progress: JSON.stringify({
+        rendered_scenes: scenesToRender,
+        total_scenes: scenesToRender,
+        cached_scenes: cachedScenes,
+        current_scene: -1,
+        percentage: 100,
+        status: 'stitching'
+      })
+    });
 
     // Stitch scenes together
     const outputPath = path.join(os.tmpdir(), `video-${video.id}-${Date.now()}.mp4`);
     await stitchScenes(scenePaths, outputPath);
 
     // Update video with output path
-    videoDb.update(video.id, { output_path: outputPath, status: 'completed' });
+    videoDb.update(video.id, {
+      output_path: outputPath,
+      status: 'completed',
+      render_progress: null
+    });
 
     // Read and send the video file
     const file = await fs.readFile(outputPath);
@@ -674,6 +797,68 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${video.title}.mp4"`);
     res.status(200).send(file);
 
+  } catch (error) {
+    videoDb.update(req.params.videoId, {
+      status: 'error',
+      render_progress: null
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================
+// Video Preview API
+// =============================
+
+// Serve completed video
+app.get('/api/videos/:videoId/preview', async (req, res) => {
+  try {
+    const video = videoDb.getById(req.params.videoId);
+    if (!video || !video.output_path) {
+      return res.status(404).json({ error: 'Video not found or not rendered yet' });
+    }
+
+    // Check if file exists
+    try {
+      await fs.access(video.output_path);
+    } catch {
+      return res.status(404).json({ error: 'Video file not found on disk' });
+    }
+
+    const stat = await fs.stat(video.output_path);
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Length', stat.size);
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    const stream = (await import('node:fs')).createReadStream(video.output_path);
+    stream.pipe(res);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve scene preview
+app.get('/api/scenes/:sceneId/preview', async (req, res) => {
+  try {
+    const scene = sceneDb.getById(req.params.sceneId);
+    if (!scene || !scene.cache_path) {
+      return res.status(404).json({ error: 'Scene not found or not cached' });
+    }
+
+    // Check if file exists
+    try {
+      await fs.access(scene.cache_path);
+    } catch {
+      return res.status(404).json({ error: 'Scene file not found on disk' });
+    }
+
+    const stat = await fs.stat(scene.cache_path);
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Length', stat.size);
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    const stream = (await import('node:fs')).createReadStream(scene.cache_path);
+    stream.pipe(res);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

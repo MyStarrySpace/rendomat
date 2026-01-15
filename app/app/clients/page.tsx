@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Users, Plus, Building2, Briefcase, ArrowRight, Loader2 } from "lucide-react";
+import { Users, Plus, Building2, Briefcase, Loader2, Home, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { clientApi, Client } from "@/lib/api";
 
@@ -44,9 +44,30 @@ export default function ClientsPage() {
     }
   }
 
+  async function handleDelete(clientId: number, clientName: string) {
+    if (!confirm(`Are you sure you want to delete ${clientName}? This will also delete all their videos.`)) {
+      return;
+    }
+
+    try {
+      await clientApi.delete(clientId);
+      loadClients();
+    } catch (error) {
+      console.error("Failed to delete client:", error);
+      alert("Failed to delete client");
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <div className="container mx-auto px-4 py-16">
+        <Link href="/">
+          <button className="flex items-center gap-2 text-purple-300 hover:text-purple-200 mb-6 transition-colors">
+            <Home className="w-5 h-5" />
+            Back to Home
+          </button>
+        </Link>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -167,14 +188,14 @@ export default function ClientsPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
+                className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all group relative"
               >
                 <Link href={`/clients/${client.id}`}>
-                  <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer group">
-                    <div className="flex items-start justify-between mb-4">
+                  <div className="cursor-pointer">
+                    <div className="flex items-start mb-4">
                       <div className="w-12 h-12 bg-purple-600/20 rounded-lg flex items-center justify-center group-hover:bg-purple-600/30 transition-colors">
                         <Building2 className="w-6 h-6 text-purple-400" />
                       </div>
-                      <ArrowRight className="w-5 h-5 text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                     <h3 className="text-xl font-bold text-white mb-1">{client.company}</h3>
                     <p className="text-purple-200 text-sm mb-3">{client.name}</p>
@@ -186,6 +207,17 @@ export default function ClientsPage() {
                     )}
                   </div>
                 </Link>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDelete(client.id, client.company);
+                  }}
+                  className="absolute top-4 right-4 p-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-colors opacity-0 group-hover:opacity-100"
+                  title="Delete client"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </motion.div>
             ))}
           </div>
