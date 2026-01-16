@@ -97,6 +97,14 @@ function initializeDatabase() {
       console.log('[database] Running migration: Adding render_progress column');
       db.exec(`ALTER TABLE videos ADD COLUMN render_progress TEXT`);
     }
+
+    // Check if theme_id column exists in videos table
+    const hasThemeId = videoTableInfo.some(col => col.name === 'theme_id');
+
+    if (!hasThemeId) {
+      console.log('[database] Running migration: Adding theme_id column');
+      db.exec(`ALTER TABLE videos ADD COLUMN theme_id TEXT DEFAULT 'tech-dark'`);
+    }
   } catch (error) {
     console.error('[database] Migration error:', error);
   }
@@ -154,8 +162,8 @@ export const videoDb = {
 
   create(data) {
     const stmt = db.prepare(`
-      INSERT INTO videos (client_id, title, composition_id, status, duration_seconds, aspect_ratio, data)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO videos (client_id, title, composition_id, status, duration_seconds, aspect_ratio, data, theme_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const result = stmt.run(
       data.client_id,
@@ -164,7 +172,8 @@ export const videoDb = {
       data.status || 'draft',
       data.duration_seconds || null,
       data.aspect_ratio || '16:9',
-      data.data ? JSON.stringify(data.data) : null
+      data.data ? JSON.stringify(data.data) : null,
+      data.theme_id || 'tech-dark'
     );
     return result.lastInsertRowid;
   },
@@ -188,6 +197,10 @@ export const videoDb = {
     if (data.output_path !== undefined) {
       updates.push('output_path = ?');
       values.push(data.output_path);
+    }
+    if (data.theme_id !== undefined) {
+      updates.push('theme_id = ?');
+      values.push(data.theme_id);
     }
 
     updates.push('updated_at = CURRENT_TIMESTAMP');

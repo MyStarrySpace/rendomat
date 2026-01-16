@@ -13,56 +13,61 @@ import {
   ProgressBarsScene,
   AreaChartScene,
   ImageGalleryScene,
-} from './SceneComponents';
+} from './scenes';
+import { getTheme, Theme } from './themes';
 
 export interface DynamicSceneProps {
   sceneType: string;
   data: any;
   durationInFrames: number;
+  themeId?: string;
 }
 
 export const DynamicSceneComposition: React.FC<DynamicSceneProps> = ({
   sceneType,
   data,
   durationInFrames,
+  themeId,
 }) => {
+  const theme = getTheme(themeId);
+
   // Select the appropriate scene component based on sceneType
   switch (sceneType) {
     case 'text-only':
-      return <TextOnlyScene data={data} durationInFrames={durationInFrames} />;
+      return <TextOnlyScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
     case 'single-image':
-      return <SingleImageScene data={data} durationInFrames={durationInFrames} />;
+      return <SingleImageScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
     case 'dual-images':
-      return <DualImagesScene data={data} durationInFrames={durationInFrames} />;
+      return <DualImagesScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
     case 'grid-2x2':
-      return <GridScene data={data} durationInFrames={durationInFrames} />;
+      return <GridScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
     case 'quote':
-      return <QuoteScene data={data} durationInFrames={durationInFrames} />;
+      return <QuoteScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
     case 'stats':
-      return <StatsScene data={data} durationInFrames={durationInFrames} />;
+      return <StatsScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
     case 'bar-chart':
-      return <BarChartScene data={data} durationInFrames={durationInFrames} />;
+      return <BarChartScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
     case 'line-chart':
-      return <LineChartScene data={data} durationInFrames={durationInFrames} />;
+      return <LineChartScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
     case 'pie-chart':
-      return <PieChartScene data={data} durationInFrames={durationInFrames} />;
+      return <PieChartScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
     case 'progress-bars':
-      return <ProgressBarsScene data={data} durationInFrames={durationInFrames} />;
+      return <ProgressBarsScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
     case 'area-chart':
-      return <AreaChartScene data={data} durationInFrames={durationInFrames} />;
+      return <AreaChartScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
     case 'image-gallery':
-      return <ImageGalleryScene data={data} durationInFrames={durationInFrames} />;
+      return <ImageGalleryScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
     default:
       // Fallback to text-only if unknown scene type

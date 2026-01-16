@@ -39,7 +39,12 @@
       "Bash(powershell \"Stop-Process -Id 33944 -Force\")",
       "Bash(tasklist:*)",
       "Bash(powershell \"Stop-Process -Id 56140 -Force\")",
-      "Bash(powershell \"Stop-Process -Id 41456 -Force\")"
+      "Bash(powershell \"Stop-Process -Id 41456 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 56192 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 56368 -Force\")",
+      "Bash(npm run dev:*)",
+      "Bash(powershell \"Stop-Process -Id 50168 -Force\")",
+      "Bash(timeout /t 3)"
     ]
   }
 }

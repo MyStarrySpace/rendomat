@@ -25,6 +25,8 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { videoApi, sceneApi, clientApi, Video, Scene, Client } from "@/lib/api";
+import { THEMES } from "@/lib/themes";
+import StockImageBrowser from "../../components/StockImageBrowser";
 
 export default function VideoDetailPage() {
   const params = useParams();
@@ -42,6 +44,8 @@ export default function VideoDetailPage() {
   const [editingSceneName, setEditingSceneName] = useState<number | null>(null);
   const [editedName, setEditedName] = useState<string>("");
   const [uploading, setUploading] = useState(false);
+  const [showStockBrowser, setShowStockBrowser] = useState(false);
+  const [currentImageField, setCurrentImageField] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -325,6 +329,15 @@ export default function VideoDetailPage() {
                   <Database className="w-4 h-4" />
                   Cache: {cachePercentage}%
                 </span>
+                {video.theme_id && THEMES[video.theme_id] && (
+                  <span className="flex items-center gap-1">
+                    <div
+                      className="w-4 h-4 rounded-sm"
+                      style={{ background: THEMES[video.theme_id].colors.backgroundGradient || THEMES[video.theme_id].colors.background }}
+                    />
+                    {THEMES[video.theme_id].name}
+                  </span>
+                )}
               </div>
             </div>
             <button
@@ -562,25 +575,40 @@ export default function VideoDetailPage() {
                                         </button>
                                       </div>
                                     ) : (
-                                      <label className="block bg-white/5 border-2 border-dashed border-purple-500/30 rounded-lg p-6 hover:border-purple-500/50 cursor-pointer transition-colors">
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          onChange={(e) => handleImageUpload(e, field)}
-                                          className="hidden"
-                                          disabled={uploading}
-                                        />
-                                        <div className="flex flex-col items-center gap-2 text-purple-300">
-                                          {uploading ? (
-                                            <Loader2 className="w-8 h-8 animate-spin" />
-                                          ) : (
-                                            <>
-                                              <Upload className="w-8 h-8" />
-                                              <span className="text-xs">Upload Image</span>
-                                            </>
-                                          )}
-                                        </div>
-                                      </label>
+                                      <div className="space-y-2">
+                                        <label className="block bg-white/5 border-2 border-dashed border-purple-500/30 rounded-lg p-6 hover:border-purple-500/50 cursor-pointer transition-colors">
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => handleImageUpload(e, field)}
+                                            className="hidden"
+                                            disabled={uploading}
+                                          />
+                                          <div className="flex flex-col items-center gap-2 text-purple-300">
+                                            {uploading ? (
+                                              <Loader2 className="w-8 h-8 animate-spin" />
+                                            ) : (
+                                              <>
+                                                <Upload className="w-8 h-8" />
+                                                <span className="text-xs">Upload Image</span>
+                                              </>
+                                            )}
+                                          </div>
+                                        </label>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setCurrentImageField(field);
+                                            setShowStockBrowser(true);
+                                          }}
+                                          className="w-full bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-200 px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                                        >
+                                          <div className="flex items-center justify-center gap-2">
+                                            <ImageIcon className="w-4 h-4" />
+                                            Browse Stock Images
+                                          </div>
+                                        </button>
+                                      </div>
                                     )}
                                   </div>
                                 ))}
@@ -807,6 +835,21 @@ export default function VideoDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Stock Image Browser */}
+      <StockImageBrowser
+        isOpen={showStockBrowser}
+        onClose={() => {
+          setShowStockBrowser(false);
+          setCurrentImageField(null);
+        }}
+        onSelectImage={(imageUrl) => {
+          if (currentImageField) {
+            setEditData({ ...editData, [currentImageField]: imageUrl });
+          }
+        }}
+        initialQuery={editData.title || "business"}
+      />
     </div>
   );
 }

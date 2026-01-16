@@ -1,12 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame, Img } from 'remotion';
-
-// Common styles
-const FONT_BODY = "'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-const BG_DARK = '#0A0A0A';
-const TEXT_PRIMARY = '#FFFFFF';
-const TEXT_SECONDARY = '#A0A0A0';
-const ACCENT_COLOR = '#00D9A3';
+import { Theme } from './themes';
 
 interface SceneData {
   title?: string;
@@ -26,6 +20,7 @@ interface SceneData {
 interface SceneProps {
   data: SceneData;
   durationInFrames: number;
+  theme: Theme;
 }
 
 // Helper function for fade animations
@@ -45,7 +40,7 @@ const useFadeAnimation = (durationInFrames: number) => {
 };
 
 // Text Only Scene
-export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
+export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
 
@@ -57,7 +52,7 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
 
   return (
     <AbsoluteFill style={{
-      background: BG_DARK,
+      background: theme.colors.backgroundGradient || theme.colors.background,
       justifyContent: 'center',
       alignItems: 'center',
       padding: 80
@@ -65,16 +60,17 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
       <div style={{
         textAlign: 'center',
         maxWidth: 1000,
-        fontFamily: FONT_BODY
+        fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
       }}>
         {data.title && (
           <div style={{
             fontSize: 72,
             fontWeight: 700,
-            color: TEXT_PRIMARY,
+            color: theme.colors.textPrimary,
             opacity: titleOpacity,
             marginBottom: 40,
-            lineHeight: 1.2
+            lineHeight: 1.2,
+            fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
           }}>
             {data.title}
           </div>
@@ -83,7 +79,7 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
           <div style={{
             fontSize: 36,
             fontWeight: 300,
-            color: TEXT_SECONDARY,
+            color: theme.colors.textSecondary,
             opacity: bodyOpacity,
             lineHeight: 1.5
           }}>
@@ -96,7 +92,7 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
 };
 
 // Single Image + Title Scene
-export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
+export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
 
@@ -105,7 +101,10 @@ export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames 
   const titleOpacity = frame > titleDelay ? Math.min(1, (frame - titleDelay) / 15) * opacity : 0;
 
   return (
-    <AbsoluteFill style={{ background: BG_DARK, fontFamily: FONT_BODY }}>
+    <AbsoluteFill style={{
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
+    }}>
       {data.image_url && (
         <div style={{
           position: 'absolute',
@@ -140,9 +139,9 @@ export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames 
           <div style={{
             fontSize: 56,
             fontWeight: 700,
-            color: TEXT_PRIMARY,
+            color: theme.colors.textPrimary,
             opacity: titleOpacity,
-            backgroundColor: 'rgba(10, 10, 10, 0.8)',
+            backgroundColor: theme.colors.surface || 'rgba(10, 10, 10, 0.8)',
             padding: '20px 40px',
             borderRadius: 12,
             display: 'inline-block'
@@ -156,7 +155,7 @@ export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames 
 };
 
 // Dual Images + Title Scene
-export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
+export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
 
@@ -170,8 +169,8 @@ export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames }
 
   return (
     <AbsoluteFill style={{
-      background: BG_DARK,
-      fontFamily: FONT_BODY,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
       padding: 80
     }}>
       <div style={{
@@ -219,8 +218,9 @@ export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames }
           <div style={{
             fontSize: 56,
             fontWeight: 700,
-            color: TEXT_PRIMARY,
-            opacity: titleOpacity
+            color: theme.colors.textPrimary,
+            opacity: titleOpacity,
+            fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
           }}>
             {data.title}
           </div>
@@ -231,7 +231,7 @@ export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames }
 };
 
 // Grid 2x2 Scene
-export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
+export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
 
@@ -241,8 +241,8 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
 
   return (
     <AbsoluteFill style={{
-      background: BG_DARK,
-      fontFamily: FONT_BODY,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
       padding: 80
     }}>
       <div style={{
@@ -283,8 +283,9 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
           <div style={{
             fontSize: 56,
             fontWeight: 700,
-            color: TEXT_PRIMARY,
-            opacity: titleOpacity
+            color: theme.colors.textPrimary,
+            opacity: titleOpacity,
+            fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
           }}>
             {data.title}
           </div>
@@ -295,7 +296,7 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
 };
 
 // Quote Scene
-export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
+export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
 
@@ -307,16 +308,16 @@ export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames }) => 
 
   return (
     <AbsoluteFill style={{
-      background: BG_DARK,
+      background: theme.colors.backgroundGradient || theme.colors.background,
       justifyContent: 'center',
       alignItems: 'center',
       padding: 120,
-      fontFamily: FONT_BODY
+      fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
     }}>
       <div style={{ maxWidth: 1200, textAlign: 'center' }}>
         <div style={{
           fontSize: 28,
-          color: ACCENT_COLOR,
+          color: theme.colors.accent,
           opacity: quoteOpacity,
           marginBottom: 40
         }}>
@@ -327,7 +328,7 @@ export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames }) => 
           <div style={{
             fontSize: 52,
             fontWeight: 300,
-            color: TEXT_PRIMARY,
+            color: theme.colors.textPrimary,
             opacity: quoteOpacity,
             lineHeight: 1.4,
             fontStyle: 'italic',
@@ -341,7 +342,7 @@ export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames }) => 
           <div style={{
             fontSize: 32,
             fontWeight: 500,
-            color: TEXT_SECONDARY,
+            color: theme.colors.textSecondary,
             opacity: authorOpacity
           }}>
             — {data.author}
@@ -353,7 +354,7 @@ export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames }) => 
 };
 
 // Stats Scene
-export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
+export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
 
@@ -370,18 +371,19 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames }) => 
 
   return (
     <AbsoluteFill style={{
-      background: BG_DARK,
-      fontFamily: FONT_BODY,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
       padding: 120
     }}>
       {data.title && (
         <div style={{
           fontSize: 56,
           fontWeight: 700,
-          color: TEXT_PRIMARY,
+          color: theme.colors.textPrimary,
           opacity: titleOpacity,
           textAlign: 'center',
-          marginBottom: 80
+          marginBottom: 80,
+          fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
         }}>
           {data.title}
         </div>
@@ -418,15 +420,16 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames }) => 
               <div style={{
                 fontSize: 96,
                 fontWeight: 700,
-                color: ACCENT_COLOR,
-                marginBottom: 20
+                color: theme.colors.accent,
+                marginBottom: 20,
+                fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
               }}>
                 {stat.value}
               </div>
               <div style={{
                 fontSize: 28,
                 fontWeight: 400,
-                color: TEXT_SECONDARY,
+                color: theme.colors.textSecondary,
                 lineHeight: 1.4
               }}>
                 {stat.label}
@@ -440,7 +443,7 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames }) => 
 };
 
 // Simple Bar Chart Scene
-export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
+export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
 
@@ -456,6 +459,7 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
       <TextOnlyScene
         data={{ title: data.title || 'Chart Data Missing', body_text: 'Please add valid chart data' }}
         durationInFrames={durationInFrames}
+        theme={theme}
       />
     );
   }
@@ -466,18 +470,19 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
 
   return (
     <AbsoluteFill style={{
-      background: BG_DARK,
-      fontFamily: FONT_BODY,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
       padding: 120
     }}>
       {data.title && (
         <div style={{
           fontSize: 48,
           fontWeight: 700,
-          color: TEXT_PRIMARY,
+          color: theme.colors.textPrimary,
           opacity: titleOpacity,
           textAlign: 'center',
-          marginBottom: 60
+          marginBottom: 60,
+          fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
         }}>
           {data.title}
         </div>
@@ -514,7 +519,7 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
               <div style={{
                 fontSize: 24,
                 fontWeight: 600,
-                color: TEXT_PRIMARY,
+                color: theme.colors.textPrimary,
                 marginBottom: 10,
                 height: 30
               }}>
@@ -523,13 +528,13 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
               <div style={{
                 width: '100%',
                 height: `${animatedHeight}%`,
-                backgroundColor: ACCENT_COLOR,
+                backgroundColor: theme.colors.accent,
                 borderRadius: '8px 8px 0 0',
                 minHeight: 10
               }} />
               <div style={{
                 fontSize: 18,
-                color: TEXT_SECONDARY,
+                color: theme.colors.textSecondary,
                 marginTop: 20,
                 textAlign: 'center'
               }}>
@@ -544,7 +549,7 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
 };
 
 // Simple Line Chart Scene
-export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
+export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
 
@@ -560,6 +565,7 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames })
       <TextOnlyScene
         data={{ title: data.title || 'Chart Data Missing', body_text: 'Please add valid chart data' }}
         durationInFrames={durationInFrames}
+        theme={theme}
       />
     );
   }
@@ -592,8 +598,8 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames })
 
   return (
     <AbsoluteFill style={{
-      background: BG_DARK,
-      fontFamily: FONT_BODY,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
       justifyContent: 'center',
       alignItems: 'center'
     }}>
@@ -603,8 +609,9 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames })
           top: 80,
           fontSize: 48,
           fontWeight: 700,
-          color: TEXT_PRIMARY,
-          opacity: titleOpacity
+          color: theme.colors.textPrimary,
+          opacity: titleOpacity,
+          fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
         }}>
           {data.title}
         </div>
@@ -619,7 +626,7 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames })
             x2={chartWidth - padding}
             y1={padding + innerHeight * ratio}
             y2={padding + innerHeight * ratio}
-            stroke="rgba(255,255,255,0.1)"
+            stroke={theme.colors.surfaceLight || 'rgba(255,255,255,0.1)'}
             strokeWidth="1"
           />
         ))}
@@ -627,7 +634,7 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames })
         {/* Line */}
         <path
           d={pathD}
-          stroke={ACCENT_COLOR}
+          stroke={theme.colors.accent}
           strokeWidth="4"
           fill="none"
           strokeDasharray="2000"
@@ -646,7 +653,7 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames })
               cx={point.x}
               cy={point.y}
               r="6"
-              fill={ACCENT_COLOR}
+              fill={theme.colors.accent}
               opacity={pointOpacity}
             />
           );
@@ -658,7 +665,7 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames })
             key={idx}
             x={points[idx].x}
             y={chartHeight - 20}
-            fill={TEXT_SECONDARY}
+            fill={theme.colors.textSecondary}
             fontSize="14"
             textAnchor="middle"
             opacity={opacity}
@@ -672,7 +679,7 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames })
 };
 
 // Pie Chart Scene (using simple SVG)
-export const PieChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
+export const PieChartScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
 
@@ -688,12 +695,19 @@ export const PieChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
       <TextOnlyScene
         data={{ title: data.title || 'Chart Data Missing', body_text: 'Please add valid chart data' }}
         durationInFrames={durationInFrames}
+        theme={theme}
       />
     );
   }
 
   const total = chartData.data.reduce((sum: number, val: number) => sum + val, 0);
-  const colors = ['#00D9A3', '#FF6B6B', '#FFD93D', '#4ECDC4', '#A78BFA'];
+  const colors = [
+    theme.colors.accent,
+    theme.colors.accentSecondary || '#FF6B6B',
+    '#FFD93D',
+    '#4ECDC4',
+    '#A78BFA'
+  ];
 
   const titleDelay = 10;
   const titleOpacity = frame > titleDelay ? Math.min(1, (frame - titleDelay) / 15) * opacity : 0;
@@ -711,18 +725,19 @@ export const PieChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
 
   return (
     <AbsoluteFill style={{
-      background: BG_DARK,
-      fontFamily: FONT_BODY,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
       padding: 80
     }}>
       {data.title && (
         <div style={{
           fontSize: 48,
           fontWeight: 700,
-          color: TEXT_PRIMARY,
+          color: theme.colors.textPrimary,
           opacity: titleOpacity,
           textAlign: 'center',
-          marginBottom: 40
+          marginBottom: 40,
+          fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
         }}>
           {data.title}
         </div>
@@ -758,7 +773,7 @@ export const PieChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
                 key={idx}
                 d={pathData}
                 fill={colors[idx % colors.length]}
-                stroke={BG_DARK}
+                stroke={theme.colors.background}
                 strokeWidth="3"
               />
             );
@@ -790,14 +805,14 @@ export const PieChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
                 <div>
                   <div style={{
                     fontSize: 24,
-                    color: TEXT_PRIMARY,
+                    color: theme.colors.textPrimary,
                     fontWeight: 500
                   }}>
                     {label}
                   </div>
                   <div style={{
                     fontSize: 18,
-                    color: TEXT_SECONDARY
+                    color: theme.colors.textSecondary
                   }}>
                     {percentage}%
                   </div>
@@ -812,7 +827,7 @@ export const PieChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) 
 };
 
 // Progress Bars Scene
-export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
+export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
 
@@ -829,8 +844,8 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
 
   return (
     <AbsoluteFill style={{
-      background: BG_DARK,
-      fontFamily: FONT_BODY,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
       padding: 120,
       justifyContent: 'center'
     }}>
@@ -838,10 +853,11 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
         <div style={{
           fontSize: 48,
           fontWeight: 700,
-          color: TEXT_PRIMARY,
+          color: theme.colors.textPrimary,
           opacity: titleOpacity,
           textAlign: 'center',
-          marginBottom: 80
+          marginBottom: 80,
+          fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
         }}>
           {data.title}
         </div>
@@ -871,14 +887,14 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
               }}>
                 <div style={{
                   fontSize: 24,
-                  color: TEXT_PRIMARY,
+                  color: theme.colors.textPrimary,
                   fontWeight: 500
                 }}>
                   {bar.label}
                 </div>
                 <div style={{
                   fontSize: 24,
-                  color: ACCENT_COLOR,
+                  color: theme.colors.accent,
                   fontWeight: 600
                 }}>
                   {Math.round(progressWidth)}%
@@ -887,14 +903,14 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
               <div style={{
                 width: '100%',
                 height: 24,
-                backgroundColor: 'rgba(255,255,255,0.1)',
+                backgroundColor: theme.colors.surfaceLight || 'rgba(255,255,255,0.1)',
                 borderRadius: 12,
                 overflow: 'hidden'
               }}>
                 <div style={{
                   width: `${progressWidth}%`,
                   height: '100%',
-                  backgroundColor: ACCENT_COLOR,
+                  backgroundColor: theme.colors.accent,
                   borderRadius: 12,
                   transition: 'width 0.3s ease'
                 }} />
@@ -908,20 +924,20 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
 };
 
 // Area Chart (similar to line chart but filled)
-export const AreaChartScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
+export const AreaChartScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   // Reuse line chart logic but add fill
-  return <LineChartScene data={data} durationInFrames={durationInFrames} />;
+  return <LineChartScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 };
 
 // Image Gallery (carousel effect)
-export const ImageGalleryScene: React.FC<SceneProps> = ({ data, durationInFrames }) => {
+export const ImageGalleryScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
 
   const images = [data.image_url, data.image_url_2, data.image_url_3, data.image_url_4].filter(Boolean);
 
   if (images.length === 0) {
-    return <TextOnlyScene data={{ title: 'No Images', body_text: 'Please add images' }} durationInFrames={durationInFrames} />;
+    return <TextOnlyScene data={{ title: 'No Images', body_text: 'Please add images' }} durationInFrames={durationInFrames} theme={theme} />;
   }
 
   const framesPerImage = Math.floor(durationInFrames / images.length);
@@ -937,7 +953,10 @@ export const ImageGalleryScene: React.FC<SceneProps> = ({ data, durationInFrames
   const nextOpacity = transitionProgress;
 
   return (
-    <AbsoluteFill style={{ background: BG_DARK, fontFamily: FONT_BODY }}>
+    <AbsoluteFill style={{
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
+    }}>
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
         <div style={{
           position: 'absolute',
@@ -991,12 +1010,13 @@ export const ImageGalleryScene: React.FC<SceneProps> = ({ data, durationInFrames
           <div style={{
             fontSize: 48,
             fontWeight: 700,
-            color: TEXT_PRIMARY,
+            color: theme.colors.textPrimary,
             opacity,
-            backgroundColor: 'rgba(10, 10, 10, 0.8)',
+            backgroundColor: theme.colors.surface || 'rgba(10, 10, 10, 0.8)',
             padding: '20px 40px',
             borderRadius: 12,
-            display: 'inline-block'
+            display: 'inline-block',
+            fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
           }}>
             {data.title}
           </div>
@@ -1019,7 +1039,7 @@ export const ImageGalleryScene: React.FC<SceneProps> = ({ data, durationInFrames
               width: 12,
               height: 12,
               borderRadius: '50%',
-              backgroundColor: idx === currentImageIndex ? ACCENT_COLOR : 'rgba(255,255,255,0.3)',
+              backgroundColor: idx === currentImageIndex ? theme.colors.accent : theme.colors.surfaceLight || 'rgba(255,255,255,0.3)',
               transition: 'background-color 0.3s'
             }}
           />

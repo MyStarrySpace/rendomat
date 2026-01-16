@@ -14,6 +14,7 @@ import { clientDb, videoDb, sceneDb } from './database.mjs';
 import { renderScene, stitchScenes, cleanCache } from './scene-renderer.mjs';
 import { getAllTemplates, getTemplate, createScenesFromTemplate } from './templates.mjs';
 import { generateSlidesFromDescription, generateChartData, improveSceneContent, searchTopicData } from './ai-service.mjs';
+import { searchPhotos, getPhoto, getCuratedPhotos } from './pexels-service.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
 const DEBUG = String(process.env.RENDER_DEBUG || '').toLowerCase() === 'true';
@@ -769,13 +770,13 @@ app.delete('/api/uploads/:filename', async (req, res) => {
 
 app.post('/api/ai/generate-slides', async (req, res) => {
   try {
-    const { description, templateId, sceneCount } = req.body;
+    const { description, templateId, sceneCount, companyDetails } = req.body;
 
     if (!description) {
       return res.status(400).json({ error: 'Description is required' });
     }
 
-    const slides = await generateSlidesFromDescription(description, templateId, sceneCount);
+    const slides = await generateSlidesFromDescription(description, templateId, sceneCount, companyDetails);
     res.json({ slides });
   } catch (error) {
     console.error('[ai] Failed to generate slides:', error);
@@ -887,6 +888,10 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
       }
 
       const inputProps = video.data ? JSON.parse(video.data) : {};
+      // Add theme_id to input props
+      if (video.theme_id) {
+        inputProps.themeId = video.theme_id;
+      }
       // Use DynamicScene composition for scene-based rendering
       const scenePath = await renderScene(
         scene.id,
@@ -1011,6 +1016,48 @@ app.get('/api/scenes/:sceneId/preview', async (req, res) => {
     const stream = (await import('node:fs')).createReadStream(scene.cache_path);
     stream.pipe(res);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== PEXELS STOCK IMAGE ROUTES =====
+
+// Search for stock images
+app.get('/api/stock-images/search', async (req, res) => {
+  try {
+    const { query, per_page = 10, page = 1 } = req.query;
+
+    if (!query) {
+      return res.status(400).json({ error: 'Query parameter is required' });
+    }
+
+    const results = await searchPhotos(query, parseInt(per_page), parseInt(page));
+    res.json(results);
+  } catch (error) {
+    console.error('[pexels] Search error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get curated stock images
+app.get('/api/stock-images/curated', async (req, res) => {
+  try {
+    const { per_page = 15, page = 1 } = req.query;
+    const results = await getCuratedPhotos(parseInt(per_page), parseInt(page));
+    res.json(results);
+  } catch (error) {
+    console.error('[pexels] Curated error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single photo by ID
+app.get('/api/stock-images/:photoId', async (req, res) => {
+  try {
+    const photo = await getPhoto(parseInt(req.params.photoId));
+    res.json(photo);
+  } catch (error) {
+    console.error('[pexels] Get photo error:', error);
     res.status(500).json({ error: error.message });
   }
 });

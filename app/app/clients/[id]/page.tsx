@@ -6,6 +6,7 @@ import { ArrowLeft, Video as VideoIcon, Plus, Play, Clock, CheckCircle, AlertCir
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { clientApi, videoApi, templateApi, Client, Video, Template } from "@/lib/api";
+import { THEMES } from "@/lib/themes";
 
 export default function ClientDetailPage() {
   const params = useParams();
@@ -23,11 +24,22 @@ export default function ClientDetailPage() {
     composition_id: "DynamicScene",
     aspect_ratio: "16:9",
     duration_seconds: 60, // Default duration when no template
+    theme_id: "tech-dark", // Default theme
   });
   const [submitting, setSubmitting] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiDescription, setAiDescription] = useState("");
   const [generatingAI, setGeneratingAI] = useState(false);
+  const [advancedMode, setAdvancedMode] = useState(false);
+  const [companyDetails, setCompanyDetails] = useState({
+    companyName: "",
+    industry: "",
+    targetAudience: "",
+    painPoints: "",
+    valueProposition: "",
+    metrics: "",
+    cta: ""
+  });
 
   useEffect(() => {
     loadData();
@@ -91,6 +103,7 @@ export default function ClientDetailPage() {
         composition_id: "UltrahumanVSL",
         aspect_ratio: "16:9",
         duration_seconds: 345,
+        theme_id: "tech-dark",
       });
       setShowForm(false);
       loadData();
@@ -116,7 +129,8 @@ export default function ClientDetailPage() {
         body: JSON.stringify({
           description: aiDescription,
           templateId: formData.template_id || null,
-          sceneCount: null // Let AI decide optimal number of scenes
+          sceneCount: null, // Let AI decide optimal number of scenes
+          companyDetails: advancedMode ? companyDetails : null
         })
       });
 
@@ -139,6 +153,7 @@ export default function ClientDetailPage() {
         duration_seconds: totalDuration,
         status: "draft",
         data: null,
+        theme_id: formData.theme_id,
       });
 
       // Create the AI-generated scenes for the new video
@@ -333,7 +348,7 @@ export default function ClientDetailPage() {
                 <select
                   value={formData.template_id}
                   onChange={(e) => handleTemplateChange(e.target.value)}
-                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white"
                 >
                   {templates.map(template => (
                     <option key={template.id} value={template.id}>
@@ -343,6 +358,26 @@ export default function ClientDetailPage() {
                 </select>
                 <p className="text-purple-300 text-xs mt-1">
                   {templates.find(t => t.id === formData.template_id)?.description}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-2">
+                  Theme *
+                </label>
+                <select
+                  value={formData.theme_id}
+                  onChange={(e) => setFormData({ ...formData, theme_id: e.target.value })}
+                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white"
+                >
+                  {Object.values(THEMES).map(theme => (
+                    <option key={theme.id} value={theme.id}>
+                      {theme.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-purple-300 text-xs mt-1">
+                  {THEMES[formData.theme_id]?.description}
                 </p>
               </div>
 
@@ -445,6 +480,26 @@ export default function ClientDetailPage() {
 
               <div>
                 <label className="block text-sm font-medium text-purple-200 mb-2">
+                  Theme *
+                </label>
+                <select
+                  value={formData.theme_id}
+                  onChange={(e) => setFormData({ ...formData, theme_id: e.target.value })}
+                  className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white"
+                >
+                  {Object.values(THEMES).map(theme => (
+                    <option key={theme.id} value={theme.id}>
+                      {theme.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-purple-300 text-xs mt-1">
+                  {THEMES[formData.theme_id]?.description}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-2">
                   Describe Your Video *
                 </label>
                 <textarea
@@ -455,6 +510,126 @@ export default function ClientDetailPage() {
                   placeholder="Example: A VSL for a SaaS tool that helps marketing teams automate their social media posting. Target audience is marketing managers at mid-size companies. Key benefits include saving 10+ hours per week, increasing engagement by 40%, and seamless integration with existing tools. CTA is to start a 14-day free trial."
                 />
               </div>
+
+              {/* Advanced Mode Toggle */}
+              <div className="flex items-center gap-3 pt-2 border-t border-purple-500/20">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={advancedMode}
+                    onChange={(e) => setAdvancedMode(e.target.checked)}
+                    className="w-4 h-4 rounded border-purple-500/30 bg-white/10 text-purple-600 focus:ring-purple-500 focus:ring-offset-0"
+                  />
+                  <span className="text-sm font-medium text-purple-200">
+                    Advanced Mode
+                  </span>
+                </label>
+                <span className="text-xs text-purple-400">
+                  (Add company-specific details for highly personalized VSL)
+                </span>
+              </div>
+
+              {/* Advanced Mode Fields */}
+              {advancedMode && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-3 pt-2 border-t border-purple-500/20"
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-purple-200 mb-1">
+                        Company Name
+                      </label>
+                      <input
+                        type="text"
+                        value={companyDetails.companyName}
+                        onChange={(e) => setCompanyDetails({ ...companyDetails, companyName: e.target.value })}
+                        className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
+                        placeholder="Acme Corp"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-purple-200 mb-1">
+                        Industry
+                      </label>
+                      <input
+                        type="text"
+                        value={companyDetails.industry}
+                        onChange={(e) => setCompanyDetails({ ...companyDetails, industry: e.target.value })}
+                        className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
+                        placeholder="SaaS, Healthcare, etc."
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-purple-200 mb-1">
+                      Target Audience (be specific)
+                    </label>
+                    <input
+                      type="text"
+                      value={companyDetails.targetAudience}
+                      onChange={(e) => setCompanyDetails({ ...companyDetails, targetAudience: e.target.value })}
+                      className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
+                      placeholder="Marketing directors at mid-market B2B companies with 50-500 employees"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-purple-200 mb-1">
+                      Key Pain Points (what problems do they face?)
+                    </label>
+                    <textarea
+                      value={companyDetails.painPoints}
+                      onChange={(e) => setCompanyDetails({ ...companyDetails, painPoints: e.target.value })}
+                      className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
+                      rows={2}
+                      placeholder="Wasting 15+ hours/week on manual data entry, missing revenue opportunities due to delayed insights, struggling to prove ROI to executives"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-purple-200 mb-1">
+                      Unique Value Proposition
+                    </label>
+                    <textarea
+                      value={companyDetails.valueProposition}
+                      onChange={(e) => setCompanyDetails({ ...companyDetails, valueProposition: e.target.value })}
+                      className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
+                      rows={2}
+                      placeholder="Only platform with real-time predictive analytics + automated workflows + executive dashboards in one place"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-purple-200 mb-1">
+                      Key Metrics / Proof Points
+                    </label>
+                    <input
+                      type="text"
+                      value={companyDetails.metrics}
+                      onChange={(e) => setCompanyDetails({ ...companyDetails, metrics: e.target.value })}
+                      className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
+                      placeholder="500+ enterprise customers, 40% time savings on average, 94% customer satisfaction"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-purple-200 mb-1">
+                      Call-to-Action (what should they do?)
+                    </label>
+                    <input
+                      type="text"
+                      value={companyDetails.cta}
+                      onChange={(e) => setCompanyDetails({ ...companyDetails, cta: e.target.value })}
+                      className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
+                      placeholder="Book a personalized demo, Start 14-day trial, Download whitepaper"
+                    />
+                  </div>
+                </motion.div>
+              )}
 
               <div className="flex gap-3">
                 <button

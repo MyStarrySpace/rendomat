@@ -24,6 +24,7 @@ export const RemotionRoot: React.FC = () => {
             body_text: 'Sample body text',
           },
           durationInFrames: 450,
+          themeId: 'tech-dark',
         }}
       />
       <Composition

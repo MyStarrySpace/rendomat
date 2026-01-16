@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { searchPhotos } from './pexels-service.mjs';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -9,54 +10,93 @@ const anthropic = new Anthropic({
  * @param {string} description - The video description
  * @param {string} [templateId] - Optional template ID to guide structure
  * @param {number} [sceneCount] - Optional number of scenes to generate (if not provided, AI decides)
+ * @param {object} [companyDetails] - Optional company-specific details for advanced mode
  */
-export async function generateSlidesFromDescription(description, templateId = null, sceneCount = null) {
+export async function generateSlidesFromDescription(description, templateId = null, sceneCount = null, companyDetails = null) {
   // If sceneCount is not provided, let the AI decide based on content
   const sceneCountInstruction = sceneCount
     ? `Generate exactly ${sceneCount} compelling slides`
-    : `Generate an appropriate number of slides (typically 5-10)`;
+    : `Generate an appropriate number of slides (typically 6-9 for optimal conversion)`;
 
   const templateGuidance = templateId
     ? `Use the "${templateId}" template structure as a guide for pacing and scene types.`
     : `Design the optimal scene sequence and types for maximum impact.`;
 
-  const prompt = `You are a professional VSL (Video Sales Letter) script writer. ${sceneCountInstruction} for a video based on this description:
+  // Build company context if provided (advanced mode)
+  const companyContext = companyDetails ? `
+COMPANY CONTEXT (use this to personalize the VSL):
+- Company Name: ${companyDetails.companyName || 'N/A'}
+- Industry: ${companyDetails.industry || 'N/A'}
+- Target Audience: ${companyDetails.targetAudience || 'N/A'}
+- Key Pain Points: ${companyDetails.painPoints || 'N/A'}
+- Unique Value Proposition: ${companyDetails.valueProposition || 'N/A'}
+- Key Metrics/Proof Points: ${companyDetails.metrics || 'N/A'}
+- Call-to-Action: ${companyDetails.cta || 'N/A'}
+` : '';
+
+  const prompt = `You are a professional B2B VSL (Video Sales Letter) script writer with expertise in conversion copywriting. ${sceneCountInstruction} for a video based on this description:
 
 ${description}
-
+${companyContext}
 ${templateGuidance}
 
-For each slide, provide:
-1. A clear, concise title (max 60 characters)
-2. Body text that elaborates on the title (max 150 characters)
-3. Scene type - choose the most effective from:
-   - Text Content: text-only, quote, stats
-   - Visual Content: single-image, dual-images, grid-2x2, image-gallery
-   - Data Visualization: line-chart, bar-chart, pie-chart, area-chart, progress-bars
-4. Any relevant data for that scene type
+CRITICAL VSL FRAMEWORK - Follow the PAS (Problem-Agitate-Solution) structure:
+
+**Scene 1 - HOOK (3-5 seconds):**
+Use a pattern interrupt: surprising stat, provocative question, bold claim, or "If you're [specific qualifier]..."
+Example hooks: "Did you know...", "3 mistakes that [target audience] makes...", "If you're still [pain point]..."
+
+**Scenes 2-3 - PROBLEM IDENTIFICATION:**
+Clearly articulate the specific pain points your target audience faces.
+Use precise, factual language (avoid exaggeration - B2B buyers respond negatively to dramatization).
+Make it feel personal and relevant to their role.
+
+**Scenes 3-5 - AGITATION:**
+Quantify the consequences with facts and realistic scenarios.
+Show the compounding effect of inaction.
+Address multiple stakeholder concerns (technical, financial, operational).
+Use data visualization (charts/stats) to make impact tangible.
+
+**Scenes 6-7 - SOLUTION:**
+Present your solution as the logical answer to the established problem.
+Focus on outcomes and benefits, not features.
+Use social proof: customer quotes, case study metrics, industry recognition.
+
+**Scene 8-9 - CALL TO ACTION:**
+Clear, specific next step (book demo, start trial, download resource).
+Remove friction and create urgency without being pushy.
+
+SCENE TYPE SELECTION GUIDE:
+- Hook: text-only or stats (grab attention fast)
+- Problem: text-only or dual-images (relatability)
+- Agitation: bar-chart, line-chart, stats (quantify pain)
+- Solution: single-image, quote (build trust)
+- Social Proof: stats, quote, grid-2x2 (credibility)
+- CTA: text-only (clarity)
 
 Return ONLY a valid JSON array of scenes with this structure:
 [
   {
     "scene_number": 0,
-    "name": "Scene name",
+    "name": "Hook - [Brief description]",
     "scene_type": "text-only",
     "data": {
-      "title": "Title text",
-      "body_text": "Body text"
+      "title": "Pattern interrupt or curiosity gap",
+      "body_text": "Expand on hook with specificity"
     }
   }
 ]
 
-Important guidelines:
-- For image-based scenes (single-image, dual-images, grid-2x2), leave image URLs as empty strings - they'll be added later
-- For chart scenes, provide realistic sample data in the appropriate format (labels array and data/datasets)
-- For quote scenes, include "quote" and "author" fields
-- For stats scenes, include "stats_text" field with format: "value | label" on each line
-- Vary scene types for visual interest - don't use only text-only scenes
-- Follow VSL best practices: strong hook, clear problem/solution, social proof, and compelling CTA
+TECHNICAL REQUIREMENTS:
+- Title: max 60 characters, punchy and benefit-focused
+- Body text: max 150 characters, conversational and direct
+- For image scenes: leave image URLs as empty strings
+- For chart scenes: provide realistic data (labels array and data/datasets)
+- For quote scenes: include "quote" and "author" fields
+- For stats scenes: use "stats_text" with format "value | label" per line
+- Vary scene types for visual interest (3+ different types minimum)
 
-Make the content engaging, persuasive, and professional.`;
+TONE: Professional but conversational. Fact-based but persuasive. Empathetic to pain points but confident in solution.`;
 
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-5-20250929',
@@ -78,7 +118,97 @@ Make the content engaging, persuasive, and professional.`;
   }
 
   const scenes = JSON.parse(jsonMatch[0]);
+
+  // Auto-fetch stock images for image-based scenes
+  await populateStockImages(scenes, description);
+
   return scenes;
+}
+
+/**
+ * Automatically fetch and populate stock images for image-based scenes
+ * @param {Array} scenes - The generated scenes array
+ * @param {string} description - Original video description for context
+ */
+async function populateStockImages(scenes, description) {
+  const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
+
+  if (!PEXELS_API_KEY) {
+    console.log('[ai] Pexels API key not found - skipping stock image population');
+    return;
+  }
+
+  // Scene types that need images
+  const imageSceneTypes = ['single-image', 'dual-images', 'grid-2x2', 'image-gallery'];
+
+  for (const scene of scenes) {
+    if (!imageSceneTypes.includes(scene.scene_type)) {
+      continue;
+    }
+
+    try {
+      // Generate search query from scene title/description
+      const searchQuery = generateImageSearchQuery(scene, description);
+
+      // Determine how many images we need
+      const imageCount = scene.scene_type === 'grid-2x2' ? 4 :
+                        scene.scene_type === 'dual-images' ? 2 :
+                        scene.scene_type === 'image-gallery' ? 4 : 1;
+
+      // Search for images
+      const results = await searchPhotos(searchQuery, imageCount, 1);
+
+      if (results.photos && results.photos.length > 0) {
+        // Populate image URLs in scene data
+        if (scene.scene_type === 'single-image') {
+          scene.data.image_url = results.photos[0].url;
+        } else if (scene.scene_type === 'dual-images') {
+          scene.data.image_url = results.photos[0]?.url || '';
+          scene.data.image_url_2 = results.photos[1]?.url || results.photos[0]?.url || '';
+        } else if (scene.scene_type === 'grid-2x2' || scene.scene_type === 'image-gallery') {
+          scene.data.image_url = results.photos[0]?.url || '';
+          scene.data.image_url_2 = results.photos[1]?.url || results.photos[0]?.url || '';
+          scene.data.image_url_3 = results.photos[2]?.url || results.photos[0]?.url || '';
+          scene.data.image_url_4 = results.photos[3]?.url || results.photos[0]?.url || '';
+        }
+
+        console.log(`[ai] Populated ${imageCount} stock image(s) for scene: ${scene.name}`);
+      }
+    } catch (error) {
+      console.error(`[ai] Failed to fetch stock images for scene ${scene.name}:`, error.message);
+      // Continue without images - user can add them manually later
+    }
+  }
+}
+
+/**
+ * Generate a search query for stock images based on scene content
+ * @param {Object} scene - The scene object
+ * @param {string} videoDescription - Overall video description for context
+ */
+function generateImageSearchQuery(scene, videoDescription) {
+  // Try to extract key terms from the scene name or title
+  const sceneName = scene.name || '';
+  const sceneTitle = scene.data?.title || '';
+
+  // Remove common VSL prefixes and clean up
+  const cleanName = sceneName
+    .replace(/^(Hook|Problem|Agitation|Solution|CTA|Scene \d+)\s*[-:]\s*/i, '')
+    .trim();
+
+  // If we have a clean scene name, use it
+  if (cleanName && cleanName.length > 3) {
+    return cleanName;
+  }
+
+  // Otherwise use scene title
+  if (sceneTitle && sceneTitle.length > 3) {
+    return sceneTitle.substring(0, 50); // Limit length
+  }
+
+  // Fallback to generic terms based on video description
+  const keywords = videoDescription.split(' ').slice(0, 3).join(' ');
+  return keywords || 'business professional';
 }
 
 /**

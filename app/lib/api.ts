@@ -22,6 +22,7 @@ export interface Video {
   data: string | null;
   output_path: string | null;
   render_progress: string | null;
+  theme_id: string | null;
   created_at: string;
   updated_at: string;
 }
