@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs/promises';
@@ -12,6 +13,7 @@ import { bundle } from '@remotion/bundler';
 import { clientDb, videoDb, sceneDb } from './database.mjs';
 import { renderScene, stitchScenes, cleanCache } from './scene-renderer.mjs';
 import { getAllTemplates, getTemplate, createScenesFromTemplate } from './templates.mjs';
+import { generateSlidesFromDescription, generateChartData, improveSceneContent, searchTopicData } from './ai-service.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
 const DEBUG = String(process.env.RENDER_DEBUG || '').toLowerCase() === 'true';
@@ -22,6 +24,40 @@ const ALLOWED_ORIGINS = (process.env.RENDER_ALLOWED_ORIGINS || '*')
 
 const entryPoint = path.join(process.cwd(), 'remotion', 'index.ts');
 const bundleLocation = path.join(process.cwd(), '.remotion-bundle-server');
+const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    // Ensure uploads directory exists
+    try {
+      await fs.mkdir(uploadsDir, { recursive: true });
+    } catch (error) {
+      console.error('Failed to create uploads directory:', error);
+    }
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|mov/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image and video files are allowed'));
+    }
+  }
+});
 
 let serveUrlPromise = null;
 async function getServeUrl() {
@@ -67,6 +103,9 @@ function sanitizePayload(body) {
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
+
+// Serve uploaded files
+app.use('/uploads', express.static(uploadsDir));
 
 // Basic request logging
 app.use((req, _res, next) => {
@@ -681,6 +720,117 @@ app.post('/api/videos/:videoId/scenes', (req, res) => {
   }
 });
 
+app.put('/api/scenes/:id', (req, res) => {
+  try {
+    const updated = sceneDb.update(req.params.id, req.body);
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================
+// File Upload API
+// =============================
+
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const fileUrl = `/uploads/${req.file.filename}`;
+    res.json({
+      url: fileUrl,
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete uploaded file
+app.delete('/api/uploads/:filename', async (req, res) => {
+  try {
+    const filePath = path.join(uploadsDir, req.params.filename);
+    await fs.unlink(filePath);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================
+// AI Integration API
+// =============================
+
+app.post('/api/ai/generate-slides', async (req, res) => {
+  try {
+    const { description, templateId, sceneCount } = req.body;
+
+    if (!description) {
+      return res.status(400).json({ error: 'Description is required' });
+    }
+
+    const slides = await generateSlidesFromDescription(description, templateId, sceneCount);
+    res.json({ slides });
+  } catch (error) {
+    console.error('[ai] Failed to generate slides:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/ai/generate-chart-data', async (req, res) => {
+  try {
+    const { description, chartType } = req.body;
+
+    if (!description || !chartType) {
+      return res.status(400).json({ error: 'Description and chartType are required' });
+    }
+
+    const chartData = await generateChartData(description, chartType);
+    res.json(chartData);
+  } catch (error) {
+    console.error('[ai] Failed to generate chart data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/ai/improve-scene', async (req, res) => {
+  try {
+    const { sceneData } = req.body;
+
+    if (!sceneData) {
+      return res.status(400).json({ error: 'Scene data is required' });
+    }
+
+    const improved = await improveSceneContent(sceneData);
+    res.json(improved);
+  } catch (error) {
+    console.error('[ai] Failed to improve scene:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/ai/search-topic', async (req, res) => {
+  try {
+    const { topic } = req.body;
+
+    if (!topic) {
+      return res.status(400).json({ error: 'Topic is required' });
+    }
+
+    const data = await searchTopicData(topic);
+    res.json(data);
+  } catch (error) {
+    console.error('[ai] Failed to search topic:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // =============================
 // Scene-Based Rendering API
 // =============================
@@ -737,10 +887,11 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
       }
 
       const inputProps = video.data ? JSON.parse(video.data) : {};
+      // Use DynamicScene composition for scene-based rendering
       const scenePath = await renderScene(
         scene.id,
         serveUrl,
-        video.composition_id,
+        'DynamicScene',
         inputProps,
         (progress) => {
           console.log(`Scene ${scene.scene_number} progress: ${(progress * 100).toFixed(1)}%`);

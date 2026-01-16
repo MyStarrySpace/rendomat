@@ -23,7 +23,23 @@
       "Bash(timeout /t 3 /nobreak)",
       "Bash(powershell \"Stop-Process -Id 35312 -Force\")",
       "Bash(powershell \"Stop-Process -Id 43624 -Force\")",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(powershell \"Stop-Process -Id 27392 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 37208 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 42844 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 45220 -Force\")",
+      "Bash(timeout /t 5)",
+      "Bash(npx remotion:*)",
+      "Bash(powershell \"Stop-Process -Id 16424 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 44384 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 15648 -Force\")",
+      "WebSearch",
+      "Bash(powershell \"Stop-Process -Id 32660 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 41904 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 33944 -Force\")",
+      "Bash(tasklist:*)",
+      "Bash(powershell \"Stop-Process -Id 56140 -Force\")",
+      "Bash(powershell \"Stop-Process -Id 41456 -Force\")"
     ]
   }
 }

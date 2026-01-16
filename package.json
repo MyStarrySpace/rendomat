@@ -14,6 +14,7 @@
     "seed-db": "node scripts/seed-database.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "@remotion/bundler": "4.0.390",
     "@remotion/lambda": "^4.0.390",
     "@remotion/renderer": "4.0.390",
@@ -23,6 +24,7 @@
     "dotenv": "^16.4.5",
     "elevenlabs-js": "^1.2.6",
     "express": "^4.19.2",
+    "multer": "^2.0.2",
     "remotion": "4.0.390"
   },
   "devDependencies": {

@@ -45,6 +45,7 @@ function initializeDatabase() {
       video_id INTEGER NOT NULL,
       scene_number INTEGER NOT NULL,
       name TEXT NOT NULL,
+      scene_type TEXT DEFAULT 'text-only',
       start_frame INTEGER NOT NULL,
       end_frame INTEGER NOT NULL,
       data TEXT,
@@ -76,6 +77,29 @@ function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_scenes_video ON scenes(video_id);
     CREATE INDEX IF NOT EXISTS idx_render_jobs_status ON render_jobs(status);
   `);
+
+  // Run migrations
+  try {
+    // Check if scene_type column exists, if not add it
+    const tableInfo = db.prepare("PRAGMA table_info(scenes)").all();
+    const hasSceneType = tableInfo.some(col => col.name === 'scene_type');
+
+    if (!hasSceneType) {
+      console.log('[database] Running migration: Adding scene_type column');
+      db.exec(`ALTER TABLE scenes ADD COLUMN scene_type TEXT DEFAULT 'text-only'`);
+    }
+
+    // Check if render_progress column exists in videos table
+    const videoTableInfo = db.prepare("PRAGMA table_info(videos)").all();
+    const hasRenderProgress = videoTableInfo.some(col => col.name === 'render_progress');
+
+    if (!hasRenderProgress) {
+      console.log('[database] Running migration: Adding render_progress column');
+      db.exec(`ALTER TABLE videos ADD COLUMN render_progress TEXT`);
+    }
+  } catch (error) {
+    console.error('[database] Migration error:', error);
+  }
 
   console.log('[database] Initialized SQLite database at', dbPath);
 }
@@ -191,19 +215,55 @@ export const sceneDb = {
 
   create(data) {
     const stmt = db.prepare(`
-      INSERT INTO scenes (video_id, scene_number, name, start_frame, end_frame, data, cache_hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO scenes (video_id, scene_number, name, scene_type, start_frame, end_frame, data, cache_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const result = stmt.run(
       data.video_id,
       data.scene_number,
       data.name,
+      data.scene_type || 'text-only',
       data.start_frame,
       data.end_frame,
-      data.data ? JSON.stringify(data.data) : null,
+      data.data ? (typeof data.data === 'string' ? data.data : JSON.stringify(data.data)) : null,
       data.cache_hash || null
     );
     return result.lastInsertRowid;
+  },
+
+  update(id, data) {
+    const updates = [];
+    const values = [];
+
+    if (data.name !== undefined) {
+      updates.push('name = ?');
+      values.push(data.name);
+    }
+    if (data.scene_type !== undefined) {
+      updates.push('scene_type = ?');
+      values.push(data.scene_type);
+    }
+    if (data.data !== undefined) {
+      updates.push('data = ?');
+      values.push(typeof data.data === 'string' ? data.data : JSON.stringify(data.data));
+    }
+
+    if (updates.length === 0) {
+      return this.getById(id);
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
+
+    const stmt = db.prepare(`UPDATE scenes SET ${updates.join(', ')} WHERE id = ?`);
+    stmt.run(...values);
+
+    // Invalidate cache when scene is updated
+    if (data.data !== undefined || data.scene_type !== undefined) {
+      this.invalidateCache(id);
+    }
+
+    return this.getById(id);
   },
 
   updateCache(id, cachePath, cacheHash) {

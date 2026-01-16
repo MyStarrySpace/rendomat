@@ -28,9 +28,10 @@ export async function renderScene(sceneId, serveUrl, compositionId, inputProps, 
     throw new Error(`Scene ${sceneId} not found`);
   }
 
-  // Generate hash for this scene
+  // Generate hash for this scene (include scene_type so changes invalidate cache)
   const sceneHash = generateSceneHash({
     scene_number: scene.scene_number,
+    scene_type: scene.scene_type,
     start_frame: scene.start_frame,
     end_frame: scene.end_frame,
     data: scene.data,
@@ -65,9 +66,26 @@ export async function renderScene(sceneId, serveUrl, compositionId, inputProps, 
     'chrome-headless-shell.exe'
   );
 
+  // Parse scene data and prepare input props with scene type
+  let sceneData;
+  try {
+    sceneData = scene.data ? JSON.parse(scene.data) : {};
+  } catch (err) {
+    console.error(`[scene-renderer] Failed to parse scene data for scene ${sceneId}:`, err);
+    sceneData = {};
+  }
+
+  // Merge scene-specific props with input props
+  const sceneInputProps = {
+    ...inputProps,
+    sceneType: scene.scene_type || 'text-only',
+    data: sceneData,
+    durationInFrames: scene.end_frame - scene.start_frame,
+  };
+
   // Write scene-specific input props
   const inputJsonPath = path.join(os.tmpdir(), `scene-${sceneId}-${Date.now()}.json`);
-  await fs.writeFile(inputJsonPath, JSON.stringify(inputProps), 'utf8');
+  await fs.writeFile(inputJsonPath, JSON.stringify(sceneInputProps), 'utf8');
 
   // Render the scene using a worker process
   await new Promise((resolve, reject) => {
@@ -79,7 +97,7 @@ export async function renderScene(sceneId, serveUrl, compositionId, inputProps, 
         OUT_PATH: outputPath,
         INPUT_JSON: inputJsonPath,
         COMPOSITION_ID: compositionId,
-        RENDER_DEBUG: 'false',
+        RENDER_DEBUG: 'true',
         BROWSER_EXECUTABLE: browserExecutable,
         // Scene-specific rendering
         START_FRAME: scene.start_frame.toString(),

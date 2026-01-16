@@ -95,7 +95,7 @@ async function main() {
     outputLocation: outPath,
     inputProps,
     frameRange: startFrame !== undefined && endFrame !== undefined
-      ? [startFrame, endFrame]
+      ? [startFrame, endFrame - 1]  // frameRange is inclusive, so subtract 1 from endFrame
       : null,
     // Start conservative to avoid Windows headless GPU / resource issues.
     concurrency: 1,
@@ -116,10 +116,8 @@ async function main() {
       if (debug) send({ type: 'log', level: 'info', message: 'renderMedia() started' });
     },
     onBrowserLog: (log) => {
-      // Only log errors, ignore verbose messages
-      if (log.type === 'error') {
-        send({ type: 'log', level: 'error', message: String(log.text ?? '') });
-      }
+      // Log all browser messages for debugging
+      send({ type: 'log', level: log.type || 'info', message: String(log.text ?? '') });
     },
     // IMPORTANT: ffmpegOverride in Remotion v4 receives {type, args} object
     ffmpegOverride: ({ type, args }) => {

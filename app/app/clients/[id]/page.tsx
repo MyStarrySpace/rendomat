@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Video as VideoIcon, Plus, Play, Clock, CheckCircle, AlertCircle, Loader2, Trash2, Home } from "lucide-react";
+import { ArrowLeft, Video as VideoIcon, Plus, Play, Clock, CheckCircle, AlertCircle, Loader2, Trash2, Home, Sparkles, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { clientApi, videoApi, templateApi, Client, Video, Template } from "@/lib/api";
@@ -19,12 +19,15 @@ export default function ClientDetailPage() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
-    template_id: "ultrahuman-vsl",
-    composition_id: "UltrahumanVSL",
+    template_id: "", // Empty = no template (AI decides)
+    composition_id: "DynamicScene",
     aspect_ratio: "16:9",
-    duration_seconds: 345,
+    duration_seconds: 60, // Default duration when no template
   });
   const [submitting, setSubmitting] = useState(false);
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiDescription, setAiDescription] = useState("");
+  const [generatingAI, setGeneratingAI] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -48,6 +51,18 @@ export default function ClientDetailPage() {
   }
 
   function handleTemplateChange(templateId: string) {
+    if (!templateId) {
+      // No template selected - use defaults
+      setFormData({
+        ...formData,
+        template_id: "",
+        composition_id: "DynamicScene",
+        aspect_ratio: "16:9",
+        duration_seconds: 60,
+      });
+      return;
+    }
+
     const template = templates.find(t => t.id === templateId);
     if (template) {
       setFormData({
@@ -84,6 +99,75 @@ export default function ClientDetailPage() {
       alert("Failed to create video");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleGenerateWithAI() {
+    if (!aiDescription.trim()) {
+      alert("Please enter a description");
+      return;
+    }
+
+    setGeneratingAI(true);
+    try {
+      const response = await fetch('http://localhost:8787/api/ai/generate-slides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: aiDescription,
+          templateId: formData.template_id || null,
+          sceneCount: null // Let AI decide optimal number of scenes
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate slides');
+      }
+
+      const { slides } = await response.json();
+
+      // Calculate total duration based on AI-generated scenes
+      const totalDuration = slides.length * 15; // Approximate 15 seconds per scene
+
+      // Create video with AI-generated scenes
+      const videoResponse = await videoApi.create({
+        client_id: clientId,
+        title: formData.title || `AI Generated - ${new Date().toLocaleDateString()}`,
+        template_id: formData.template_id || undefined, // Don't include if empty
+        composition_id: "DynamicScene", // Always use DynamicScene for AI videos
+        aspect_ratio: formData.aspect_ratio,
+        duration_seconds: totalDuration,
+        status: "draft",
+        data: null,
+      });
+
+      // Create the AI-generated scenes for the new video
+      const videoId = videoResponse.id;
+      for (const slide of slides) {
+        await fetch(`http://localhost:8787/api/videos/${videoId}/scenes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scene_number: slide.scene_number,
+            name: slide.name,
+            scene_type: slide.scene_type || 'text-only',
+            start_frame: slide.scene_number * 450, // Approximate, will be adjusted
+            end_frame: (slide.scene_number + 1) * 450,
+            data: slide.data  // Backend will stringify it
+          })
+        });
+      }
+
+      setShowAIModal(false);
+      setAiDescription("");
+      setShowForm(false);
+      loadData();
+      alert('Video created with AI-generated slides!');
+    } catch (error) {
+      console.error('Failed to generate with AI:', error);
+      alert('Failed to generate slides with AI');
+    } finally {
+      setGeneratingAI(false);
     }
   }
 
@@ -204,6 +288,13 @@ export default function ClientDetailPage() {
                 Delete Client
               </button>
               <button
+                onClick={() => setShowAIModal(true)}
+                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg transition-all shadow-lg"
+              >
+                <Sparkles className="w-5 h-5" />
+                AI Generate
+              </button>
+              <button
                 onClick={() => setShowForm(!showForm)}
                 className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
               >
@@ -301,6 +392,101 @@ export default function ClientDetailPage() {
                 </button>
               </div>
             </form>
+          </motion.div>
+        )}
+
+        {showAIModal && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-br from-purple-900/90 to-pink-900/90 backdrop-blur-lg rounded-lg p-6 border border-purple-500/30 mb-8 shadow-2xl"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Wand2 className="w-6 h-6 text-purple-300" />
+              <h2 className="text-xl font-bold text-white">AI Video Generator</h2>
+            </div>
+            <p className="text-purple-200 text-sm mb-4">
+              Describe your video and AI will generate professional slides for you. Include details about your product, target audience, key benefits, and call-to-action.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-2">
+                  Video Title
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
+                  placeholder="My Amazing Product Launch"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-2">
+                  Template <span className="text-purple-400 text-xs font-normal">(optional - AI will decide if not selected)</span>
+                </label>
+                <select
+                  value={formData.template_id}
+                  onChange={(e) => handleTemplateChange(e.target.value)}
+                  className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
+                >
+                  <option value="">None (AI decides structure)</option>
+                  <optgroup label="Available Templates">
+                    {templates.map(template => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} - {template.scene_count} scenes, {template.duration_seconds}s
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-purple-200 mb-2">
+                  Describe Your Video *
+                </label>
+                <textarea
+                  value={aiDescription}
+                  onChange={(e) => setAiDescription(e.target.value)}
+                  className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-3 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
+                  rows={6}
+                  placeholder="Example: A VSL for a SaaS tool that helps marketing teams automate their social media posting. Target audience is marketing managers at mid-size companies. Key benefits include saving 10+ hours per week, increasing engagement by 40%, and seamless integration with existing tools. CTA is to start a 14-day free trial."
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleGenerateWithAI}
+                  disabled={generatingAI || !aiDescription.trim()}
+                  className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-6 py-3 rounded-lg transition-all shadow-lg font-semibold"
+                >
+                  {generatingAI ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Generating with AI...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      Generate Video with AI
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAIModal(false);
+                    setAiDescription("");
+                  }}
+                  disabled={generatingAI}
+                  className="px-4 py-2 rounded-lg border border-purple-500/30 text-purple-200 hover:bg-white/10 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </motion.div>
         )}
 

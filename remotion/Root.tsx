@@ -4,11 +4,28 @@ import { PolicyWrappedSquare } from './PolicyWrappedSquare';
 import { CivicProfileVideo } from './CivicProfileVideo';
 import { ClassProfileVideo } from './ClassProfileVideo';
 import { UltrahumanVSL } from './UltrahumanVSL';
+import { DynamicSceneComposition } from './DynamicSceneComposition';
 import type { PolicyWrappedRenderProps, CivicProfileRenderProps, ClassProfileRenderProps } from './types';
 
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+      <Composition
+        id="DynamicScene"
+        component={DynamicSceneComposition}
+        durationInFrames={450} // 15 seconds at 30fps (default, can be overridden)
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          sceneType: 'text-only',
+          data: {
+            title: 'Sample Title',
+            body_text: 'Sample body text',
+          },
+          durationInFrames: 450,
+        }}
+      />
       <Composition
         id="UltrahumanVSL"
         component={UltrahumanVSL}

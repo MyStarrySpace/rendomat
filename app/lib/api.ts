@@ -31,6 +31,7 @@ export interface Scene {
   video_id: number;
   scene_number: number;
   name: string;
+  scene_type: string;
   start_frame: number;
   end_frame: number;
   data: string | null;
@@ -160,6 +161,16 @@ export const sceneApi = {
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error('Failed to create scene');
+    return res.json();
+  },
+
+  async update(sceneId: number, data: Partial<Omit<Scene, 'id' | 'video_id' | 'created_at' | 'updated_at'>>): Promise<Scene> {
+    const res = await fetch(`${API_BASE}/api/scenes/${sceneId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update scene');
     return res.json();
   },
 };

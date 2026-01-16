@@ -17,7 +17,10 @@ import {
   Download,
   Zap,
   Database,
-  Home
+  Home,
+  Upload,
+  Image as ImageIcon,
+  Trash2
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -36,6 +39,9 @@ export default function VideoDetailPage() {
   const [progressData, setProgressData] = useState<any>(null);
   const [editingScene, setEditingScene] = useState<number | null>(null);
   const [editData, setEditData] = useState<any>({});
+  const [editingSceneName, setEditingSceneName] = useState<number | null>(null);
+  const [editedName, setEditedName] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -159,6 +165,66 @@ export default function VideoDetailPage() {
       console.error("Failed to update scene:", error);
       alert("Failed to update scene");
     }
+  }
+
+  function startEditSceneName(scene: Scene) {
+    setEditingSceneName(scene.id);
+    setEditedName(scene.name);
+  }
+
+  async function saveSceneName(sceneId: number) {
+    try {
+      await sceneApi.update(sceneId, { name: editedName });
+      setEditingSceneName(null);
+      setEditedName("");
+      loadData();
+    } catch (error) {
+      console.error("Failed to update scene name:", error);
+      alert("Failed to update scene name");
+    }
+  }
+
+  function cancelEditSceneName() {
+    setEditingSceneName(null);
+    setEditedName("");
+  }
+
+  async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>, fieldName: string) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('http://localhost:8787/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+
+      const data = await response.json();
+      const imageUrl = `http://localhost:8787${data.url}`;
+
+      // Update editData with the new image URL
+      setEditData({
+        ...editData,
+        [fieldName]: imageUrl
+      });
+    } catch (error) {
+      console.error('Failed to upload image:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function removeImage(fieldName: string) {
+    const newData = { ...editData };
+    delete newData[fieldName];
+    setEditData(newData);
   }
 
   function getSceneName(sceneNumber: number): string {
@@ -348,13 +414,16 @@ export default function VideoDetailPage() {
               Output Video
             </h2>
             <div className="bg-white/10 backdrop-blur-lg rounded-lg p-4 border border-purple-500/20">
-              <video
-                controls
-                className="w-full rounded-lg"
-                src={`http://localhost:8787/api/videos/${videoId}/preview`}
-              >
-                Your browser does not support the video tag.
-              </video>
+              <div className="max-w-4xl mx-auto">
+                <video
+                  controls
+                  className="w-full rounded-lg"
+                  style={{ aspectRatio: video.aspect_ratio || '16/9' }}
+                  src={`http://localhost:8787/api/videos/${videoId}/preview`}
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </div>
             </div>
           </motion.div>
         )}
@@ -384,28 +453,275 @@ export default function VideoDetailPage() {
                           <div className="w-10 h-10 bg-purple-600/30 rounded-lg flex items-center justify-center">
                             <span className="text-purple-200 font-bold">{scene.scene_number}</span>
                           </div>
-                          <div>
-                            <h3 className="text-xl font-bold text-white">
-                              {getSceneName(scene.scene_number)}
-                            </h3>
-                            <p className="text-purple-300 text-sm">
+                          <div className="flex-1">
+                            {editingSceneName === scene.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={editedName}
+                                  onChange={(e) => setEditedName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') saveSceneName(scene.id);
+                                    if (e.key === 'Escape') cancelEditSceneName();
+                                  }}
+                                  className="flex-1 bg-white/10 border border-purple-500/50 rounded-lg px-3 py-1 text-white text-xl font-bold focus:outline-none focus:border-purple-500"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => saveSceneName(scene.id)}
+                                  className="p-2 rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors"
+                                  title="Save"
+                                >
+                                  <Save className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={cancelEditSceneName}
+                                  className="p-2 rounded-lg border border-purple-500/30 text-purple-300 hover:bg-white/5 transition-colors"
+                                  title="Cancel"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 group">
+                                <h3 className="text-xl font-bold text-white">
+                                  {scene.name}
+                                </h3>
+                                <button
+                                  onClick={() => startEditSceneName(scene)}
+                                  className="opacity-0 group-hover:opacity-100 p-1 rounded text-purple-300 hover:text-purple-200 hover:bg-white/10 transition-all"
+                                  title="Rename scene"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
+                            <p className="text-purple-300 text-sm mt-1">
                               {formatFrameRange(scene.start_frame, scene.end_frame)} • {scene.end_frame - scene.start_frame} frames
                             </p>
                           </div>
                         </div>
 
                         {editingScene === scene.id ? (
-                          <div className="mt-4 space-y-3">
-                            <textarea
-                              value={JSON.stringify(editData, null, 2)}
-                              onChange={(e) => {
-                                try {
-                                  setEditData(JSON.parse(e.target.value));
-                                } catch {}
-                              }}
-                              className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-3 text-white font-mono text-sm focus:outline-none focus:border-purple-500"
-                              rows={8}
-                            />
+                          <div className="mt-4 space-y-4">
+                            {/* Scene Type Selector */}
+                            <div>
+                              <label className="block text-sm font-medium text-purple-200 mb-2">
+                                Scene Type
+                              </label>
+                              <select
+                                value={scene.scene_type || 'text-only'}
+                                onChange={(e) => {
+                                  sceneApi.update(scene.id, { scene_type: e.target.value });
+                                  loadData();
+                                }}
+                                className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white [&>optgroup]:text-gray-900 [&>optgroup]:bg-gray-100"
+                              >
+                                <optgroup label="📝 Text Content">
+                                  <option value="text-only">Text Only</option>
+                                  <option value="quote">Quote/Testimonial</option>
+                                  <option value="stats">Stats/Numbers</option>
+                                </optgroup>
+                                <optgroup label="🖼️ Visual Content">
+                                  <option value="single-image">Single Image + Title</option>
+                                  <option value="dual-images">Dual Images + Title</option>
+                                  <option value="grid-2x2">Grid (2×2 Images)</option>
+                                  <option value="image-gallery">Image Gallery</option>
+                                </optgroup>
+                                <optgroup label="📊 Data Visualization">
+                                  <option value="line-chart">Line Chart</option>
+                                  <option value="bar-chart">Bar Chart</option>
+                                  <option value="pie-chart">Pie/Donut Chart</option>
+                                  <option value="area-chart">Area Chart</option>
+                                  <option value="progress-bars">Progress Bars</option>
+                                </optgroup>
+                              </select>
+                            </div>
+
+                            {/* Conditional Fields Based on Scene Type */}
+                            {(scene.scene_type === 'single-image' || scene.scene_type === 'dual-images' || scene.scene_type === 'grid-2x2' || scene.scene_type === 'image-gallery') && (
+                              <div className="space-y-2">
+                                <label className="block text-sm font-medium text-purple-200">
+                                  Images
+                                </label>
+                                <div className="grid grid-cols-2 gap-3">
+                                {['image_url', 'image_url_2', 'image_url_3', 'image_url_4'].map((field) => (
+                                  <div key={field} className="relative">
+                                    {editData[field] ? (
+                                      <div className="relative bg-white/5 rounded-lg p-2 border border-purple-500/30">
+                                        <img
+                                          src={editData[field]}
+                                          alt={field}
+                                          className="w-full h-32 object-cover rounded"
+                                        />
+                                        <button
+                                          onClick={() => removeImage(field)}
+                                          className="absolute top-3 right-3 p-1 rounded-full bg-red-500/80 hover:bg-red-600 text-white transition-colors"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <label className="block bg-white/5 border-2 border-dashed border-purple-500/30 rounded-lg p-6 hover:border-purple-500/50 cursor-pointer transition-colors">
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={(e) => handleImageUpload(e, field)}
+                                          className="hidden"
+                                          disabled={uploading}
+                                        />
+                                        <div className="flex flex-col items-center gap-2 text-purple-300">
+                                          {uploading ? (
+                                            <Loader2 className="w-8 h-8 animate-spin" />
+                                          ) : (
+                                            <>
+                                              <Upload className="w-8 h-8" />
+                                              <span className="text-xs">Upload Image</span>
+                                            </>
+                                          )}
+                                        </div>
+                                      </label>
+                                    )}
+                                  </div>
+                                ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Common Text Fields */}
+                            <div className="space-y-3">
+                              <div>
+                                <label className="block text-sm font-medium text-purple-200 mb-2">
+                                  Title
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editData.title || ''}
+                                  onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
+                                  placeholder="Scene title"
+                                />
+                              </div>
+
+                              {scene.scene_type !== 'quote' && scene.scene_type !== 'stats' && !scene.scene_type?.includes('chart') && (
+                                <div>
+                                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                                    Body Text
+                                  </label>
+                                  <textarea
+                                    value={editData.body_text || ''}
+                                    onChange={(e) => setEditData({ ...editData, body_text: e.target.value })}
+                                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
+                                    rows={3}
+                                    placeholder="Additional text for this scene"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Quote-specific fields */}
+                            {scene.scene_type === 'quote' && (
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                                    Quote
+                                  </label>
+                                  <textarea
+                                    value={editData.quote || ''}
+                                    onChange={(e) => setEditData({ ...editData, quote: e.target.value })}
+                                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
+                                    rows={3}
+                                    placeholder="The quote text"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                                    Author
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editData.author || ''}
+                                    onChange={(e) => setEditData({ ...editData, author: e.target.value })}
+                                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
+                                    placeholder="Author name"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Stats-specific fields */}
+                            {scene.scene_type === 'stats' && (
+                              <div>
+                                <label className="block text-sm font-medium text-purple-200 mb-2">
+                                  Stats (one per line, format: "75% | Increase in engagement")
+                                </label>
+                                <textarea
+                                  value={editData.stats_text || ''}
+                                  onChange={(e) => setEditData({ ...editData, stats_text: e.target.value })}
+                                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500 font-mono text-sm"
+                                  rows={5}
+                                  placeholder="75% | Increase in engagement&#10;10+ hours | Saved per week&#10;$50K | Revenue growth"
+                                />
+                              </div>
+                            )}
+
+                            {/* Chart data fields */}
+                            {scene.scene_type?.includes('chart') && (
+                              <div>
+                                <label className="block text-sm font-medium text-purple-200 mb-2">
+                                  Chart Data (JSON format)
+                                </label>
+                                <textarea
+                                  value={editData.chart_data || ''}
+                                  onChange={(e) => setEditData({ ...editData, chart_data: e.target.value })}
+                                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500 font-mono text-sm"
+                                  rows={6}
+                                  placeholder='{"labels": ["Jan", "Feb", "Mar"], "data": [10, 20, 30]}'
+                                />
+                                <button
+                                  onClick={async () => {
+                                    const description = prompt('Describe the data you want to visualize:');
+                                    if (!description) return;
+
+                                    try {
+                                      const response = await fetch('http://localhost:8787/api/ai/generate-chart-data', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ description, chartType: scene.scene_type })
+                                      });
+                                      const data = await response.json();
+                                      setEditData({ ...editData, chart_data: JSON.stringify(data, null, 2) });
+                                    } catch (error) {
+                                      alert('Failed to generate chart data');
+                                    }
+                                  }}
+                                  className="mt-2 flex items-center gap-2 text-sm text-purple-300 hover:text-purple-200"
+                                >
+                                  <Sparkles className="w-4 h-4" />
+                                  Generate with AI
+                                </button>
+                              </div>
+                            )}
+
+                            {/* JSON Editor for Advanced Users */}
+                            <details className="bg-white/5 rounded-lg border border-purple-500/20">
+                              <summary className="cursor-pointer p-3 text-purple-300 text-sm font-medium hover:text-purple-200">
+                                Advanced: Edit Raw JSON
+                              </summary>
+                              <div className="p-3 pt-0">
+                                <textarea
+                                  value={JSON.stringify(editData, null, 2)}
+                                  onChange={(e) => {
+                                    try {
+                                      setEditData(JSON.parse(e.target.value));
+                                    } catch {}
+                                  }}
+                                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-3 text-white font-mono text-sm focus:outline-none focus:border-purple-500"
+                                  rows={8}
+                                />
+                              </div>
+                            </details>
+
                             <div className="flex gap-2">
                               <button
                                 onClick={() => saveEdit(scene.id)}
@@ -427,13 +743,16 @@ export default function VideoDetailPage() {
                           <div className="mt-4 space-y-3">
                             {scene.cache_path && (
                               <div className="bg-white/5 rounded-lg p-3">
-                                <video
-                                  controls
-                                  className="w-full rounded-lg"
-                                  src={`http://localhost:8787/api/scenes/${scene.id}/preview`}
-                                >
-                                  Your browser does not support the video tag.
-                                </video>
+                                <div className="max-w-2xl">
+                                  <video
+                                    controls
+                                    className="w-full rounded-lg"
+                                    style={{ aspectRatio: video.aspect_ratio || '16/9' }}
+                                    src={`http://localhost:8787/api/scenes/${scene.id}/preview`}
+                                  >
+                                    Your browser does not support the video tag.
+                                  </video>
+                                </div>
                               </div>
                             )}
                             {scene.data && (
