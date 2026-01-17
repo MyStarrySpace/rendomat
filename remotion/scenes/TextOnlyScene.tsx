@@ -2,10 +2,12 @@ import React from 'react';
 import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { SceneProps } from './types';
 import { useFadeAnimation } from './utils';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
+  const layout = useResponsiveLayout();
 
   const titleDelay = 10;
   const bodyDelay = 25;
@@ -18,20 +20,20 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, th
       background: theme.colors.backgroundGradient || theme.colors.background,
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 80
+      padding: layout.padding
     }}>
       <div style={{
         textAlign: 'center',
-        maxWidth: 1000,
+        maxWidth: layout.maxWidth,
         fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
       }}>
         {data.title && (
           <div style={{
-            fontSize: 72,
+            fontSize: layout.titleFontSize,
             fontWeight: 700,
             color: theme.colors.textPrimary,
             opacity: titleOpacity,
-            marginBottom: 40,
+            marginBottom: layout.gap,
             lineHeight: 1.2,
             fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
           }}>
@@ -40,7 +42,7 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, th
         )}
         {data.body_text && (
           <div style={{
-            fontSize: 36,
+            fontSize: layout.bodyFontSize,
             fontWeight: 300,
             color: theme.colors.textSecondary,
             opacity: bodyOpacity,

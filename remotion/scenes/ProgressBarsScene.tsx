@@ -2,10 +2,12 @@ import React from 'react';
 import { AbsoluteFill, useCurrentFrame, interpolate } from 'remotion';
 import { SceneProps } from './types';
 import { useFadeAnimation } from './utils';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
+  const layout = useResponsiveLayout();
 
   // Parse from stats_text format: "75 | Label"
   const bars = data.stats_text
@@ -18,21 +20,24 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
   const titleDelay = 10;
   const titleOpacity = frame > titleDelay ? Math.min(1, (frame - titleDelay) / 15) * opacity : 0;
 
+  const labelFontSize = layout.isVertical ? 18 : layout.isSquare ? 20 : 24;
+  const barHeight = layout.isVertical ? 18 : 24;
+
   return (
     <AbsoluteFill style={{
       background: theme.colors.backgroundGradient || theme.colors.background,
       fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
-      padding: 120,
+      padding: layout.padding * 1.5,
       justifyContent: 'center'
     }}>
       {data.title && (
         <div style={{
-          fontSize: 48,
+          fontSize: layout.isVertical ? 36 : layout.isSquare ? 40 : 48,
           fontWeight: 700,
           color: theme.colors.textPrimary,
           opacity: titleOpacity,
           textAlign: 'center',
-          marginBottom: 80,
+          marginBottom: layout.gap * 2,
           fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
         }}>
           {data.title}
@@ -42,8 +47,8 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
       <div style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 40,
-        maxWidth: 1000,
+        gap: layout.gap,
+        maxWidth: layout.maxWidth,
         margin: '0 auto',
         width: '100%'
       }}>
@@ -59,17 +64,17 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                marginBottom: 12
+                marginBottom: layout.isVertical ? 8 : 12
               }}>
                 <div style={{
-                  fontSize: 24,
+                  fontSize: labelFontSize,
                   color: theme.colors.textPrimary,
                   fontWeight: 500
                 }}>
                   {bar.label}
                 </div>
                 <div style={{
-                  fontSize: 24,
+                  fontSize: labelFontSize,
                   color: theme.colors.accent,
                   fontWeight: 600
                 }}>
@@ -78,7 +83,7 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
               </div>
               <div style={{
                 width: '100%',
-                height: 24,
+                height: barHeight,
                 backgroundColor: theme.colors.surfaceLight || 'rgba(255,255,255,0.1)',
                 borderRadius: 12,
                 overflow: 'hidden'

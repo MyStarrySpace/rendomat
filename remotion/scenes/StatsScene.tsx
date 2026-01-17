@@ -2,10 +2,12 @@ import React from 'react';
 import { AbsoluteFill, useCurrentFrame, interpolate } from 'remotion';
 import { SceneProps } from './types';
 import { useFadeAnimation } from './utils';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
+  const layout = useResponsiveLayout();
 
   // Parse stats from stats_text format: "75% | Description"
   const stats = data.stats_text
@@ -18,20 +20,23 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
   const titleDelay = 10;
   const titleOpacity = frame > titleDelay ? Math.min(1, (frame - titleDelay) / 15) * opacity : 0;
 
+  // In vertical mode, always stack stats vertically
+  const shouldStackVertically = layout.isVertical || stats.length > 3;
+
   return (
     <AbsoluteFill style={{
       background: theme.colors.backgroundGradient || theme.colors.background,
       fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
-      padding: 120
+      padding: layout.padding * 1.5
     }}>
       {data.title && (
         <div style={{
-          fontSize: 56,
+          fontSize: layout.isVertical ? 44 : layout.isSquare ? 48 : 56,
           fontWeight: 700,
           color: theme.colors.textPrimary,
           opacity: titleOpacity,
           textAlign: 'center',
-          marginBottom: 80,
+          marginBottom: layout.gap * 2,
           fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
         }}>
           {data.title}
@@ -40,9 +45,9 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
 
       <div style={{
         display: 'flex',
-        flexDirection: stats.length <= 3 ? 'row' : 'column',
+        flexDirection: shouldStackVertically ? 'column' : 'row',
         flexWrap: 'wrap',
-        gap: 60,
+        gap: layout.gap * 1.5,
         justifyContent: 'center',
         alignItems: 'center'
       }}>
@@ -63,20 +68,20 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
                 opacity: statOpacity,
                 transform: `scale(${scale})`,
                 textAlign: 'center',
-                minWidth: 300
+                minWidth: layout.isVertical ? 200 : 300
               }}
             >
               <div style={{
-                fontSize: 96,
+                fontSize: layout.statValueFontSize,
                 fontWeight: 700,
                 color: theme.colors.accent,
-                marginBottom: 20,
+                marginBottom: layout.isVertical ? 10 : 20,
                 fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
               }}>
                 {stat.value}
               </div>
               <div style={{
-                fontSize: 28,
+                fontSize: layout.statLabelFontSize,
                 fontWeight: 400,
                 color: theme.colors.textSecondary,
                 lineHeight: 1.4

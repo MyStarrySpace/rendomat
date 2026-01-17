@@ -4,6 +4,7 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { fork } from 'node:child_process';
 import { sceneDb } from './database.mjs';
+import { getCompositionIdForAspectRatio, ASPECT_RATIOS } from './platform-config.mjs';
 
 // Cache directory for rendered scenes
 const CACHE_DIR = path.join(process.cwd(), 'cache', 'scenes');
@@ -20,7 +21,8 @@ function generateSceneHash(sceneData) {
 }
 
 // Render a single scene
-export async function renderScene(sceneId, serveUrl, compositionId, inputProps, onProgress) {
+// aspectRatio parameter is optional - defaults to '16:9' for backward compatibility
+export async function renderScene(sceneId, serveUrl, compositionId, inputProps, onProgress, aspectRatio = '16:9') {
   await ensureCacheDir();
 
   const scene = sceneDb.getById(sceneId);
@@ -28,31 +30,37 @@ export async function renderScene(sceneId, serveUrl, compositionId, inputProps, 
     throw new Error(`Scene ${sceneId} not found`);
   }
 
-  // Generate hash for this scene (include scene_type so changes invalidate cache)
+  // Get the correct composition ID for the aspect ratio
+  const actualCompositionId = getCompositionIdForAspectRatio(compositionId, aspectRatio);
+
+  // Generate hash for this scene (include scene_type and aspectRatio so changes invalidate cache)
   const sceneHash = generateSceneHash({
     scene_number: scene.scene_number,
     scene_type: scene.scene_type,
     start_frame: scene.start_frame,
     end_frame: scene.end_frame,
     data: scene.data,
-    inputProps
+    inputProps,
+    aspectRatio // Include aspect ratio in hash
   });
 
-  // Check if we have a valid cache
-  if (scene.cache_path && scene.cache_hash === sceneHash) {
-    try {
-      await fs.access(scene.cache_path);
-      console.log(`[scene-renderer] Using cached scene ${scene.scene_number}: ${scene.cache_path}`);
-      return scene.cache_path;
-    } catch (err) {
-      console.log(`[scene-renderer] Cache file missing for scene ${scene.scene_number}, re-rendering`);
-    }
+  // Cache key includes aspect ratio for separate caches per aspect ratio
+  const cacheKey = `scene-${sceneId}-${aspectRatio.replace(':', 'x')}-${sceneHash}`;
+
+  // Check if we have a valid cache for this specific aspect ratio
+  const cachedPath = path.join(CACHE_DIR, `${cacheKey}.mp4`);
+  try {
+    await fs.access(cachedPath);
+    console.log(`[scene-renderer] Using cached scene ${scene.scene_number} (${aspectRatio}): ${cachedPath}`);
+    return cachedPath;
+  } catch (err) {
+    // Cache miss, need to render
   }
 
   // Need to render the scene
-  console.log(`[scene-renderer] Rendering scene ${scene.scene_number}: ${scene.name}`);
+  console.log(`[scene-renderer] Rendering scene ${scene.scene_number}: ${scene.name} (${aspectRatio})`);
 
-  const outputPath = path.join(CACHE_DIR, `scene-${sceneId}-${sceneHash}.mp4`);
+  const outputPath = cachedPath;
   const jobId = `scene-${sceneId}-${Date.now()}`;
 
   // Get browser executable path
@@ -81,6 +89,9 @@ export async function renderScene(sceneId, serveUrl, compositionId, inputProps, 
     sceneType: scene.scene_type || 'text-only',
     data: sceneData,
     durationInFrames: scene.end_frame - scene.start_frame,
+    // Animation settings from scene data
+    animationStyle: sceneData.animation_style || 'none',
+    animationIntensity: sceneData.animation_intensity || 'medium',
   };
 
   // Write scene-specific input props
@@ -96,7 +107,7 @@ export async function renderScene(sceneId, serveUrl, compositionId, inputProps, 
         SERVE_URL: serveUrl,
         OUT_PATH: outputPath,
         INPUT_JSON: inputJsonPath,
-        COMPOSITION_ID: compositionId,
+        COMPOSITION_ID: actualCompositionId, // Use aspect-ratio-specific composition
         RENDER_DEBUG: 'true',
         BROWSER_EXECUTABLE: browserExecutable,
         // Scene-specific rendering
@@ -127,10 +138,12 @@ export async function renderScene(sceneId, serveUrl, compositionId, inputProps, 
     await fs.unlink(inputJsonPath).catch(() => undefined);
   });
 
-  // Update scene cache in database
-  sceneDb.updateCache(sceneId, outputPath, sceneHash);
+  // Only update scene cache for default aspect ratio (16:9) to maintain backward compatibility
+  if (aspectRatio === '16:9') {
+    sceneDb.updateCache(sceneId, outputPath, sceneHash);
+  }
 
-  console.log(`[scene-renderer] Scene ${scene.scene_number} rendered: ${outputPath}`);
+  console.log(`[scene-renderer] Scene ${scene.scene_number} (${aspectRatio}) rendered: ${outputPath}`);
   return outputPath;
 }
 

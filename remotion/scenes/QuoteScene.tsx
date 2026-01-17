@@ -2,10 +2,12 @@ import React from 'react';
 import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { SceneProps } from './types';
 import { useFadeAnimation } from './utils';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
+  const layout = useResponsiveLayout();
 
   const quoteDelay = 15;
   const authorDelay = 35;
@@ -18,28 +20,28 @@ export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
       background: theme.colors.backgroundGradient || theme.colors.background,
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 120,
+      padding: layout.padding * 1.5,
       fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
     }}>
-      <div style={{ maxWidth: 1200, textAlign: 'center' }}>
+      <div style={{ maxWidth: layout.maxWidth, textAlign: 'center' }}>
         <div style={{
-          fontSize: 28,
+          fontSize: layout.isVertical ? 48 : 28,
           color: theme.colors.accent,
           opacity: quoteOpacity,
-          marginBottom: 40
+          marginBottom: layout.gap
         }}>
           "
         </div>
 
         {data.quote && (
           <div style={{
-            fontSize: 52,
+            fontSize: layout.quoteFontSize,
             fontWeight: 300,
             color: theme.colors.textPrimary,
             opacity: quoteOpacity,
             lineHeight: 1.4,
             fontStyle: 'italic',
-            marginBottom: 40
+            marginBottom: layout.gap
           }}>
             {data.quote}
           </div>
@@ -47,7 +49,7 @@ export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
 
         {data.author && (
           <div style={{
-            fontSize: 32,
+            fontSize: layout.isVertical ? 24 : layout.isSquare ? 28 : 32,
             fontWeight: 500,
             color: theme.colors.textSecondary,
             opacity: authorOpacity

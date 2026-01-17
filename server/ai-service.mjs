@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { searchPhotos } from './pexels-service.mjs';
+import { buildPromptFromPersonas, blendPersonas } from './persona-blender.mjs';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -11,8 +12,10 @@ const anthropic = new Anthropic({
  * @param {string} [templateId] - Optional template ID to guide structure
  * @param {number} [sceneCount] - Optional number of scenes to generate (if not provided, AI decides)
  * @param {object} [companyDetails] - Optional company-specific details for advanced mode
+ * @param {string[]} [personas] - Optional array of persona IDs to use for generation
+ * @param {object} [behaviorOverrides] - Optional behavior customizations
  */
-export async function generateSlidesFromDescription(description, templateId = null, sceneCount = null, companyDetails = null) {
+export async function generateSlidesFromDescription(description, templateId = null, sceneCount = null, companyDetails = null, personas = null, behaviorOverrides = null) {
   // If sceneCount is not provided, let the AI decide based on content
   const sceneCountInstruction = sceneCount
     ? `Generate exactly ${sceneCount} compelling slides`
@@ -34,45 +37,33 @@ COMPANY CONTEXT (use this to personalize the VSL):
 - Call-to-Action: ${companyDetails.cta || 'N/A'}
 ` : '';
 
-  const prompt = `You are a professional B2B VSL (Video Sales Letter) script writer with expertise in conversion copywriting. ${sceneCountInstruction} for a video based on this description:
+  // Build persona-based prompt or use default VSL expert
+  const selectedPersonas = personas && personas.length > 0 ? personas : ['vsl-expert'];
+  const personaPrompt = buildPromptFromPersonas(selectedPersonas, behaviorOverrides || {});
+  const blendedConfig = blendPersonas(selectedPersonas, behaviorOverrides || {});
+
+  // Build scene type guide from blended preferences
+  const scenePrefsGuide = Object.entries(blendedConfig.blendedScenePrefs)
+    .slice(0, 6) // Top 6 scene types
+    .map(([scene, weight]) => `- ${scene}: ~${Math.round(weight * 100)}% of scenes`)
+    .join('\n');
+
+  const prompt = `${personaPrompt}
+
+${sceneCountInstruction} for a video based on this description:
 
 ${description}
 ${companyContext}
 ${templateGuidance}
 
-CRITICAL VSL FRAMEWORK - Follow the PAS (Problem-Agitate-Solution) structure:
+VIDEO STRUCTURE GUIDELINES:
+- Start with a strong hook that grabs attention immediately
+- Build your narrative following the behavior guidelines above
+- End with a clear call-to-action
+- Vary scene types for visual interest
 
-**Scene 1 - HOOK (3-5 seconds):**
-Use a pattern interrupt: surprising stat, provocative question, bold claim, or "If you're [specific qualifier]..."
-Example hooks: "Did you know...", "3 mistakes that [target audience] makes...", "If you're still [pain point]..."
-
-**Scenes 2-3 - PROBLEM IDENTIFICATION:**
-Clearly articulate the specific pain points your target audience faces.
-Use precise, factual language (avoid exaggeration - B2B buyers respond negatively to dramatization).
-Make it feel personal and relevant to their role.
-
-**Scenes 3-5 - AGITATION:**
-Quantify the consequences with facts and realistic scenarios.
-Show the compounding effect of inaction.
-Address multiple stakeholder concerns (technical, financial, operational).
-Use data visualization (charts/stats) to make impact tangible.
-
-**Scenes 6-7 - SOLUTION:**
-Present your solution as the logical answer to the established problem.
-Focus on outcomes and benefits, not features.
-Use social proof: customer quotes, case study metrics, industry recognition.
-
-**Scene 8-9 - CALL TO ACTION:**
-Clear, specific next step (book demo, start trial, download resource).
-Remove friction and create urgency without being pushy.
-
-SCENE TYPE SELECTION GUIDE:
-- Hook: text-only or stats (grab attention fast)
-- Problem: text-only or dual-images (relatability)
-- Agitation: bar-chart, line-chart, stats (quantify pain)
-- Solution: single-image, quote (build trust)
-- Social Proof: stats, quote, grid-2x2 (credibility)
-- CTA: text-only (clarity)
+RECOMMENDED SCENE TYPE DISTRIBUTION:
+${scenePrefsGuide}
 
 Return ONLY a valid JSON array of scenes with this structure:
 [
@@ -254,6 +245,61 @@ Make the data realistic and relevant to the description.`;
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-5-20250929',
     max_tokens: 2048,
+    messages: [
+      {
+        role: 'user',
+        content: prompt
+      }
+    ]
+  });
+
+  const content = message.content[0].text;
+
+  // Extract JSON from the response
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error('Failed to parse AI response as JSON');
+  }
+
+  return JSON.parse(jsonMatch[0]);
+}
+
+/**
+ * Generate LaTeX equation from a description
+ */
+export async function generateEquation(description) {
+  const prompt = `Generate a LaTeX equation based on this description:
+
+${description}
+
+Return ONLY valid JSON with the following structure:
+{
+  "title": "Brief title for the equation/concept",
+  "equation": "Main LaTeX equation (single equation)",
+  "equations": ["Step 1 equation", "Step 2 equation", ...] (optional, for multi-step derivations),
+  "description": "One sentence explaining what the equation represents"
+}
+
+IMPORTANT LaTeX syntax rules:
+- Use ^ for superscript: x^2, e^{i\\pi}
+- Use _ for subscript: x_n, a_{ij}
+- Use \\frac{numerator}{denominator} for fractions
+- Use \\sqrt{x} for square root, \\sqrt[n]{x} for nth root
+- Use \\int for integral, \\sum for summation, \\prod for product
+- Use \\alpha, \\beta, \\gamma, etc. for Greek letters
+- Use \\pi, \\infty for pi and infinity
+- Use \\cdot for multiplication dot, \\times for cross
+- Use \\leq, \\geq, \\neq for comparison operators
+- Use \\lim_{x \\to a} for limits
+- Use \\partial for partial derivatives
+- Use \\vec{x} or \\mathbf{x} for vectors
+- Use \\left( and \\right) for auto-sizing parentheses
+
+Make the equation accurate and properly formatted for KaTeX rendering.`;
+
+  const message = await anthropic.messages.create({
+    model: 'claude-sonnet-4-5-20250929',
+    max_tokens: 1024,
     messages: [
       {
         role: 'user',

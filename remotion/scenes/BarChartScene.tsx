@@ -3,10 +3,12 @@ import { AbsoluteFill, useCurrentFrame, interpolate } from 'remotion';
 import { SceneProps } from './types';
 import { useFadeAnimation } from './utils';
 import { TextOnlyScene } from './TextOnlyScene';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
+  const layout = useResponsiveLayout();
 
   let chartData: any = null;
   try {
@@ -29,20 +31,26 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
   const titleDelay = 10;
   const titleOpacity = frame > titleDelay ? Math.min(1, (frame - titleDelay) / 15) * opacity : 0;
 
+  // Responsive chart sizing
+  const chartHeight = layout.isVertical ? '50%' : layout.isSquare ? '55%' : '60%';
+  const chartPadding = layout.isVertical ? '0 40px' : layout.isSquare ? '0 60px' : '0 100px';
+  const valueFontSize = layout.isVertical ? 18 : layout.isSquare ? 20 : 24;
+  const labelFontSize = layout.isVertical ? 14 : layout.isSquare ? 16 : 18;
+
   return (
     <AbsoluteFill style={{
       background: theme.colors.backgroundGradient || theme.colors.background,
       fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
-      padding: 120
+      padding: layout.padding * 1.5
     }}>
       {data.title && (
         <div style={{
-          fontSize: 48,
+          fontSize: layout.isVertical ? 36 : layout.isSquare ? 40 : 48,
           fontWeight: 700,
           color: theme.colors.textPrimary,
           opacity: titleOpacity,
           textAlign: 'center',
-          marginBottom: 60,
+          marginBottom: layout.gap * 1.5,
           fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
         }}>
           {data.title}
@@ -53,9 +61,9 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'space-around',
-        height: '60%',
-        padding: '0 100px',
-        gap: 30
+        height: chartHeight,
+        padding: chartPadding,
+        gap: layout.gap * 0.75
       }}>
         {chartData.data.map((value: number, idx: number) => {
           const delay = 30 + (idx * 8);
@@ -78,7 +86,7 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
               }}
             >
               <div style={{
-                fontSize: 24,
+                fontSize: valueFontSize,
                 fontWeight: 600,
                 color: theme.colors.textPrimary,
                 marginBottom: 10,
@@ -94,9 +102,9 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
                 minHeight: 10
               }} />
               <div style={{
-                fontSize: 18,
+                fontSize: labelFontSize,
                 color: theme.colors.textSecondary,
-                marginTop: 20,
+                marginTop: layout.isVertical ? 10 : 20,
                 textAlign: 'center'
               }}>
                 {chartData.labels[idx]}

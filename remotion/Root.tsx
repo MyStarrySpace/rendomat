@@ -5,27 +5,66 @@ import { CivicProfileVideo } from './CivicProfileVideo';
 import { ClassProfileVideo } from './ClassProfileVideo';
 import { UltrahumanVSL } from './UltrahumanVSL';
 import { DynamicSceneComposition } from './DynamicSceneComposition';
+import { ASPECT_RATIOS, type AspectRatioKey } from './aspect-ratios';
 import type { PolicyWrappedRenderProps, CivicProfileRenderProps, ClassProfileRenderProps } from './types';
+
+const defaultDynamicSceneProps = {
+  sceneType: 'text-only',
+  data: {
+    title: 'Sample Title',
+    body_text: 'Sample body text',
+  },
+  durationInFrames: 450,
+  themeId: 'tech-dark',
+  animationStyle: 'none' as const,
+  animationIntensity: 'medium' as const,
+};
 
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+      {/* Legacy DynamicScene composition (16:9) - kept for backwards compatibility */}
       <Composition
         id="DynamicScene"
         component={DynamicSceneComposition}
-        durationInFrames={450} // 15 seconds at 30fps (default, can be overridden)
+        durationInFrames={450}
         fps={30}
         width={1920}
         height={1080}
-        defaultProps={{
-          sceneType: 'text-only',
-          data: {
-            title: 'Sample Title',
-            body_text: 'Sample body text',
-          },
-          durationInFrames: 450,
-          themeId: 'tech-dark',
-        }}
+        defaultProps={defaultDynamicSceneProps}
+      />
+
+      {/* DynamicScene-16x9 (1920x1080) - Landscape/YouTube/Website */}
+      <Composition
+        id="DynamicScene-16x9"
+        component={DynamicSceneComposition}
+        durationInFrames={450}
+        fps={30}
+        width={ASPECT_RATIOS['16:9'].width}
+        height={ASPECT_RATIOS['16:9'].height}
+        defaultProps={defaultDynamicSceneProps}
+      />
+
+      {/* DynamicScene-1x1 (1080x1080) - Square/Instagram Feed/LinkedIn */}
+      <Composition
+        id="DynamicScene-1x1"
+        component={DynamicSceneComposition}
+        durationInFrames={450}
+        fps={30}
+        width={ASPECT_RATIOS['1:1'].width}
+        height={ASPECT_RATIOS['1:1'].height}
+        defaultProps={defaultDynamicSceneProps}
+      />
+
+      {/* DynamicScene-9x16 (1080x1920) - Vertical/TikTok/Reels/Shorts */}
+      <Composition
+        id="DynamicScene-9x16"
+        component={DynamicSceneComposition}
+        durationInFrames={450}
+        fps={30}
+        width={ASPECT_RATIOS['9:16'].width}
+        height={ASPECT_RATIOS['9:16'].height}
+        defaultProps={defaultDynamicSceneProps}
       />
       <Composition
         id="UltrahumanVSL"

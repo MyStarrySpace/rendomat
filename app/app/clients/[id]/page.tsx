@@ -2,11 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Video as VideoIcon, Plus, Play, Clock, CheckCircle, AlertCircle, Loader2, Trash2, Home, Sparkles, Wand2 } from "lucide-react";
+import { ArrowLeft, Video as VideoIcon, Plus, Play, Clock, CheckCircle, AlertCircle, Loader2, Trash2, Home, Sparkles, Wand2, Settings, Search, Globe, FileText, Quote, ExternalLink, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { clientApi, videoApi, templateApi, Client, Video, Template } from "@/lib/api";
+import { clientApi, videoApi, templateApi, aiApi, Client, Video, Template, Citation, CaseStudy, ResearchGenerationResult } from "@/lib/api";
 import { THEMES } from "@/lib/themes";
+import PersonaSelector from "@/components/PersonaSelector";
+
+// Aspect ratio options with platform info
+const ASPECT_RATIO_OPTIONS = [
+  { value: "16:9", label: "Landscape 16:9", platforms: "YouTube, Website, LinkedIn Video" },
+  { value: "1:1", label: "Square 1:1", platforms: "Instagram Feed, LinkedIn Feed" },
+  { value: "9:16", label: "Vertical 9:16", platforms: "TikTok, Instagram Reels, YouTube Shorts" },
+];
 
 export default function ClientDetailPage() {
   const params = useParams();
@@ -31,6 +39,9 @@ export default function ClientDetailPage() {
   const [aiDescription, setAiDescription] = useState("");
   const [generatingAI, setGeneratingAI] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
+  const [selectedPersonas, setSelectedPersonas] = useState<string[]>(["vsl-expert"]);
+  const [behaviorOverrides, setBehaviorOverrides] = useState<Record<string, string | string[]>>({});
+  const [showClientSettings, setShowClientSettings] = useState(false);
   const [companyDetails, setCompanyDetails] = useState({
     companyName: "",
     industry: "",
@@ -40,6 +51,14 @@ export default function ClientDetailPage() {
     metrics: "",
     cta: ""
   });
+
+  // Research mode state
+  const [researchMode, setResearchMode] = useState(false);
+  const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [enableWebSearch, setEnableWebSearch] = useState(true);
+  const [researchResults, setResearchResults] = useState<ResearchGenerationResult['research'] | null>(null);
+  const [showResearchResults, setShowResearchResults] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -55,6 +74,29 @@ export default function ClientDetailPage() {
       setClient(clientData);
       setVideos(videosData);
       setTemplates(templatesData);
+
+      // Initialize personas from client defaults if they exist
+      if (clientData.default_personas && clientData.default_personas.length > 0) {
+        // Parse if it's a string (from DB)
+        const personas = typeof clientData.default_personas === 'string'
+          ? JSON.parse(clientData.default_personas)
+          : clientData.default_personas;
+        setSelectedPersonas(personas);
+      }
+      if (clientData.default_behavior_overrides) {
+        const overrides = typeof clientData.default_behavior_overrides === 'string'
+          ? JSON.parse(clientData.default_behavior_overrides)
+          : clientData.default_behavior_overrides;
+        setBehaviorOverrides(overrides);
+      }
+
+      // Initialize portfolio/website URLs from client if they exist
+      if (clientData.portfolio_url) {
+        setPortfolioUrl(clientData.portfolio_url);
+      }
+      if (clientData.website_url) {
+        setWebsiteUrl(clientData.website_url);
+      }
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
@@ -122,38 +164,74 @@ export default function ClientDetailPage() {
     }
 
     setGeneratingAI(true);
-    try {
-      const response = await fetch('http://localhost:8787/api/ai/generate-slides', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description: aiDescription,
-          templateId: formData.template_id || null,
-          sceneCount: null, // Let AI decide optimal number of scenes
-          companyDetails: advancedMode ? companyDetails : null
-        })
-      });
+    setResearchResults(null);
 
-      if (!response.ok) {
-        throw new Error('Failed to generate slides');
+    try {
+      let slides: any[];
+      let research: ResearchGenerationResult['research'] | null = null;
+
+      if (researchMode) {
+        // Use research mode with citations
+        const result = await aiApi.generateSlidesWithResearch(aiDescription, {
+          researchTopic: aiDescription,
+          portfolioUrl: portfolioUrl || undefined,
+          websiteUrl: websiteUrl || undefined,
+          companyDetails: advancedMode ? companyDetails : undefined,
+          personas: selectedPersonas,
+          behaviorOverrides: behaviorOverrides,
+          searchWeb: enableWebSearch,
+        });
+
+        slides = result.slides;
+        research = result.research;
+        setResearchResults(research);
+
+        // Save portfolio/website URLs to client if provided
+        if (portfolioUrl || websiteUrl) {
+          await clientApi.update(clientId, {
+            portfolio_url: portfolioUrl || undefined,
+            website_url: websiteUrl || undefined,
+          });
+        }
+      } else {
+        // Standard mode without research
+        const response = await fetch('http://localhost:8787/api/ai/generate-slides', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: aiDescription,
+            templateId: formData.template_id || null,
+            sceneCount: null,
+            companyDetails: advancedMode ? companyDetails : null,
+            personas: selectedPersonas,
+            behaviorOverrides: behaviorOverrides
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to generate slides');
+        }
+
+        const result = await response.json();
+        slides = result.slides;
       }
 
-      const { slides } = await response.json();
-
       // Calculate total duration based on AI-generated scenes
-      const totalDuration = slides.length * 15; // Approximate 15 seconds per scene
+      const totalDuration = slides.length * 15;
 
       // Create video with AI-generated scenes
       const videoResponse = await videoApi.create({
         client_id: clientId,
-        title: formData.title || `AI Generated - ${new Date().toLocaleDateString()}`,
-        template_id: formData.template_id || undefined, // Don't include if empty
-        composition_id: "DynamicScene", // Always use DynamicScene for AI videos
+        title: formData.title || `${researchMode ? 'Research-Based' : 'AI Generated'} - ${new Date().toLocaleDateString()}`,
+        template_id: formData.template_id || undefined,
+        composition_id: "DynamicScene",
         aspect_ratio: formData.aspect_ratio,
         duration_seconds: totalDuration,
         status: "draft",
-        data: null,
+        data: research ? JSON.stringify({ research }) : null,
         theme_id: formData.theme_id,
+        personas: selectedPersonas,
+        behavior_overrides: behaviorOverrides,
       });
 
       // Create the AI-generated scenes for the new video
@@ -166,18 +244,23 @@ export default function ClientDetailPage() {
             scene_number: slide.scene_number,
             name: slide.name,
             scene_type: slide.scene_type || 'text-only',
-            start_frame: slide.scene_number * 450, // Approximate, will be adjusted
+            start_frame: slide.scene_number * 450,
             end_frame: (slide.scene_number + 1) * 450,
-            data: slide.data  // Backend will stringify it
+            data: slide.data
           })
         });
       }
 
-      setShowAIModal(false);
-      setAiDescription("");
-      setShowForm(false);
-      loadData();
-      alert('Video created with AI-generated slides!');
+      if (research && (research.citations_used.length > 0 || research.case_studies_used.length > 0)) {
+        setShowResearchResults(true);
+        alert(`Video created with ${slides.length} slides! Found ${research.all_citations.length} citations and ${research.all_case_studies.length} case studies.`);
+      } else {
+        setShowAIModal(false);
+        setAiDescription("");
+        setShowForm(false);
+        loadData();
+        alert('Video created with AI-generated slides!');
+      }
     } catch (error) {
       console.error('Failed to generate with AI:', error);
       alert('Failed to generate slides with AI');
@@ -384,14 +467,22 @@ export default function ClientDetailPage() {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-purple-200 mb-2">
-                    Aspect Ratio <span className="text-purple-400 text-xs">(from template)</span>
+                    Aspect Ratio
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.aspect_ratio}
-                    disabled
-                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-purple-300 cursor-not-allowed"
-                  />
+                    onChange={(e) => setFormData({ ...formData, aspect_ratio: e.target.value })}
+                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white"
+                  >
+                    {ASPECT_RATIO_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-purple-300 text-xs mt-1">
+                    {ASPECT_RATIO_OPTIONS.find(o => o.value === formData.aspect_ratio)?.platforms}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-purple-200 mb-2">
@@ -478,25 +569,152 @@ export default function ClientDetailPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-2">
-                  Theme *
-                </label>
-                <select
-                  value={formData.theme_id}
-                  onChange={(e) => setFormData({ ...formData, theme_id: e.target.value })}
-                  className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white"
-                >
-                  {Object.values(THEMES).map(theme => (
-                    <option key={theme.id} value={theme.id}>
-                      {theme.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-purple-300 text-xs mt-1">
-                  {THEMES[formData.theme_id]?.description}
-                </p>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                    Theme *
+                  </label>
+                  <select
+                    value={formData.theme_id}
+                    onChange={(e) => setFormData({ ...formData, theme_id: e.target.value })}
+                    className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white"
+                  >
+                    {Object.values(THEMES).map(theme => (
+                      <option key={theme.id} value={theme.id}>
+                        {theme.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-purple-300 text-xs mt-1">
+                    {THEMES[formData.theme_id]?.description}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                    Aspect Ratio
+                  </label>
+                  <select
+                    value={formData.aspect_ratio}
+                    onChange={(e) => setFormData({ ...formData, aspect_ratio: e.target.value })}
+                    className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white"
+                  >
+                    {ASPECT_RATIO_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-purple-300 text-xs mt-1">
+                    {ASPECT_RATIO_OPTIONS.find(o => o.value === formData.aspect_ratio)?.platforms}
+                  </p>
+                </div>
               </div>
+
+              {/* AI Personas Section */}
+              <div className="pt-3 border-t border-purple-500/20">
+                <PersonaSelector
+                  selectedPersonas={selectedPersonas}
+                  behaviorOverrides={behaviorOverrides}
+                  onChange={(personas, overrides) => {
+                    setSelectedPersonas(personas);
+                    setBehaviorOverrides(overrides);
+                  }}
+                />
+              </div>
+
+              {/* Research Mode Toggle */}
+              <div className="flex items-center gap-3 pt-3 border-t border-purple-500/20">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={researchMode}
+                    onChange={(e) => setResearchMode(e.target.checked)}
+                    className="w-4 h-4 rounded border-purple-500/30 bg-white/10 text-purple-600 focus:ring-purple-500 focus:ring-offset-0"
+                  />
+                  <Search className="w-4 h-4 text-purple-300" />
+                  <span className="text-sm font-medium text-purple-200">
+                    Research Mode
+                  </span>
+                </label>
+                <span className="text-xs text-purple-400">
+                  (Find sources, cite facts, extract case studies)
+                </span>
+              </div>
+
+              {/* Research Mode Fields */}
+              {researchMode && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-3 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <BookOpen className="w-4 h-4 text-blue-300" />
+                    <span className="text-sm font-medium text-blue-200">Research Sources</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-blue-200 mb-1">
+                      <Globe className="w-3 h-3 inline mr-1" />
+                      Portfolio/Case Studies URL
+                    </label>
+                    <input
+                      type="url"
+                      value={portfolioUrl}
+                      onChange={(e) => setPortfolioUrl(e.target.value)}
+                      className="w-full bg-white/5 border border-blue-500/30 rounded px-3 py-2 text-sm text-white placeholder-blue-300/50 focus:outline-none focus:border-blue-500"
+                      placeholder="https://company.com/case-studies"
+                    />
+                    <p className="text-blue-400 text-xs mt-1">AI will extract case studies and success stories</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-blue-200 mb-1">
+                      <Globe className="w-3 h-3 inline mr-1" />
+                      Company Website URL
+                    </label>
+                    <input
+                      type="url"
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      className="w-full bg-white/5 border border-blue-500/30 rounded px-3 py-2 text-sm text-white placeholder-blue-300/50 focus:outline-none focus:border-blue-500"
+                      placeholder="https://company.com"
+                    />
+                    <p className="text-blue-400 text-xs mt-1">AI will analyze for product info and value propositions</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={enableWebSearch}
+                        onChange={(e) => setEnableWebSearch(e.target.checked)}
+                        className="w-4 h-4 rounded border-blue-500/30 bg-white/10 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
+                      />
+                      <Search className="w-3 h-3 text-blue-300" />
+                      <span className="text-xs font-medium text-blue-200">
+                        Enable Web Search
+                      </span>
+                    </label>
+                    <span className="text-xs text-blue-400">
+                      (Search for additional facts and statistics)
+                    </span>
+                  </div>
+
+                  <div className="bg-blue-950/50 p-3 rounded text-xs text-blue-200">
+                    <strong>Research Mode will:</strong>
+                    <ul className="list-disc list-inside mt-1 space-y-1 text-blue-300">
+                      <li>Extract case studies from your portfolio</li>
+                      <li>Find relevant statistics and facts</li>
+                      <li>Include exact quotes with source citations</li>
+                      <li>Show confidence scores for each claim</li>
+                      <li>Link to original sources</li>
+                    </ul>
+                  </div>
+                </motion.div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-purple-200 mb-2">
@@ -654,6 +872,8 @@ export default function ClientDetailPage() {
                   onClick={() => {
                     setShowAIModal(false);
                     setAiDescription("");
+                    setResearchResults(null);
+                    setShowResearchResults(false);
                   }}
                   disabled={generatingAI}
                   className="px-4 py-2 rounded-lg border border-purple-500/30 text-purple-200 hover:bg-white/10 transition-colors disabled:opacity-50"
@@ -662,6 +882,169 @@ export default function ClientDetailPage() {
                 </button>
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {/* Research Results Display */}
+        {showResearchResults && researchResults && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-br from-blue-900/90 to-indigo-900/90 backdrop-blur-lg rounded-lg p-6 border border-blue-500/30 mb-8 shadow-2xl"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <FileText className="w-6 h-6 text-blue-300" />
+                <h2 className="text-xl font-bold text-white">Research Results</h2>
+              </div>
+              <button
+                onClick={() => {
+                  setShowResearchResults(false);
+                  setResearchResults(null);
+                  setShowAIModal(false);
+                  setAiDescription("");
+                  loadData();
+                }}
+                className="text-blue-300 hover:text-blue-200 text-sm"
+              >
+                Close & View Video
+              </button>
+            </div>
+
+            {researchResults.summary && (
+              <p className="text-blue-200 text-sm mb-4 bg-blue-950/50 p-3 rounded">
+                {researchResults.summary}
+              </p>
+            )}
+
+            {/* Citations Used */}
+            {researchResults.citations_used.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                  <Quote className="w-5 h-5 text-blue-300" />
+                  Citations Used ({researchResults.citations_used.length})
+                </h3>
+                <div className="space-y-3">
+                  {researchResults.citations_used.map((citation, index) => (
+                    <div
+                      key={index}
+                      className="bg-blue-950/50 border border-blue-500/20 rounded-lg p-4"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-500/30 text-blue-200">
+                              Confidence: {citation.confidence_score}%
+                            </span>
+                            <a
+                              href={citation.source_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-300 hover:text-blue-200 text-xs flex items-center gap-1"
+                            >
+                              {citation.source_title}
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                          <blockquote className="text-white text-sm italic border-l-2 border-blue-400 pl-3 mb-2">
+                            &quot;{citation.exact_quote}&quot;
+                          </blockquote>
+                          <p className="text-blue-300 text-xs">
+                            {citation.summary}
+                          </p>
+                          {citation.used_in_scenes && citation.used_in_scenes.length > 0 && (
+                            <p className="text-blue-400 text-xs mt-1">
+                              Used in scene{citation.used_in_scenes.length > 1 ? 's' : ''}: {citation.used_in_scenes.join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Case Studies */}
+            {researchResults.case_studies_used.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-green-300" />
+                  Case Studies Found ({researchResults.case_studies_used.length})
+                </h3>
+                <div className="grid md:grid-cols-2 gap-3">
+                  {researchResults.case_studies_used.map((caseStudy, index) => (
+                    <div
+                      key={index}
+                      className="bg-green-950/30 border border-green-500/20 rounded-lg p-4"
+                    >
+                      <h4 className="text-white font-medium mb-1">{caseStudy.title}</h4>
+                      <p className="text-green-200 text-xs mb-2">
+                        {caseStudy.client_name} • {caseStudy.industry}
+                      </p>
+                      <div className="text-green-300 text-xs space-y-1">
+                        <p><strong>Challenge:</strong> {caseStudy.challenge}</p>
+                        <p><strong>Solution:</strong> {caseStudy.solution}</p>
+                        {caseStudy.results.length > 0 && (
+                          <p><strong>Results:</strong> {caseStudy.results.join(', ')}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs px-2 py-0.5 rounded bg-green-500/30 text-green-200">
+                          Relevance: {caseStudy.relevance_score}%
+                        </span>
+                        <a
+                          href={caseStudy.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-300 hover:text-green-200 text-xs flex items-center gap-1"
+                        >
+                          Source <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* All Citations (collapsed) */}
+            {researchResults.all_citations.length > researchResults.citations_used.length && (
+              <details className="mt-4">
+                <summary className="text-blue-300 text-sm cursor-pointer hover:text-blue-200">
+                  Show all {researchResults.all_citations.length} citations found
+                </summary>
+                <div className="mt-3 space-y-2 max-h-60 overflow-y-auto">
+                  {researchResults.all_citations.map((citation, index) => (
+                    <div key={index} className="bg-blue-950/30 p-3 rounded text-xs">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-200">
+                          {citation.confidence_score}%
+                        </span>
+                        <a
+                          href={citation.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-300 hover:text-blue-200 truncate"
+                        >
+                          {citation.source_title}
+                        </a>
+                      </div>
+                      <p className="text-blue-200 italic">&quot;{citation.exact_quote.substring(0, 150)}...&quot;</p>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+
+            {/* Search Queries Used */}
+            {researchResults.search_queries && researchResults.search_queries.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-blue-500/20">
+                <p className="text-blue-400 text-xs">
+                  <strong>Search queries used:</strong> {researchResults.search_queries.join(' • ')}
+                </p>
+              </div>
+            )}
           </motion.div>
         )}
 

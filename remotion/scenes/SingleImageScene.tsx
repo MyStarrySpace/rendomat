@@ -2,14 +2,20 @@ import React from 'react';
 import { AbsoluteFill, useCurrentFrame, interpolate, Img } from 'remotion';
 import { SceneProps } from './types';
 import { useFadeAnimation } from './utils';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
+  const layout = useResponsiveLayout();
 
   const imageScale = interpolate(frame, [0, 30], [0.95, 1], { extrapolateRight: 'clamp' });
   const titleDelay = 20;
   const titleOpacity = frame > titleDelay ? Math.min(1, (frame - titleDelay) / 15) * opacity : 0;
+
+  // Adjust image size based on aspect ratio
+  const imageWidth = layout.isVertical ? '85%' : '70%';
+  const imageHeight = layout.isVertical ? '60%' : '70%';
 
   return (
     <AbsoluteFill style={{
@@ -19,11 +25,11 @@ export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames,
       {data.image_url && (
         <div style={{
           position: 'absolute',
-          top: '50%',
+          top: layout.isVertical ? '35%' : '50%',
           left: '50%',
           transform: `translate(-50%, -50%) scale(${imageScale})`,
-          width: '70%',
-          height: '70%',
+          width: imageWidth,
+          height: imageHeight,
           opacity
         }}>
           <Img
@@ -41,19 +47,19 @@ export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames,
       {data.title && (
         <div style={{
           position: 'absolute',
-          bottom: 80,
+          bottom: layout.padding,
           left: 0,
           right: 0,
           textAlign: 'center',
-          padding: '0 80px'
+          padding: `0 ${layout.padding}px`
         }}>
           <div style={{
-            fontSize: 56,
+            fontSize: layout.isVertical ? 48 : layout.isSquare ? 48 : 56,
             fontWeight: 700,
             color: theme.colors.textPrimary,
             opacity: titleOpacity,
             backgroundColor: theme.colors.surface || 'rgba(10, 10, 10, 0.8)',
-            padding: '20px 40px',
+            padding: layout.isVertical ? '16px 24px' : '20px 40px',
             borderRadius: 12,
             display: 'inline-block'
           }}>

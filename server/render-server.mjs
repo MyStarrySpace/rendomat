@@ -13,8 +13,12 @@ import { bundle } from '@remotion/bundler';
 import { clientDb, videoDb, sceneDb } from './database.mjs';
 import { renderScene, stitchScenes, cleanCache } from './scene-renderer.mjs';
 import { getAllTemplates, getTemplate, createScenesFromTemplate } from './templates.mjs';
-import { generateSlidesFromDescription, generateChartData, improveSceneContent, searchTopicData } from './ai-service.mjs';
+import { generateSlidesFromDescription, generateChartData, generateEquation, improveSceneContent, searchTopicData } from './ai-service.mjs';
+import { PLATFORMS, ASPECT_RATIOS, groupPlatformsByAspectRatio, getDimensionsForAspectRatio } from './platform-config.mjs';
 import { searchPhotos, getPhoto, getCuratedPhotos } from './pexels-service.mjs';
+import { getAllPersonas, getPersona, getPersonasGroupedByCategory } from './personas.mjs';
+import { previewBlendedPrompt, getEffectivePersonas, validatePersonaIds } from './persona-blender.mjs';
+import { performResearch, generateSlidesWithResearch, verifyClaim } from './research-service.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
 const DEBUG = String(process.env.RENDER_DEBUG || '').toLowerCase() === 'true';
@@ -618,6 +622,81 @@ app.get('/api/templates/:id', (req, res) => {
 });
 
 // =============================
+// Persona API
+// =============================
+
+// Get all personas with behaviors
+app.get('/api/personas', (_req, res) => {
+  try {
+    const personas = getAllPersonas();
+    const grouped = getPersonasGroupedByCategory();
+    res.json({ personas, grouped });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single persona details
+app.get('/api/personas/:id', (req, res) => {
+  try {
+    const persona = getPersona(req.params.id);
+    if (!persona) {
+      return res.status(404).json({ error: 'Persona not found' });
+    }
+    res.json(persona);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Preview blended prompt
+app.post('/api/personas/preview', (req, res) => {
+  try {
+    const { personas, behaviorOverrides } = req.body;
+
+    if (!personas || !Array.isArray(personas) || personas.length === 0) {
+      return res.status(400).json({ error: 'Personas array is required' });
+    }
+
+    // Validate persona IDs
+    const validation = validatePersonaIds(personas);
+    if (!validation.isValid) {
+      return res.status(400).json({
+        error: `Invalid persona IDs: ${validation.invalid.join(', ')}`
+      });
+    }
+
+    const preview = previewBlendedPrompt(personas, behaviorOverrides || {});
+    res.json(preview);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get effective personas for a video (considering inheritance from client)
+app.get('/api/videos/:videoId/effective-personas', (req, res) => {
+  try {
+    const video = videoDb.getById(req.params.videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const client = clientDb.getById(video.client_id);
+    const effective = getEffectivePersonas(video, client);
+
+    // Also include the preview of the blended prompt
+    const preview = previewBlendedPrompt(effective.personaIds, effective.behaviorOverrides);
+
+    res.json({
+      ...effective,
+      preview
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================
 // Video Management API
 // =============================
 
@@ -770,13 +849,30 @@ app.delete('/api/uploads/:filename', async (req, res) => {
 
 app.post('/api/ai/generate-slides', async (req, res) => {
   try {
-    const { description, templateId, sceneCount, companyDetails } = req.body;
+    const { description, templateId, sceneCount, companyDetails, personas, behaviorOverrides } = req.body;
 
     if (!description) {
       return res.status(400).json({ error: 'Description is required' });
     }
 
-    const slides = await generateSlidesFromDescription(description, templateId, sceneCount, companyDetails);
+    // Validate persona IDs if provided
+    if (personas && Array.isArray(personas) && personas.length > 0) {
+      const validation = validatePersonaIds(personas);
+      if (!validation.isValid) {
+        return res.status(400).json({
+          error: `Invalid persona IDs: ${validation.invalid.join(', ')}`
+        });
+      }
+    }
+
+    const slides = await generateSlidesFromDescription(
+      description,
+      templateId,
+      sceneCount,
+      companyDetails,
+      personas,
+      behaviorOverrides
+    );
     res.json({ slides });
   } catch (error) {
     console.error('[ai] Failed to generate slides:', error);
@@ -796,6 +892,22 @@ app.post('/api/ai/generate-chart-data', async (req, res) => {
     res.json(chartData);
   } catch (error) {
     console.error('[ai] Failed to generate chart data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/ai/generate-equation', async (req, res) => {
+  try {
+    const { description } = req.body;
+
+    if (!description) {
+      return res.status(400).json({ error: 'Description is required' });
+    }
+
+    const equationData = await generateEquation(description);
+    res.json(equationData);
+  } catch (error) {
+    console.error('[ai] Failed to generate equation:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -828,6 +940,154 @@ app.post('/api/ai/search-topic', async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error('[ai] Failed to search topic:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================
+// Research Mode API
+// =============================
+
+// Perform research on a topic with citations
+app.post('/api/research/perform', async (req, res) => {
+  try {
+    const { topic, portfolioUrl, websiteUrl, companyName, industry, searchWeb } = req.body;
+
+    if (!topic) {
+      return res.status(400).json({ error: 'Topic is required' });
+    }
+
+    console.log(`[research] Starting research on: ${topic}`);
+
+    const research = await performResearch(topic, {
+      portfolioUrl,
+      websiteUrl,
+      companyName,
+      industry,
+      searchWeb: searchWeb !== false, // Default to true
+    });
+
+    res.json(research);
+  } catch (error) {
+    console.error('[research] Research failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Extract case studies from a portfolio URL
+app.post('/api/research/extract-portfolio', async (req, res) => {
+  try {
+    const { portfolioUrl, companyName, industry } = req.body;
+
+    if (!portfolioUrl) {
+      return res.status(400).json({ error: 'Portfolio URL is required' });
+    }
+
+    console.log(`[research] Extracting case studies from: ${portfolioUrl}`);
+
+    const research = await performResearch('case studies and success stories', {
+      portfolioUrl,
+      companyName,
+      industry,
+      searchWeb: false, // Only analyze the portfolio
+    });
+
+    res.json({
+      case_studies: research.case_studies,
+      summary: research.summary,
+    });
+  } catch (error) {
+    console.error('[research] Portfolio extraction failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Generate slides with research mode (includes citations)
+app.post('/api/ai/generate-slides-with-research', async (req, res) => {
+  try {
+    const {
+      description,
+      researchTopic,
+      portfolioUrl,
+      websiteUrl,
+      companyDetails,
+      personas,
+      behaviorOverrides,
+      sceneCount,
+      searchWeb,
+    } = req.body;
+
+    if (!description) {
+      return res.status(400).json({ error: 'Description is required' });
+    }
+
+    // Validate persona IDs if provided
+    if (personas && Array.isArray(personas) && personas.length > 0) {
+      const validation = validatePersonaIds(personas);
+      if (!validation.isValid) {
+        return res.status(400).json({
+          error: `Invalid persona IDs: ${validation.invalid.join(', ')}`
+        });
+      }
+    }
+
+    // First, perform research
+    const topic = researchTopic || description;
+    console.log(`[research] Performing research for slide generation: ${topic}`);
+
+    const research = await performResearch(topic, {
+      portfolioUrl,
+      websiteUrl,
+      companyName: companyDetails?.companyName,
+      industry: companyDetails?.industry,
+      searchWeb: searchWeb !== false,
+    });
+
+    console.log(`[research] Found ${research.citations.length} citations, ${research.case_studies.length} case studies`);
+
+    // Then generate slides with research context
+    const result = await generateSlidesWithResearch(description, {
+      research,
+      personas: personas || ['vsl-expert'],
+      behaviorOverrides: behaviorOverrides || {},
+      sceneCount,
+      companyDetails,
+    });
+
+    res.json({
+      slides: result.scenes,
+      research: {
+        citations_used: result.citations_used,
+        case_studies_used: result.case_studies_used,
+        summary: result.research_summary,
+        all_citations: research.citations,
+        all_case_studies: research.case_studies,
+        search_queries: research.search_queries_used,
+      },
+    });
+  } catch (error) {
+    console.error('[research] Research slide generation failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Verify a claim against sources
+app.post('/api/research/verify-claim', async (req, res) => {
+  try {
+    const { claim, sourceUrls } = req.body;
+
+    if (!claim) {
+      return res.status(400).json({ error: 'Claim is required' });
+    }
+
+    if (!sourceUrls || !Array.isArray(sourceUrls) || sourceUrls.length === 0) {
+      return res.status(400).json({ error: 'Source URLs are required' });
+    }
+
+    const verification = await verifyClaim(claim, sourceUrls);
+    res.json(verification);
+  } catch (error) {
+    console.error('[research] Claim verification failed:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -958,6 +1218,201 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
       status: 'error',
       render_progress: null
     });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================
+// Multi-Platform Export API
+// =============================
+
+// Get available platforms
+app.get('/api/platforms', (_req, res) => {
+  res.json({
+    platforms: PLATFORMS,
+    aspectRatios: ASPECT_RATIOS
+  });
+});
+
+// Render video for multiple platforms
+app.post('/api/videos/:videoId/render-multi', async (req, res) => {
+  try {
+    const video = videoDb.getById(req.params.videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const scenes = sceneDb.getAllForVideo(req.params.videoId);
+    if (scenes.length === 0) {
+      return res.status(400).json({ error: 'No scenes found for this video' });
+    }
+
+    const { platforms: platformIds } = req.body;
+    if (!platformIds || !Array.isArray(platformIds) || platformIds.length === 0) {
+      return res.status(400).json({ error: 'Platforms array is required' });
+    }
+
+    // Validate platform IDs
+    const invalidPlatforms = platformIds.filter(id => !PLATFORMS[id]);
+    if (invalidPlatforms.length > 0) {
+      return res.status(400).json({ error: `Invalid platform IDs: ${invalidPlatforms.join(', ')}` });
+    }
+
+    // Group platforms by aspect ratio for efficient rendering
+    const groupedPlatforms = groupPlatformsByAspectRatio(platformIds);
+    const aspectRatiosToRender = Object.keys(groupedPlatforms);
+
+    console.log(`[render-multi] Starting multi-platform render for ${platformIds.length} platforms across ${aspectRatiosToRender.length} aspect ratios`);
+
+    // Initialize progress tracking
+    videoDb.update(video.id, {
+      status: 'rendering',
+      render_progress: JSON.stringify({
+        type: 'multi-platform',
+        total_aspect_ratios: aspectRatiosToRender.length,
+        completed_aspect_ratios: 0,
+        current_aspect_ratio: null,
+        platforms: platformIds,
+        percentage: 0
+      })
+    });
+
+    const serveUrl = await getServeUrl();
+    const outputs = {};
+
+    // Render for each aspect ratio
+    for (let arIdx = 0; arIdx < aspectRatiosToRender.length; arIdx++) {
+      const aspectRatio = aspectRatiosToRender[arIdx];
+      const platformsForAspect = groupedPlatforms[aspectRatio];
+
+      console.log(`[render-multi] Rendering aspect ratio ${aspectRatio} for platforms: ${platformsForAspect.map(p => p.id).join(', ')}`);
+
+      // Update progress
+      videoDb.update(video.id, {
+        render_progress: JSON.stringify({
+          type: 'multi-platform',
+          total_aspect_ratios: aspectRatiosToRender.length,
+          completed_aspect_ratios: arIdx,
+          current_aspect_ratio: aspectRatio,
+          platforms: platformIds,
+          percentage: Math.round((arIdx / aspectRatiosToRender.length) * 100)
+        })
+      });
+
+      const scenePaths = [];
+
+      // Render each scene for this aspect ratio
+      for (let i = 0; i < scenes.length; i++) {
+        const scene = scenes[i];
+        const inputProps = video.data ? JSON.parse(video.data) : {};
+        if (video.theme_id) {
+          inputProps.themeId = video.theme_id;
+        }
+
+        const scenePath = await renderScene(
+          scene.id,
+          serveUrl,
+          'DynamicScene',
+          inputProps,
+          (progress) => {
+            console.log(`[render-multi] Scene ${scene.scene_number} (${aspectRatio}) progress: ${(progress * 100).toFixed(1)}%`);
+          },
+          aspectRatio // Pass aspect ratio to use correct composition
+        );
+        scenePaths.push(scenePath);
+      }
+
+      // Stitch scenes for this aspect ratio
+      const outputPath = path.join(os.tmpdir(), `video-${video.id}-${aspectRatio.replace(':', 'x')}-${Date.now()}.mp4`);
+      await stitchScenes(scenePaths, outputPath);
+
+      // Store output path for each platform with this aspect ratio
+      for (const platform of platformsForAspect) {
+        outputs[platform.id] = {
+          path: outputPath,
+          platform: platform,
+          aspectRatio: aspectRatio
+        };
+      }
+    }
+
+    // Update video status
+    videoDb.update(video.id, {
+      status: 'completed',
+      render_progress: null
+    });
+
+    // Return the outputs info
+    res.json({
+      success: true,
+      outputs: Object.fromEntries(
+        Object.entries(outputs).map(([platformId, output]) => [
+          platformId,
+          {
+            platform: output.platform.name,
+            aspectRatio: output.aspectRatio,
+            downloadUrl: `/api/videos/${video.id}/download/${platformId}`
+          }
+        ])
+      )
+    });
+
+  } catch (error) {
+    console.error('[render-multi] Error:', error);
+    videoDb.update(req.params.videoId, {
+      status: 'error',
+      render_progress: null
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Download rendered video for specific platform
+app.get('/api/videos/:videoId/download/:platformId', async (req, res) => {
+  try {
+    const video = videoDb.getById(req.params.videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const platform = PLATFORMS[req.params.platformId];
+    if (!platform) {
+      return res.status(404).json({ error: 'Platform not found' });
+    }
+
+    // Find the rendered file for this platform's aspect ratio
+    const cacheDir = path.join(process.cwd(), 'cache', 'exports');
+    const aspectRatioSuffix = platform.aspectRatio.replace(':', 'x');
+
+    // Look for the most recent render for this video and aspect ratio
+    const tempDir = os.tmpdir();
+    const files = await fs.readdir(tempDir);
+    const matchingFiles = files.filter(f =>
+      f.startsWith(`video-${video.id}-${aspectRatioSuffix}`) && f.endsWith('.mp4')
+    );
+
+    if (matchingFiles.length === 0) {
+      return res.status(404).json({ error: 'Rendered video not found. Please render first.' });
+    }
+
+    // Get the most recent file
+    const sortedFiles = matchingFiles.sort().reverse();
+    const filePath = path.join(tempDir, sortedFiles[0]);
+
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({ error: 'Rendered video file not found on disk' });
+    }
+
+    const file = await fs.readFile(filePath);
+    const filename = `${video.title}-${platform.name.replace(/[^a-zA-Z0-9]/g, '-')}.mp4`;
+
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.status(200).send(file);
+
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });

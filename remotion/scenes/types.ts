@@ -1,4 +1,5 @@
 import { Theme } from '../themes';
+import { AnimationStyleId } from '../animations/types';
 
 export interface SceneData {
   title?: string;
@@ -12,6 +13,13 @@ export interface SceneData {
   author?: string;
   stats_text?: string;
   chart_data?: string;
+  // Equation scene data
+  equation?: string; // LaTeX equation string
+  equations?: string[]; // Multiple equations for step-by-step
+  equation_description?: string; // Description of what the equation represents
+  // Animation settings
+  animation_style?: AnimationStyleId;
+  animation_intensity?: 'low' | 'medium' | 'high';
   [key: string]: any;
 }
 

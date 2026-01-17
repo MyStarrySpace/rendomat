@@ -105,6 +105,37 @@ function initializeDatabase() {
       console.log('[database] Running migration: Adding theme_id column');
       db.exec(`ALTER TABLE videos ADD COLUMN theme_id TEXT DEFAULT 'tech-dark'`);
     }
+
+    // Check if persona columns exist in clients table
+    const clientTableInfo = db.prepare("PRAGMA table_info(clients)").all();
+    const hasClientPersonas = clientTableInfo.some(col => col.name === 'default_personas');
+
+    if (!hasClientPersonas) {
+      console.log('[database] Running migration: Adding persona columns to clients table');
+      db.exec(`ALTER TABLE clients ADD COLUMN default_personas TEXT`);
+      db.exec(`ALTER TABLE clients ADD COLUMN default_behavior_overrides TEXT`);
+    }
+
+    // Check if persona columns exist in videos table (re-fetch after potential modifications)
+    const videoTableInfo2 = db.prepare("PRAGMA table_info(videos)").all();
+    const hasVideoPersonas = videoTableInfo2.some(col => col.name === 'personas');
+
+    if (!hasVideoPersonas) {
+      console.log('[database] Running migration: Adding persona columns to videos table');
+      db.exec(`ALTER TABLE videos ADD COLUMN personas TEXT`);
+      db.exec(`ALTER TABLE videos ADD COLUMN behavior_overrides TEXT`);
+    }
+
+    // Check if portfolio/research columns exist in clients table
+    const clientTableInfo2 = db.prepare("PRAGMA table_info(clients)").all();
+    const hasPortfolioUrl = clientTableInfo2.some(col => col.name === 'portfolio_url');
+
+    if (!hasPortfolioUrl) {
+      console.log('[database] Running migration: Adding portfolio and research columns to clients table');
+      db.exec(`ALTER TABLE clients ADD COLUMN portfolio_url TEXT`);
+      db.exec(`ALTER TABLE clients ADD COLUMN website_url TEXT`);
+      db.exec(`ALTER TABLE clients ADD COLUMN cached_research TEXT`);
+    }
   } catch (error) {
     console.error('[database] Migration error:', error);
   }
@@ -126,19 +157,66 @@ export const clientDb = {
 
   create(data) {
     const stmt = db.prepare(
-      'INSERT INTO clients (name, company, industry) VALUES (?, ?, ?)'
+      'INSERT INTO clients (name, company, industry, default_personas, default_behavior_overrides, portfolio_url, website_url) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
-    const result = stmt.run(data.name, data.company, data.industry || null);
+    const result = stmt.run(
+      data.name,
+      data.company,
+      data.industry || null,
+      data.default_personas ? JSON.stringify(data.default_personas) : null,
+      data.default_behavior_overrides ? JSON.stringify(data.default_behavior_overrides) : null,
+      data.portfolio_url || null,
+      data.website_url || null
+    );
     return result.lastInsertRowid;
   },
 
   update(id, data) {
-    const stmt = db.prepare(`
-      UPDATE clients
-      SET name = ?, company = ?, industry = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `);
-    stmt.run(data.name, data.company, data.industry || null, id);
+    const updates = [];
+    const values = [];
+
+    if (data.name !== undefined) {
+      updates.push('name = ?');
+      values.push(data.name);
+    }
+    if (data.company !== undefined) {
+      updates.push('company = ?');
+      values.push(data.company);
+    }
+    if (data.industry !== undefined) {
+      updates.push('industry = ?');
+      values.push(data.industry || null);
+    }
+    if (data.default_personas !== undefined) {
+      updates.push('default_personas = ?');
+      values.push(data.default_personas ? JSON.stringify(data.default_personas) : null);
+    }
+    if (data.default_behavior_overrides !== undefined) {
+      updates.push('default_behavior_overrides = ?');
+      values.push(data.default_behavior_overrides ? JSON.stringify(data.default_behavior_overrides) : null);
+    }
+    if (data.portfolio_url !== undefined) {
+      updates.push('portfolio_url = ?');
+      values.push(data.portfolio_url || null);
+    }
+    if (data.website_url !== undefined) {
+      updates.push('website_url = ?');
+      values.push(data.website_url || null);
+    }
+    if (data.cached_research !== undefined) {
+      updates.push('cached_research = ?');
+      values.push(data.cached_research ? JSON.stringify(data.cached_research) : null);
+    }
+
+    if (updates.length === 0) {
+      return this.getById(id);
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
+
+    const stmt = db.prepare(`UPDATE clients SET ${updates.join(', ')} WHERE id = ?`);
+    stmt.run(...values);
     return this.getById(id);
   },
 
@@ -162,8 +240,8 @@ export const videoDb = {
 
   create(data) {
     const stmt = db.prepare(`
-      INSERT INTO videos (client_id, title, composition_id, status, duration_seconds, aspect_ratio, data, theme_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO videos (client_id, title, composition_id, status, duration_seconds, aspect_ratio, data, theme_id, personas, behavior_overrides)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const result = stmt.run(
       data.client_id,
@@ -173,7 +251,9 @@ export const videoDb = {
       data.duration_seconds || null,
       data.aspect_ratio || '16:9',
       data.data ? JSON.stringify(data.data) : null,
-      data.theme_id || 'tech-dark'
+      data.theme_id || 'tech-dark',
+      data.personas ? JSON.stringify(data.personas) : null,
+      data.behavior_overrides ? JSON.stringify(data.behavior_overrides) : null
     );
     return result.lastInsertRowid;
   },
@@ -201,6 +281,18 @@ export const videoDb = {
     if (data.theme_id !== undefined) {
       updates.push('theme_id = ?');
       values.push(data.theme_id);
+    }
+    if (data.personas !== undefined) {
+      updates.push('personas = ?');
+      values.push(data.personas ? JSON.stringify(data.personas) : null);
+    }
+    if (data.behavior_overrides !== undefined) {
+      updates.push('behavior_overrides = ?');
+      values.push(data.behavior_overrides ? JSON.stringify(data.behavior_overrides) : null);
+    }
+
+    if (updates.length === 0) {
+      return this.getById(id);
     }
 
     updates.push('updated_at = CURRENT_TIMESTAMP');

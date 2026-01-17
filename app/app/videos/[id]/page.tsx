@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Video as VideoIcon,
@@ -20,13 +20,36 @@ import {
   Home,
   Upload,
   Image as ImageIcon,
-  Trash2
+  Trash2,
+  Share2,
+  Sparkles,
+  Users,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { videoApi, sceneApi, clientApi, Video, Scene, Client } from "@/lib/api";
+import { videoApi, sceneApi, clientApi, platformApi, personaApi, Video, Scene, Client, EffectivePersonas } from "@/lib/api";
 import { THEMES } from "@/lib/themes";
 import StockImageBrowser from "../../components/StockImageBrowser";
+import PersonaSelector from "@/components/PersonaSelector";
+
+// Platform configuration
+const PLATFORMS = {
+  youtube: { id: 'youtube', name: 'YouTube / Website', aspectRatio: '16:9', icon: '📺' },
+  instagram_feed: { id: 'instagram_feed', name: 'Instagram Feed', aspectRatio: '1:1', icon: '📷' },
+  instagram_reels: { id: 'instagram_reels', name: 'Instagram Reels', aspectRatio: '9:16', icon: '🎬' },
+  tiktok: { id: 'tiktok', name: 'TikTok', aspectRatio: '9:16', icon: '🎵' },
+  linkedin_feed: { id: 'linkedin_feed', name: 'LinkedIn Feed', aspectRatio: '1:1', icon: '💼' },
+  linkedin_video: { id: 'linkedin_video', name: 'LinkedIn Video', aspectRatio: '16:9', icon: '📊' },
+  youtube_shorts: { id: 'youtube_shorts', name: 'YouTube Shorts', aspectRatio: '9:16', icon: '📱' },
+};
+
+const ASPECT_RATIO_GROUPS = {
+  '16:9': { label: 'Landscape (16:9)', platforms: ['youtube', 'linkedin_video'] },
+  '1:1': { label: 'Square (1:1)', platforms: ['instagram_feed', 'linkedin_feed'] },
+  '9:16': { label: 'Vertical (9:16)', platforms: ['instagram_reels', 'tiktok', 'youtube_shorts'] },
+};
 
 export default function VideoDetailPage() {
   const params = useParams();
@@ -46,6 +69,20 @@ export default function VideoDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [showStockBrowser, setShowStockBrowser] = useState(false);
   const [currentImageField, setCurrentImageField] = useState<string | null>(null);
+
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<any>(null);
+  const [exportOutputs, setExportOutputs] = useState<Record<string, any> | null>(null);
+
+  // Persona state
+  const [showPersonaSection, setShowPersonaSection] = useState(false);
+  const [effectivePersonas, setEffectivePersonas] = useState<EffectivePersonas | null>(null);
+  const [editingPersonas, setEditingPersonas] = useState(false);
+  const [editPersonas, setEditPersonas] = useState<string[]>([]);
+  const [editBehaviorOverrides, setEditBehaviorOverrides] = useState<Record<string, string | string[]>>({});
 
   useEffect(() => {
     loadData();
@@ -97,6 +134,16 @@ export default function VideoDetailPage() {
         const clientData = await clientApi.getById(videoData.client_id);
         setClient(clientData);
       }
+
+      // Load effective personas
+      try {
+        const personas = await personaApi.getEffectiveForVideo(videoId);
+        setEffectivePersonas(personas);
+        setEditPersonas(personas.personaIds);
+        setEditBehaviorOverrides(personas.behaviorOverrides);
+      } catch (error) {
+        console.error("Failed to load personas:", error);
+      }
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
@@ -147,6 +194,77 @@ export default function VideoDetailPage() {
     }
   }
 
+  function togglePlatform(platformId: string) {
+    setSelectedPlatforms(prev =>
+      prev.includes(platformId)
+        ? prev.filter(id => id !== platformId)
+        : [...prev, platformId]
+    );
+  }
+
+  async function handleMultiPlatformExport() {
+    if (selectedPlatforms.length === 0) {
+      alert('Please select at least one platform');
+      return;
+    }
+
+    setExporting(true);
+    setExportProgress({ percentage: 0, current: 'Preparing...' });
+    setExportOutputs(null);
+
+    try {
+      const result = await platformApi.renderMultiPlatform(videoId, selectedPlatforms);
+      setExportOutputs(result.outputs);
+      setExportProgress(null);
+    } catch (error) {
+      console.error('Failed to export:', error);
+      alert('Export failed. Please try again.');
+      setExportProgress(null);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function downloadPlatformExport(platformId: string) {
+    try {
+      const blob = await platformApi.downloadExport(videoId, platformId);
+      const platform = PLATFORMS[platformId as keyof typeof PLATFORMS];
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${video?.title || 'video'}-${platform.name.replace(/[^a-zA-Z0-9]/g, '-')}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download:', error);
+      alert('Download failed. Please try again.');
+    }
+  }
+
+  async function savePersonaChanges() {
+    try {
+      await videoApi.update(videoId, {
+        personas: editPersonas,
+        behavior_overrides: editBehaviorOverrides,
+      });
+      setEditingPersonas(false);
+      loadData(); // Reload to get fresh effective personas
+    } catch (error) {
+      console.error('Failed to save persona changes:', error);
+      alert('Failed to save persona changes');
+    }
+  }
+
+  function cancelPersonaEdit() {
+    if (effectivePersonas) {
+      setEditPersonas(effectivePersonas.personaIds);
+      setEditBehaviorOverrides(effectivePersonas.behaviorOverrides);
+    }
+    setEditingPersonas(false);
+  }
+
   function startEditScene(scene: Scene) {
     setEditingScene(scene.id);
     setEditData(scene.data ? JSON.parse(scene.data) : {});
@@ -159,9 +277,13 @@ export default function VideoDetailPage() {
 
   async function saveEdit(sceneId: number) {
     try {
-      // TODO: Implement scene update API call
-      // await sceneApi.update(sceneId, { data: JSON.stringify(editData) });
-      alert("Scene editing coming soon!");
+      await sceneApi.update(sceneId, {
+        data: JSON.stringify(editData),
+        // Clear cache when data changes so scene gets re-rendered
+        cache_path: null,
+        cache_hash: null,
+        cached_at: null,
+      });
       setEditingScene(null);
       setEditData({});
       loadData();
@@ -340,23 +462,33 @@ export default function VideoDetailPage() {
                 )}
               </div>
             </div>
-            <button
-              onClick={handleRender}
-              disabled={rendering}
-              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
-            >
-              {rendering ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Rendering...
-                </>
-              ) : (
-                <>
-                  <Play className="w-5 h-5" />
-                  Render Video
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRender}
+                disabled={rendering}
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
+              >
+                {rendering ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Rendering...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-5 h-5" />
+                    Render Video
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowExportModal(true)}
+                disabled={rendering || exporting}
+                className="flex items-center gap-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
+              >
+                <Share2 className="w-5 h-5" />
+                Export to Platforms
+              </button>
+            </div>
           </div>
 
           {renderProgress && (
@@ -414,6 +546,119 @@ export default function VideoDetailPage() {
               </p>
             </div>
           )}
+
+          {/* AI Personas Section */}
+          <div className="bg-white/5 backdrop-blur-lg rounded-lg border border-purple-500/20 mb-6 overflow-hidden">
+            <button
+              onClick={() => setShowPersonaSection(!showPersonaSection)}
+              className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-5 h-5 text-purple-400" />
+                <h3 className="text-lg font-semibold text-white">AI Personas</h3>
+                {effectivePersonas && (
+                  <span className="text-sm text-purple-300">
+                    ({effectivePersonas.personaIds.length} selected)
+                  </span>
+                )}
+                {effectivePersonas?.source === 'client' && (
+                  <span className="text-xs bg-purple-600/30 text-purple-200 px-2 py-0.5 rounded">
+                    Inherited from client
+                  </span>
+                )}
+              </div>
+              {showPersonaSection ? (
+                <ChevronUp className="w-5 h-5 text-purple-300" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-purple-300" />
+              )}
+            </button>
+
+            <AnimatePresence>
+              {showPersonaSection && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="p-4 pt-0 border-t border-purple-500/20">
+                    {editingPersonas ? (
+                      <div className="space-y-4">
+                        <PersonaSelector
+                          selectedPersonas={editPersonas}
+                          behaviorOverrides={editBehaviorOverrides}
+                          onChange={(personas, overrides) => {
+                            setEditPersonas(personas);
+                            setEditBehaviorOverrides(overrides);
+                          }}
+                        />
+                        <div className="flex gap-3 pt-3 border-t border-purple-500/20">
+                          <button
+                            onClick={savePersonaChanges}
+                            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+                          >
+                            <Save className="w-4 h-4" />
+                            Save Changes
+                          </button>
+                          <button
+                            onClick={cancelPersonaEdit}
+                            className="flex items-center gap-2 border border-purple-500/30 text-purple-200 hover:bg-white/5 px-4 py-2 rounded-lg transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Display current personas */}
+                        {effectivePersonas && (
+                          <>
+                            <div className="flex flex-wrap gap-2">
+                              {effectivePersonas.preview.metadata.personas.map((persona) => (
+                                <span
+                                  key={persona.id}
+                                  className="px-3 py-1.5 rounded-lg bg-purple-600/30 border border-purple-500/40 text-purple-100 text-sm"
+                                >
+                                  {persona.name}
+                                </span>
+                              ))}
+                            </div>
+
+                            {/* Show active behaviors */}
+                            {Object.keys(effectivePersonas.preview.metadata.behaviors).length > 0 && (
+                              <div className="space-y-2">
+                                <p className="text-xs text-purple-400 font-medium">Active Behaviors:</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {Object.entries(effectivePersonas.preview.metadata.behaviors).map(([key, behavior]: [string, any]) => (
+                                    <span
+                                      key={key}
+                                      className="text-xs px-2 py-1 rounded bg-white/5 text-purple-300 border border-purple-500/20"
+                                    >
+                                      {behavior.label}: {behavior.selectedId || (behavior.selectedIds?.join(', '))}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <button
+                              onClick={() => setEditingPersonas(true)}
+                              className="flex items-center gap-2 text-sm text-purple-300 hover:text-purple-200"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Edit Personas
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </motion.div>
 
         {video.output_path && (
@@ -548,7 +793,58 @@ export default function VideoDetailPage() {
                                   <option value="area-chart">Area Chart</option>
                                   <option value="progress-bars">Progress Bars</option>
                                 </optgroup>
+                                <optgroup label="🔬 Scientific">
+                                  <option value="equation">Equation (LaTeX)</option>
+                                </optgroup>
                               </select>
+                            </div>
+
+                            {/* Animation Style Selector */}
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-purple-200 mb-2">
+                                  Background Animation
+                                </label>
+                                <select
+                                  value={editData.animation_style || 'none'}
+                                  onChange={(e) => setEditData({ ...editData, animation_style: e.target.value })}
+                                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white [&>optgroup]:text-gray-900 [&>optgroup]:bg-gray-100"
+                                >
+                                  <option value="none">None</option>
+                                  <optgroup label="✨ Subtle">
+                                    <option value="particles">Particles</option>
+                                    <option value="floating-shapes">Floating Shapes</option>
+                                    <option value="waves">Waves</option>
+                                    <option value="bokeh">Bokeh</option>
+                                    <option value="aurora">Aurora</option>
+                                  </optgroup>
+                                  <optgroup label="💻 Tech">
+                                    <option value="grid-pulse">Grid Pulse</option>
+                                    <option value="matrix">Matrix</option>
+                                  </optgroup>
+                                  <optgroup label="🎯 Dynamic">
+                                    <option value="geometric">Geometric</option>
+                                  </optgroup>
+                                  <optgroup label="🎉 Playful">
+                                    <option value="confetti">Confetti</option>
+                                  </optgroup>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-purple-200 mb-2">
+                                  Animation Intensity
+                                </label>
+                                <select
+                                  value={editData.animation_intensity || 'medium'}
+                                  onChange={(e) => setEditData({ ...editData, animation_intensity: e.target.value })}
+                                  disabled={editData.animation_style === 'none' || !editData.animation_style}
+                                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed [&>option]:text-gray-900 [&>option]:bg-white"
+                                >
+                                  <option value="low">Low (Subtle)</option>
+                                  <option value="medium">Medium (Balanced)</option>
+                                  <option value="high">High (Active)</option>
+                                </select>
+                              </div>
                             </div>
 
                             {/* Conditional Fields Based on Scene Type */}
@@ -731,6 +1027,82 @@ export default function VideoDetailPage() {
                               </div>
                             )}
 
+                            {/* Equation-specific fields */}
+                            {scene.scene_type === 'equation' && (
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                                    Equation (LaTeX format)
+                                  </label>
+                                  <textarea
+                                    value={editData.equation || ''}
+                                    onChange={(e) => setEditData({ ...editData, equation: e.target.value })}
+                                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500 font-mono text-sm"
+                                    rows={2}
+                                    placeholder="E = mc^2"
+                                  />
+                                  <p className="text-xs text-purple-400 mt-1">
+                                    Use LaTeX syntax: ^2 for superscript, _n for subscript, \frac&#123;a&#125;&#123;b&#125; for fractions, \sqrt&#123;x&#125; for square root
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                                    Multiple Equations (one per line, for step-by-step)
+                                  </label>
+                                  <textarea
+                                    value={editData.equations?.join('\n') || ''}
+                                    onChange={(e) => setEditData({
+                                      ...editData,
+                                      equations: e.target.value.split('\n').filter(eq => eq.trim())
+                                    })}
+                                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500 font-mono text-sm"
+                                    rows={4}
+                                    placeholder="x^2 + y^2 = r^2&#10;y = \sqrt{r^2 - x^2}&#10;y = \pm\sqrt{r^2 - x^2}"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                                    Description (optional)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editData.equation_description || ''}
+                                    onChange={(e) => setEditData({ ...editData, equation_description: e.target.value })}
+                                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
+                                    placeholder="The equation for kinetic energy"
+                                  />
+                                </div>
+                                <button
+                                  onClick={async () => {
+                                    const description = prompt('Describe the equation or concept you want to show:');
+                                    if (!description) return;
+
+                                    try {
+                                      const response = await fetch('http://localhost:8787/api/ai/generate-equation', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ description })
+                                      });
+                                      const data = await response.json();
+                                      setEditData({
+                                        ...editData,
+                                        equation: data.equation,
+                                        equations: data.equations,
+                                        equation_description: data.description,
+                                        title: data.title || editData.title
+                                      });
+                                    } catch (error) {
+                                      alert('Failed to generate equation');
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 text-sm text-purple-300 hover:text-purple-200"
+                                >
+                                  <Sparkles className="w-4 h-4" />
+                                  Generate with AI
+                                </button>
+                              </div>
+                            )}
+
                             {/* JSON Editor for Advanced Users */}
                             <details className="bg-white/5 rounded-lg border border-purple-500/20">
                               <summary className="cursor-pointer p-3 text-purple-300 text-sm font-medium hover:text-purple-200">
@@ -835,6 +1207,179 @@ export default function VideoDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-gradient-to-br from-slate-900 via-purple-900/90 to-slate-900 rounded-xl border border-purple-500/30 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="p-6 border-b border-purple-500/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Share2 className="w-6 h-6 text-purple-400" />
+                  <h2 className="text-2xl font-bold text-white">Export to Platforms</h2>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowExportModal(false);
+                    setSelectedPlatforms([]);
+                    setExportOutputs(null);
+                  }}
+                  className="p-2 rounded-lg text-purple-300 hover:bg-white/10 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-purple-200 mt-2 text-sm">
+                Select the platforms you want to export to. Videos will be rendered in the optimal aspect ratio for each platform.
+              </p>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Platform Selection */}
+              {!exportOutputs && (
+                <>
+                  {Object.entries(ASPECT_RATIO_GROUPS).map(([ratio, group]) => (
+                    <div key={ratio} className="space-y-3">
+                      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <Film className="w-5 h-5 text-purple-400" />
+                        {group.label}
+                      </h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        {group.platforms.map(platformId => {
+                          const platform = PLATFORMS[platformId as keyof typeof PLATFORMS];
+                          const isSelected = selectedPlatforms.includes(platformId);
+
+                          return (
+                            <button
+                              key={platformId}
+                              onClick={() => togglePlatform(platformId)}
+                              disabled={exporting}
+                              className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${
+                                isSelected
+                                  ? 'bg-purple-600/30 border-purple-500 text-white'
+                                  : 'bg-white/5 border-purple-500/20 text-purple-200 hover:bg-white/10'
+                              } ${exporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              <span className="text-2xl">{platform.icon}</span>
+                              <div className="text-left">
+                                <div className="font-medium">{platform.name}</div>
+                                <div className="text-xs text-purple-400">{platform.aspectRatio}</div>
+                              </div>
+                              {isSelected && (
+                                <CheckCircle className="w-5 h-5 text-green-400 ml-auto" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Export Progress */}
+                  {exporting && exportProgress && (
+                    <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                        <span className="text-white font-medium">{exportProgress.current || 'Rendering...'}</span>
+                      </div>
+                      <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-300"
+                          style={{ width: `${exportProgress.percentage || 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Export Button */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleMultiPlatformExport}
+                      disabled={selectedPlatforms.length === 0 || exporting}
+                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
+                    >
+                      {exporting ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Exporting...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-5 h-5" />
+                          Export {selectedPlatforms.length > 0 ? `(${selectedPlatforms.length} platforms)` : ''}
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowExportModal(false);
+                        setSelectedPlatforms([]);
+                      }}
+                      disabled={exporting}
+                      className="px-6 py-3 rounded-lg border border-purple-500/30 text-purple-200 hover:bg-white/5 transition-colors font-semibold disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Export Results */}
+              {exportOutputs && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-green-400 mb-4">
+                    <CheckCircle className="w-6 h-6" />
+                    <span className="text-lg font-semibold">Export Complete!</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {Object.entries(exportOutputs).map(([platformId, output]) => {
+                      const platform = PLATFORMS[platformId as keyof typeof PLATFORMS];
+
+                      return (
+                        <div
+                          key={platformId}
+                          className="flex items-center justify-between bg-white/5 rounded-lg p-4 border border-purple-500/20"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{platform.icon}</span>
+                            <div>
+                              <div className="font-medium text-white">{platform.name}</div>
+                              <div className="text-xs text-purple-400">{output.aspectRatio}</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => downloadPlatformExport(platformId)}
+                            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+                          >
+                            <Download className="w-4 h-4" />
+                            Download
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowExportModal(false);
+                      setSelectedPlatforms([]);
+                      setExportOutputs(null);
+                    }}
+                    className="w-full mt-4 px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Stock Image Browser */}
       <StockImageBrowser

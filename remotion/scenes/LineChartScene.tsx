@@ -1,12 +1,15 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
 import { SceneProps } from './types';
 import { useFadeAnimation } from './utils';
 import { TextOnlyScene } from './TextOnlyScene';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
+  const layout = useResponsiveLayout();
+  const { width: videoWidth, height: videoHeight } = useVideoConfig();
 
   let chartData: any = null;
   try {
@@ -32,9 +35,10 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames, t
   const titleDelay = 10;
   const titleOpacity = frame > titleDelay ? Math.min(1, (frame - titleDelay) / 15) * opacity : 0;
 
-  const chartWidth = 1200;
-  const chartHeight = 500;
-  const padding = 60;
+  // Responsive chart dimensions
+  const chartWidth = layout.isVertical ? videoWidth * 0.85 : layout.isSquare ? videoWidth * 0.8 : 1200;
+  const chartHeight = layout.isVertical ? videoHeight * 0.45 : layout.isSquare ? videoHeight * 0.55 : 500;
+  const padding = layout.isVertical ? 40 : 60;
   const innerWidth = chartWidth - 2 * padding;
   const innerHeight = chartHeight - 2 * padding;
 
@@ -61,8 +65,8 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames, t
       {data.title && (
         <div style={{
           position: 'absolute',
-          top: 80,
-          fontSize: 48,
+          top: layout.padding,
+          fontSize: layout.isVertical ? 36 : layout.isSquare ? 40 : 48,
           fontWeight: 700,
           color: theme.colors.textPrimary,
           opacity: titleOpacity,
@@ -90,7 +94,7 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames, t
         <path
           d={pathD}
           stroke={theme.colors.accent}
-          strokeWidth="4"
+          strokeWidth={layout.isVertical ? 3 : 4}
           fill="none"
           strokeDasharray="2000"
           strokeDashoffset={2000 * (1 - lineProgress)}
@@ -107,7 +111,7 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames, t
               key={idx}
               cx={point.x}
               cy={point.y}
-              r="6"
+              r={layout.isVertical ? 4 : 6}
               fill={theme.colors.accent}
               opacity={pointOpacity}
             />
@@ -119,9 +123,9 @@ export const LineChartScene: React.FC<SceneProps> = ({ data, durationInFrames, t
           <text
             key={idx}
             x={points[idx].x}
-            y={chartHeight - 20}
+            y={chartHeight - 10}
             fill={theme.colors.textSecondary}
-            fontSize="14"
+            fontSize={layout.isVertical ? 11 : 14}
             textAnchor="middle"
             opacity={opacity}
           >

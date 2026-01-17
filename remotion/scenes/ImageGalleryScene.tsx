@@ -3,10 +3,12 @@ import { AbsoluteFill, useCurrentFrame, Img } from 'remotion';
 import { SceneProps } from './types';
 import { useFadeAnimation } from './utils';
 import { TextOnlyScene } from './TextOnlyScene';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 export const ImageGalleryScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
+  const layout = useResponsiveLayout();
 
   const images = [data.image_url, data.image_url_2, data.image_url_3, data.image_url_4].filter(Boolean);
 
@@ -26,6 +28,10 @@ export const ImageGalleryScene: React.FC<SceneProps> = ({ data, durationInFrames
   const currentOpacity = 1 - transitionProgress;
   const nextOpacity = transitionProgress;
 
+  // Responsive image sizing
+  const imageInset = layout.isVertical ? '8%' : '10%';
+  const imageSize = layout.isVertical ? '84%' : '80%';
+
   return (
     <AbsoluteFill style={{
       background: theme.colors.backgroundGradient || theme.colors.background,
@@ -34,10 +40,10 @@ export const ImageGalleryScene: React.FC<SceneProps> = ({ data, durationInFrames
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
         <div style={{
           position: 'absolute',
-          top: '10%',
-          left: '10%',
-          width: '80%',
-          height: '80%',
+          top: imageInset,
+          left: imageInset,
+          width: imageSize,
+          height: imageSize,
           opacity: currentOpacity * opacity
         }}>
           <Img
@@ -54,10 +60,10 @@ export const ImageGalleryScene: React.FC<SceneProps> = ({ data, durationInFrames
         {currentImageIndex !== nextImageIndex && (
           <div style={{
             position: 'absolute',
-            top: '10%',
-            left: '10%',
-            width: '80%',
-            height: '80%',
+            top: imageInset,
+            left: imageInset,
+            width: imageSize,
+            height: imageSize,
             opacity: nextOpacity * opacity
           }}>
             <Img
@@ -76,18 +82,18 @@ export const ImageGalleryScene: React.FC<SceneProps> = ({ data, durationInFrames
       {data.title && (
         <div style={{
           position: 'absolute',
-          bottom: 60,
+          bottom: layout.padding,
           left: 0,
           right: 0,
           textAlign: 'center'
         }}>
           <div style={{
-            fontSize: 48,
+            fontSize: layout.isVertical ? 36 : layout.isSquare ? 40 : 48,
             fontWeight: 700,
             color: theme.colors.textPrimary,
             opacity,
             backgroundColor: theme.colors.surface || 'rgba(10, 10, 10, 0.8)',
-            padding: '20px 40px',
+            padding: layout.isVertical ? '16px 24px' : '20px 40px',
             borderRadius: 12,
             display: 'inline-block',
             fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
@@ -100,18 +106,18 @@ export const ImageGalleryScene: React.FC<SceneProps> = ({ data, durationInFrames
       {/* Image indicators */}
       <div style={{
         position: 'absolute',
-        bottom: 140,
+        bottom: layout.isVertical ? 100 : 140,
         left: '50%',
         transform: 'translateX(-50%)',
         display: 'flex',
-        gap: 12
+        gap: layout.isVertical ? 8 : 12
       }}>
         {images.map((_, idx) => (
           <div
             key={idx}
             style={{
-              width: 12,
-              height: 12,
+              width: layout.isVertical ? 8 : 12,
+              height: layout.isVertical ? 8 : 12,
               borderRadius: '50%',
               backgroundColor: idx === currentImageIndex ? theme.colors.accent : theme.colors.surfaceLight || 'rgba(255,255,255,0.3)',
               transition: 'background-color 0.3s'

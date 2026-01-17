@@ -1,12 +1,15 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
 import { SceneProps } from './types';
 import { useFadeAnimation } from './utils';
 import { TextOnlyScene } from './TextOnlyScene';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 
 export const PieChartScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const frame = useCurrentFrame();
   const opacity = useFadeAnimation(durationInFrames);
+  const layout = useResponsiveLayout();
+  const { width: videoWidth, height: videoHeight } = useVideoConfig();
 
   let chartData: any = null;
   try {
@@ -37,9 +40,12 @@ export const PieChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
   const titleDelay = 10;
   const titleOpacity = frame > titleDelay ? Math.min(1, (frame - titleDelay) / 15) * opacity : 0;
 
-  const radius = 200;
-  const centerX = 400;
-  const centerY = 300;
+  // Responsive pie chart dimensions
+  const radius = layout.isVertical ? 140 : layout.isSquare ? 160 : 200;
+  const svgWidth = layout.isVertical ? videoWidth * 0.9 : 800;
+  const svgHeight = layout.isVertical ? videoHeight * 0.35 : 600;
+  const centerX = svgWidth / 2;
+  const centerY = svgHeight / 2;
 
   let currentAngle = -90; // Start at top
 
@@ -48,28 +54,33 @@ export const PieChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
     ? Math.min(1, (frame - animationDelay) / 40)
     : 0;
 
+  // In vertical mode, stack chart and legend
+  const containerStyle = layout.isVertical
+    ? { display: 'flex', flexDirection: 'column' as const, gap: 20, alignItems: 'center', justifyContent: 'center' }
+    : { display: 'flex', flexDirection: 'row' as const, gap: 100, alignItems: 'center', justifyContent: 'center' };
+
   return (
     <AbsoluteFill style={{
       background: theme.colors.backgroundGradient || theme.colors.background,
       fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
-      padding: 80
+      padding: layout.padding
     }}>
       {data.title && (
         <div style={{
-          fontSize: 48,
+          fontSize: layout.isVertical ? 36 : layout.isSquare ? 40 : 48,
           fontWeight: 700,
           color: theme.colors.textPrimary,
           opacity: titleOpacity,
           textAlign: 'center',
-          marginBottom: 40,
+          marginBottom: layout.gap,
           fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
         }}>
           {data.title}
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 100, alignItems: 'center', justifyContent: 'center' }}>
-        <svg width={800} height={600} style={{ opacity }}>
+      <div style={containerStyle}>
+        <svg width={svgWidth} height={svgHeight} style={{ opacity }}>
           {chartData.data.map((value: number, idx: number) => {
             const percentage = value / total;
             const angle = percentage * 360 * animationProgress;
@@ -105,7 +116,13 @@ export const PieChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
           })}
         </svg>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: layout.isVertical ? 'row' : 'column',
+          flexWrap: layout.isVertical ? 'wrap' : 'nowrap',
+          gap: layout.isVertical ? 16 : 20,
+          justifyContent: 'center'
+        }}>
           {chartData.labels.map((label: string, idx: number) => {
             const legendDelay = animationDelay + 40 + (idx * 5);
             const legendOpacity = frame > legendDelay ? opacity : 0;
@@ -117,26 +134,26 @@ export const PieChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 15,
+                  gap: layout.isVertical ? 8 : 15,
                   opacity: legendOpacity
                 }}
               >
                 <div style={{
-                  width: 30,
-                  height: 30,
+                  width: layout.isVertical ? 20 : 30,
+                  height: layout.isVertical ? 20 : 30,
                   backgroundColor: colors[idx % colors.length],
                   borderRadius: 4
                 }} />
                 <div>
                   <div style={{
-                    fontSize: 24,
+                    fontSize: layout.isVertical ? 16 : 24,
                     color: theme.colors.textPrimary,
                     fontWeight: 500
                   }}>
                     {label}
                   </div>
                   <div style={{
-                    fontSize: 18,
+                    fontSize: layout.isVertical ? 12 : 18,
                     color: theme.colors.textSecondary
                   }}>
                     {percentage}%
