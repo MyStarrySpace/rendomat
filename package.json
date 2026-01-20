@@ -1,5 +1,5 @@
 {
-  "name": "vsl-generator",
+  "name": "rendomat",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -24,6 +24,9 @@
     "dotenv": "^16.4.5",
     "elevenlabs-js": "^1.2.6",
     "express": "^4.19.2",
+    "gray-matter": "^4.0.3",
+    "mammoth": "^1.11.0",
+    "marked": "^17.0.1",
     "multer": "^2.0.2",
     "remotion": "4.0.390"
   },

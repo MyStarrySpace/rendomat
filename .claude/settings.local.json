@@ -44,7 +44,23 @@
       "Bash(powershell \"Stop-Process -Id 56368 -Force\")",
       "Bash(npm run dev:*)",
       "Bash(powershell \"Stop-Process -Id 50168 -Force\")",
-      "Bash(timeout /t 3)"
+      "Bash(timeout /t 3)",
+      "Skill(plan)",
+      "Bash(powershell -Command \"$word = New-Object -ComObject Word.Application; $doc = $word.Documents.Open\\(''c:\\\\Users\\\\quest\\\\Downloads\\\\Social Media Proposal.docx''\\); $doc.Content.Text; $doc.Close\\(\\); $word.Quit\\(\\)\")",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(taskkill:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd AI persona system, research mode, and scene animations\n\n- Implement modular persona system with 9 personas \\(VSL, DataViz, TikTok,\n  Instagram Reels, YouTube Shorts, LinkedIn, Twitter/X, Scientist, Mathematician\\)\n- Add persona blending for combining multiple expert personas\n- Add customizable behaviors with multi-select support for tone, tactics, etc.\n- Create research service for portfolio extraction and citation gathering\n- Add equation scene with LaTeX rendering for academic content\n- Implement 10 animation styles \\(particles, shapes, waves, grid-pulse,\n  bokeh, geometric, matrix, aurora, confetti\\)\n- Add responsive layout hooks and aspect ratio configuration\n- Update all scenes with animation layer support\n- Add PersonaSelector component for frontend persona management\n- Update client/video pages with research mode and persona selection\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "WebFetch(domain:blog.maximeheckel.com)",
+      "WebFetch(domain:ae-scripting.docsforadobe.dev)",
+      "Bash(grep:*)",
+      "WebFetch(domain:www.remotion.dev)",
+      "WebFetch(domain:www.namecheap.com)",
+      "WebFetch(domain:who.is)",
+      "WebFetch(domain:instantdomainsearch.com)",
+      "WebFetch(domain:www.godaddy.com)",
+      "Bash(nslookup:*)"
     ]
   }
 }

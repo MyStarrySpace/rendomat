@@ -19,6 +19,8 @@ import { searchPhotos, getPhoto, getCuratedPhotos } from './pexels-service.mjs';
 import { getAllPersonas, getPersona, getPersonasGroupedByCategory } from './personas.mjs';
 import { previewBlendedPrompt, getEffectivePersonas, validatePersonaIds } from './persona-blender.mjs';
 import { performResearch, generateSlidesWithResearch, verifyClaim } from './research-service.mjs';
+import { generateAEManifest, generateSelfContainedScript } from './ae-exporter.mjs';
+import { parseDocument, parseMarkdownContent, parseDocxBuffer, generateVideoSeed } from './document-parser.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
 const DEBUG = String(process.env.RENDER_DEBUG || '').toLowerCase() === 'true';
@@ -1475,6 +1477,151 @@ app.get('/api/scenes/:sceneId/preview', async (req, res) => {
   }
 });
 
+// =============================
+// After Effects Export API
+// =============================
+
+// Get theme by ID helper
+function getThemeById(themeId) {
+  // Import themes inline to avoid circular dependencies
+  const THEMES = {
+    'tech-dark': {
+      id: 'tech-dark',
+      name: 'Tech Dark',
+      colors: {
+        background: '#0A0A0A',
+        backgroundGradient: 'linear-gradient(135deg, #0A0A0A 0%, #1A1F2E 100%)',
+        textPrimary: '#FFFFFF',
+        textSecondary: '#A0AEC0',
+        accent: '#00D9A3',
+        accentSecondary: '#00F5FF',
+        surface: 'rgba(255, 255, 255, 0.05)',
+        surfaceLight: 'rgba(255, 255, 255, 0.1)',
+      },
+      fonts: { heading: 'Inter', body: 'Inter' },
+    },
+    'artisanal-light': {
+      id: 'artisanal-light',
+      name: 'Artisanal Light',
+      colors: {
+        background: '#FAF9F6',
+        textPrimary: '#2D2D2D',
+        textSecondary: '#6B6B6B',
+        accent: '#D4845F',
+      },
+      fonts: { heading: 'Montserrat', body: 'Source Sans Pro' },
+    },
+    'corporate-blue': {
+      id: 'corporate-blue',
+      name: 'Corporate Blue',
+      colors: {
+        background: '#0F1D3D',
+        textPrimary: '#FFFFFF',
+        textSecondary: '#CBD5E0',
+        accent: '#F6AD55',
+      },
+      fonts: { heading: 'Montserrat', body: 'Inter' },
+    },
+    'vibrant-gradient': {
+      id: 'vibrant-gradient',
+      name: 'Vibrant Gradient',
+      colors: {
+        background: '#1A1A2E',
+        textPrimary: '#FFFFFF',
+        textSecondary: '#E0E0E0',
+        accent: '#FF00FF',
+      },
+      fonts: { heading: 'Montserrat', body: 'Poppins' },
+    },
+  };
+  return THEMES[themeId] || THEMES['tech-dark'];
+}
+
+// Export video to After Effects JSON manifest format
+app.get('/api/videos/:videoId/export-ae', async (req, res) => {
+  try {
+    const video = videoDb.getById(req.params.videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const scenes = sceneDb.getAllForVideo(req.params.videoId);
+    if (scenes.length === 0) {
+      return res.status(400).json({ error: 'No scenes found for this video' });
+    }
+
+    // Get dimensions from aspect ratio
+    const aspectRatio = video.aspect_ratio || '16:9';
+    const dimensions = getDimensionsForAspectRatio(aspectRatio);
+
+    // Get theme
+    const theme = getThemeById(video.theme_id);
+
+    // Generate the manifest
+    const manifest = generateAEManifest({
+      video,
+      scenes,
+      fps: 30,
+      width: dimensions.width,
+      height: dimensions.height,
+      theme,
+    });
+
+    res.json(manifest);
+  } catch (error) {
+    console.error('[ae-export] Error generating manifest:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Export video as self-contained After Effects JSX script
+app.get('/api/videos/:videoId/export-ae/script', async (req, res) => {
+  try {
+    const video = videoDb.getById(req.params.videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const scenes = sceneDb.getAllForVideo(req.params.videoId);
+    if (scenes.length === 0) {
+      return res.status(400).json({ error: 'No scenes found for this video' });
+    }
+
+    // Get dimensions
+    const aspectRatio = video.aspect_ratio || '16:9';
+    const dimensions = getDimensionsForAspectRatio(aspectRatio);
+
+    // Get theme
+    const theme = getThemeById(video.theme_id);
+
+    // Generate the manifest
+    const manifest = generateAEManifest({
+      video,
+      scenes,
+      fps: 30,
+      width: dimensions.width,
+      height: dimensions.height,
+      theme,
+    });
+
+    // Generate self-contained script
+    const script = generateSelfContainedScript(manifest);
+
+    // Sanitize filename
+    const filename = (video.title || 'remotion-export')
+      .replace(/[^a-zA-Z0-9-_]/g, '-')
+      .replace(/-+/g, '-')
+      .toLowerCase();
+
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}-ae-import.jsx"`);
+    res.send(script);
+  } catch (error) {
+    console.error('[ae-export] Error generating script:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ===== PEXELS STOCK IMAGE ROUTES =====
 
 // Search for stock images
@@ -1513,6 +1660,228 @@ app.get('/api/stock-images/:photoId', async (req, res) => {
     res.json(photo);
   } catch (error) {
     console.error('[pexels] Get photo error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================
+// Document Import Endpoints
+// =====================
+
+// Configure multer for document uploads
+const documentStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const docsDir = path.join(process.cwd(), 'public', 'uploads', 'documents');
+    try {
+      await fs.mkdir(docsDir, { recursive: true });
+    } catch (error) {
+      console.error('Failed to create documents directory:', error);
+    }
+    cb(null, docsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const documentUpload = multer({
+  storage: documentStorage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit for documents
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /md|markdown|docx|txt/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const allowedMimes = [
+      'text/markdown',
+      'text/plain',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    const mimeOk = allowedMimes.includes(file.mimetype) || file.mimetype.startsWith('text/');
+
+    if (mimeOk || extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only markdown (.md), Word (.docx), and text (.txt) files are allowed'));
+    }
+  }
+});
+
+// Upload and parse a document
+app.post('/api/documents/upload', documentUpload.single('document'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No document file provided' });
+    }
+
+    const filePath = req.file.path;
+    console.log(`[document] Parsing uploaded document: ${req.file.originalname}`);
+
+    // Parse the document
+    const parsed = await parseDocument(filePath);
+
+    // Optionally clean up the uploaded file
+    // await fs.unlink(filePath);
+
+    res.json({
+      success: true,
+      filename: req.file.originalname,
+      parsed,
+    });
+  } catch (error) {
+    console.error('[document] Upload/parse error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Parse markdown content directly (no file upload)
+app.post('/api/documents/parse-markdown', async (req, res) => {
+  try {
+    const { content } = req.body;
+    if (!content) {
+      return res.status(400).json({ error: 'No content provided' });
+    }
+
+    const parsed = parseMarkdownContent(content);
+    res.json({ success: true, parsed });
+  } catch (error) {
+    console.error('[document] Parse markdown error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Generate video seed from parsed document
+app.post('/api/documents/generate-video-seed', async (req, res) => {
+  try {
+    const { parsedDocument, options } = req.body;
+    if (!parsedDocument) {
+      return res.status(400).json({ error: 'No parsed document provided' });
+    }
+
+    const videoSeed = generateVideoSeed(parsedDocument, options || {});
+    res.json({ success: true, videoSeed });
+  } catch (error) {
+    console.error('[document] Generate video seed error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Combined endpoint: Upload document and generate video seed
+app.post('/api/documents/to-video-seed', documentUpload.single('document'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No document file provided' });
+    }
+
+    // Parse options from request body
+    let options = {};
+    if (req.body.options) {
+      try {
+        options = JSON.parse(req.body.options);
+      } catch (e) {
+        // Ignore invalid JSON
+      }
+    }
+
+    const filePath = req.file.path;
+    console.log(`[document] Processing document to video seed: ${req.file.originalname}`);
+
+    // Parse the document
+    const parsed = await parseDocument(filePath);
+
+    // Generate video seed
+    const videoSeed = generateVideoSeed(parsed, options);
+
+    res.json({
+      success: true,
+      filename: req.file.originalname,
+      parsed,
+      videoSeed,
+    });
+  } catch (error) {
+    console.error('[document] Document to video seed error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create video from video seed
+app.post('/api/documents/create-video-from-seed', async (req, res) => {
+  try {
+    const { videoSeed, clientId, templateId, themeId } = req.body;
+
+    if (!videoSeed || !videoSeed.scenes) {
+      return res.status(400).json({ error: 'Invalid video seed provided' });
+    }
+
+    // Create the video record
+    const video = videoDb.create({
+      title: videoSeed.title || 'Imported Video',
+      description: videoSeed.description || '',
+      client_id: clientId || null,
+      template_id: templateId || 'basic-explainer',
+      theme_id: themeId || 'modern-dark',
+    });
+
+    // Convert video seed scenes to database scenes
+    const createdScenes = [];
+    for (let i = 0; i < videoSeed.scenes.length; i++) {
+      const seedScene = videoSeed.scenes[i];
+
+      // Map scene type to template scene type
+      let sceneType = 'text-only';
+      if (seedScene.type === 'intro' || seedScene.type === 'outro') {
+        sceneType = 'text-only';
+      } else if (seedScene.type === 'stats') {
+        sceneType = 'stats';
+      } else if (seedScene.type === 'quote') {
+        sceneType = 'quote';
+      } else if (seedScene.type === 'bullet-list') {
+        sceneType = 'text-only';
+      }
+
+      // Build scene content
+      const content = {
+        headline: seedScene.title,
+        supportingText: Array.isArray(seedScene.content)
+          ? seedScene.content.join('\n')
+          : seedScene.content,
+        narration: seedScene.narration,
+      };
+
+      // Add scene-type specific content
+      if (sceneType === 'stats' && seedScene.content.length > 0) {
+        // Try to extract numbers from content
+        const numbers = seedScene.content.join(' ').match(/\d+/g);
+        if (numbers && numbers.length > 0) {
+          content.stats = numbers.slice(0, 3).map((num, idx) => ({
+            value: parseInt(num),
+            label: seedScene.content[idx] || `Stat ${idx + 1}`,
+          }));
+        }
+      }
+
+      if (sceneType === 'quote' && seedScene.content.length > 0) {
+        content.quote = seedScene.content[0];
+        content.attribution = seedScene.title;
+      }
+
+      const scene = sceneDb.create({
+        video_id: video.id,
+        type: sceneType,
+        order_index: i,
+        duration_frames: Math.round(seedScene.estimatedDuration * 30), // 30fps
+        content,
+      });
+
+      createdScenes.push(scene);
+    }
+
+    res.json({
+      success: true,
+      video,
+      scenes: createdScenes,
+    });
+  } catch (error) {
+    console.error('[document] Create video from seed error:', error);
     res.status(500).json({ error: error.message });
   }
 });

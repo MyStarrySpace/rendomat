@@ -86,7 +86,7 @@ export default function ClientsPage() {
               New Client
             </button>
           </div>
-          <p className="text-purple-200">Manage your VSL clients</p>
+          <p className="text-purple-200">Manage your video clients</p>
         </motion.div>
 
         {showForm && (

@@ -421,7 +421,7 @@ export default function ClientDetailPage() {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
-                  placeholder="Product Launch VSL"
+                  placeholder="Product Launch Video"
                 />
               </div>
               <div>
@@ -725,7 +725,7 @@ export default function ClientDetailPage() {
                   onChange={(e) => setAiDescription(e.target.value)}
                   className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-3 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
                   rows={6}
-                  placeholder="Example: A VSL for a SaaS tool that helps marketing teams automate their social media posting. Target audience is marketing managers at mid-size companies. Key benefits include saving 10+ hours per week, increasing engagement by 40%, and seamless integration with existing tools. CTA is to start a 14-day free trial."
+                  placeholder="Example: A video for a SaaS tool that helps marketing teams automate their social media posting. Target audience is marketing managers at mid-size companies. Key benefits include saving 10+ hours per week, increasing engagement by 40%, and seamless integration with existing tools. CTA is to start a 14-day free trial."
                 />
               </div>
 
@@ -743,7 +743,7 @@ export default function ClientDetailPage() {
                   </span>
                 </label>
                 <span className="text-xs text-purple-400">
-                  (Add company-specific details for highly personalized VSL)
+                  (Add company-specific details for highly personalized video)
                 </span>
               </div>
 

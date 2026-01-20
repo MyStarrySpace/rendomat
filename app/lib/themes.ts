@@ -1,4 +1,4 @@
-// Theme system for VSL videos based on 2026 design trends
+// Theme system for Rendomat videos based on 2026 design trends
 
 export interface Theme {
   id: string;

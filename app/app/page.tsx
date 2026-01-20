@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Video, Users, Film, Zap, Database, ArrowRight, Loader2 } from "lucide-react";
+import { Video, Users, Film, Zap, Database, ArrowRight, Loader2, Instagram } from "lucide-react";
 import Link from "next/link";
 import { clientApi, videoApi, Client, Video as VideoType } from "@/lib/api";
 
@@ -44,10 +44,10 @@ export default function Home() {
         >
           <div className="flex items-center justify-center gap-3 mb-4">
             <Video className="w-12 h-12 text-purple-400" />
-            <h1 className="text-5xl font-bold text-white">VSL Generator</h1>
+            <h1 className="text-5xl font-bold text-white">Rendomat</h1>
           </div>
           <p className="text-xl text-purple-200">
-            Create stunning video sales letters with intelligent scene caching
+            Generative video creation with intelligent scene caching
           </p>
         </motion.div>
 
@@ -103,10 +103,10 @@ export default function Home() {
               </motion.div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8 mb-12">
+            <div className="grid md:grid-cols-3 gap-6 mb-12">
               <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
               >
                 <Link href="/clients">
@@ -119,7 +119,7 @@ export default function Home() {
                     </div>
                     <h2 className="text-2xl font-bold text-white mb-2">Manage Clients</h2>
                     <p className="text-purple-200 mb-4">
-                      View and manage your VSL clients, create new client profiles, and organize their video projects.
+                      View and manage your clients, create new client profiles, and organize their video projects.
                     </p>
                     <div className="flex items-center gap-2 text-purple-300">
                       <span className="text-sm">{clients.length} active clients</span>
@@ -129,8 +129,8 @@ export default function Home() {
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
                 className="bg-white/10 backdrop-blur-lg rounded-lg p-8 border border-purple-500/20"
               >
@@ -139,29 +139,53 @@ export default function Home() {
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-2">Scene Caching System</h2>
                 <p className="text-purple-200 mb-4">
-                  Our intelligent caching system splits videos into scenes and only re-renders what changed.
+                  Intelligent caching only re-renders what changed.
                 </p>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between text-purple-300">
                     <span>Change 1 scene:</span>
-                    <span className="text-green-400 font-semibold">~35 seconds</span>
+                    <span className="text-green-400 font-semibold">~35s</span>
                   </div>
                   <div className="flex items-center justify-between text-purple-300">
                     <span>No changes:</span>
-                    <span className="text-green-400 font-semibold">~10 seconds</span>
+                    <span className="text-green-400 font-semibold">~10s</span>
                   </div>
                   <div className="flex items-center justify-between text-purple-300">
                     <span>Full render:</span>
-                    <span className="text-purple-400 font-semibold">~3 minutes</span>
+                    <span className="text-purple-400 font-semibold">~3m</span>
                   </div>
                 </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+              >
+                <Link href="/ig-post">
+                  <div className="bg-gradient-to-br from-pink-500/20 to-purple-500/20 backdrop-blur-lg rounded-lg p-8 border border-pink-500/30 hover:border-pink-500/50 transition-all cursor-pointer group h-full">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-16 h-16 bg-gradient-to-br from-pink-500/30 to-purple-500/30 rounded-lg flex items-center justify-center group-hover:from-pink-500/40 group-hover:to-purple-500/40 transition-colors">
+                        <Instagram className="w-8 h-8 text-pink-400" />
+                      </div>
+                      <ArrowRight className="w-6 h-6 text-pink-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">IG Reel Demo</h2>
+                    <p className="text-pink-200 mb-4">
+                      Week 2: Create an Instagram Reel showcasing this very tool.
+                    </p>
+                    <div className="flex items-center gap-2 text-pink-300">
+                      <span className="text-sm">Meta demo ready</span>
+                    </div>
+                  </div>
+                </Link>
               </motion.div>
             </div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
+              transition={{ delay: 0.8 }}
               className="bg-white/10 backdrop-blur-lg rounded-lg p-8 border border-purple-500/20"
             >
               <h2 className="text-2xl font-bold text-white mb-6">Getting Started</h2>

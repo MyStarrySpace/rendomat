@@ -1,6 +1,6 @@
-# VSL Generator
+# Rendomat
 
-A Video Sales Letter generator built with Next.js, Remotion, and TypeScript. Optional AI narration via ElevenLabs.
+A generative video creation platform built with Next.js, Remotion, and TypeScript. Optional AI narration via ElevenLabs.
 
 ## Project Structure
 
@@ -28,7 +28,7 @@ vsl-generator/
 
 ## ✨ Key Features
 
-- **Multi-Client System**: Manage multiple clients and their VSLs in SQLite database
+- **Multi-Client System**: Manage multiple clients and their videos in SQLite database
 - **Scene-Based Rendering**: Videos split into scenes for faster iteration
 - **Intelligent Caching**: Only re-render changed scenes (saves 80-90% render time!)
 - **REST API**: Full CRUD operations for clients, videos, and scenes
