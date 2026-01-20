@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Users, Plus, Building2, Briefcase, Loader2, Home, Trash2 } from "lucide-react";
+import { Plus, Building2, Briefcase, Loader2, ArrowLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { clientApi, Client } from "@/lib/api";
+import { Button } from "@/components/ui";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input, Label } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -59,169 +62,164 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="container mx-auto px-4 py-16">
-        <Link href="/">
-          <button className="flex items-center gap-2 text-purple-300 hover:text-purple-200 mb-6 transition-colors">
-            <Home className="w-5 h-5" />
-            Back to Home
-          </button>
-        </Link>
+    <div className="min-h-screen bg-[hsl(var(--background))]">
+      {/* Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-5 bg-[hsl(var(--background))]/90 backdrop-blur-sm border-b border-[hsl(var(--border))]">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <Link
+            href="/"
+            className="text-sm text-[hsl(var(--foreground-muted))] flex items-center gap-2 hover:text-[hsl(var(--foreground))] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Rendomat
+          </Link>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Users className="w-10 h-10 text-purple-400" />
-              <h1 className="text-4xl font-bold text-white">Clients</h1>
+          <Button onClick={() => setShowForm(!showForm)} icon={<Plus className="w-4 h-4" />}>
+            New Project
+          </Button>
+        </div>
+      </nav>
+
+      {/* Content */}
+      <div className="pt-32 pb-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="mb-12">
+            <p className="caption mb-4">Projects</p>
+            <h1 className="headline text-4xl md:text-5xl text-[hsl(var(--foreground))] mb-4">
+              Your clients
+            </h1>
+            <p className="text-lg text-[hsl(var(--foreground-muted))] max-w-xl">
+              Manage video projects for your clients. Each client can have multiple videos.
+            </p>
+          </div>
+
+          {/* Create Form */}
+          {showForm && (
+            <Card variant="bordered" className="mb-12 animate-fade-in">
+              <CardHeader>
+                <CardTitle>Create new project</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <Label htmlFor="company">Company name *</Label>
+                    <Input
+                      id="company"
+                      type="text"
+                      required
+                      value={formData.company}
+                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                      placeholder="Acme Corporation"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="name">Contact name</Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="industry">Industry</Label>
+                    <Input
+                      id="industry"
+                      type="text"
+                      value={formData.industry}
+                      onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                      placeholder="SaaS, Health Tech, etc."
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      type="submit"
+                      loading={submitting}
+                      icon={<Plus className="w-4 h-4" />}
+                    >
+                      Create project
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setShowForm(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Loading State */}
+          {loading ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="w-6 h-6 text-[hsl(var(--foreground-muted))] animate-spin" />
             </div>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              New Client
-            </button>
-          </div>
-          <p className="text-purple-200">Manage your video clients</p>
-        </motion.div>
-
-        {showForm && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-purple-500/20 mb-8"
-          >
-            <h2 className="text-xl font-bold text-white mb-4">Create New Client</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-2">
-                  Company Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
-                  placeholder="Acme Corporation"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-2">
-                  Contact Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
-                  placeholder="John Doe"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-2">
-                  Industry
-                </label>
-                <input
-                  type="text"
-                  value={formData.industry}
-                  onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
-                  placeholder="SaaS, Health Tech, etc."
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white px-4 py-2 rounded-lg transition-colors"
+          ) : clients.length === 0 ? (
+            /* Empty State */
+            <div className="text-center py-24 border border-[hsl(var(--border))]">
+              <Building2 className="w-12 h-12 text-[hsl(var(--foreground-subtle))] mx-auto mb-6" />
+              <h3 className="headline text-2xl text-[hsl(var(--foreground))] mb-2">
+                No projects yet
+              </h3>
+              <p className="text-[hsl(var(--foreground-muted))] mb-8">
+                Create your first client project to get started
+              </p>
+              <Button onClick={() => setShowForm(true)} icon={<Plus className="w-4 h-4" />}>
+                Create project
+              </Button>
+            </div>
+          ) : (
+            /* Client Grid */
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {clients.map((client) => (
+                <div
+                  key={client.id}
+                  className="group relative bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-6 hover:border-[hsl(var(--border-hover))] transition-colors"
                 >
-                  {submitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Plus className="w-4 h-4" />
-                  )}
-                  Create Client
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-2 rounded-lg border border-purple-500/30 text-purple-200 hover:bg-white/5 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        )}
-
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
-          </div>
-        ) : clients.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="bg-white/5 backdrop-blur-lg rounded-lg p-12 border border-purple-500/20 text-center"
-          >
-            <Users className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No clients yet</h3>
-            <p className="text-purple-200 mb-4">Create your first client to get started</p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              Create Client
-            </button>
-          </motion.div>
-        ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {clients.map((client, idx) => (
-              <motion.div
-                key={client.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all group relative"
-              >
-                <Link href={`/clients/${client.id}`}>
-                  <div className="cursor-pointer">
+                  <Link href={`/clients/${client.id}`} className="block">
                     <div className="flex items-start mb-4">
-                      <div className="w-12 h-12 bg-purple-600/20 rounded-lg flex items-center justify-center group-hover:bg-purple-600/30 transition-colors">
-                        <Building2 className="w-6 h-6 text-purple-400" />
+                      <div className="w-10 h-10 bg-[hsl(var(--accent-muted))] flex items-center justify-center">
+                        <Building2 className="w-5 h-5 text-[hsl(var(--accent))]" />
                       </div>
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-1">{client.company}</h3>
-                    <p className="text-purple-200 text-sm mb-3">{client.name}</p>
+                    <h3 className="headline text-xl text-[hsl(var(--foreground))] mb-1">
+                      {client.company}
+                    </h3>
+                    {client.name && (
+                      <p className="text-sm text-[hsl(var(--foreground-muted))] mb-3">
+                        {client.name}
+                      </p>
+                    )}
                     {client.industry && (
-                      <div className="flex items-center gap-2 text-purple-300 text-sm">
-                        <Briefcase className="w-4 h-4" />
-                        {client.industry}
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" size="sm">
+                          <Briefcase className="w-3 h-3 mr-1.5" />
+                          {client.industry}
+                        </Badge>
                       </div>
                     )}
-                  </div>
-                </Link>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleDelete(client.id, client.company);
-                  }}
-                  className="absolute top-4 right-4 p-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-colors opacity-0 group-hover:opacity-100"
-                  title="Delete client"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </motion.div>
-            ))}
-          </div>
-        )}
+                  </Link>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDelete(client.id, client.company);
+                    }}
+                    className="absolute top-4 right-4 p-2 bg-[hsl(var(--error-muted))] border border-[hsl(var(--error))]/20 text-[hsl(var(--error))] hover:bg-[hsl(var(--error))]/20 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Delete client"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

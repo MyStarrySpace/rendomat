@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { ArrowLeft, Video as VideoIcon, Plus, Play, Clock, CheckCircle, AlertCircle, Loader2, Trash2, Home, Sparkles, Wand2, Settings, Search, Globe, FileText, Quote, ExternalLink, BookOpen } from "lucide-react";
+import { ArrowLeft, Video as VideoIcon, Plus, Play, Clock, CheckCircle, AlertCircle, Loader2, Trash2, Sparkles, Wand2, Search, Globe, FileText, Quote, ExternalLink, BookOpen, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { clientApi, videoApi, templateApi, aiApi, Client, Video, Template, Citation, CaseStudy, ResearchGenerationResult } from "@/lib/api";
+import { clientApi, videoApi, templateApi, aiApi, Client, Video, Template, ResearchGenerationResult } from "@/lib/api";
 import { THEMES } from "@/lib/themes";
 import PersonaSelector from "@/components/PersonaSelector";
+import { Button } from "@/components/ui";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input, Textarea, Label } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 // Aspect ratio options with platform info
 const ASPECT_RATIO_OPTIONS = [
@@ -28,11 +31,11 @@ export default function ClientDetailPage() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
-    template_id: "", // Empty = no template (AI decides)
+    template_id: "",
     composition_id: "DynamicScene",
     aspect_ratio: "16:9",
-    duration_seconds: 60, // Default duration when no template
-    theme_id: "tech-dark", // Default theme
+    duration_seconds: 60,
+    theme_id: "tech-dark",
   });
   const [submitting, setSubmitting] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
@@ -41,7 +44,6 @@ export default function ClientDetailPage() {
   const [advancedMode, setAdvancedMode] = useState(false);
   const [selectedPersonas, setSelectedPersonas] = useState<string[]>(["vsl-expert"]);
   const [behaviorOverrides, setBehaviorOverrides] = useState<Record<string, string | string[]>>({});
-  const [showClientSettings, setShowClientSettings] = useState(false);
   const [companyDetails, setCompanyDetails] = useState({
     companyName: "",
     industry: "",
@@ -75,9 +77,7 @@ export default function ClientDetailPage() {
       setVideos(videosData);
       setTemplates(templatesData);
 
-      // Initialize personas from client defaults if they exist
       if (clientData.default_personas && clientData.default_personas.length > 0) {
-        // Parse if it's a string (from DB)
         const personas = typeof clientData.default_personas === 'string'
           ? JSON.parse(clientData.default_personas)
           : clientData.default_personas;
@@ -89,8 +89,6 @@ export default function ClientDetailPage() {
           : clientData.default_behavior_overrides;
         setBehaviorOverrides(overrides);
       }
-
-      // Initialize portfolio/website URLs from client if they exist
       if (clientData.portfolio_url) {
         setPortfolioUrl(clientData.portfolio_url);
       }
@@ -106,7 +104,6 @@ export default function ClientDetailPage() {
 
   function handleTemplateChange(templateId: string) {
     if (!templateId) {
-      // No template selected - use defaults
       setFormData({
         ...formData,
         template_id: "",
@@ -171,7 +168,6 @@ export default function ClientDetailPage() {
       let research: ResearchGenerationResult['research'] | null = null;
 
       if (researchMode) {
-        // Use research mode with citations
         const result = await aiApi.generateSlidesWithResearch(aiDescription, {
           researchTopic: aiDescription,
           portfolioUrl: portfolioUrl || undefined,
@@ -186,7 +182,6 @@ export default function ClientDetailPage() {
         research = result.research;
         setResearchResults(research);
 
-        // Save portfolio/website URLs to client if provided
         if (portfolioUrl || websiteUrl) {
           await clientApi.update(clientId, {
             portfolio_url: portfolioUrl || undefined,
@@ -194,7 +189,6 @@ export default function ClientDetailPage() {
           });
         }
       } else {
-        // Standard mode without research
         const response = await fetch('http://localhost:8787/api/ai/generate-slides', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -216,10 +210,8 @@ export default function ClientDetailPage() {
         slides = result.slides;
       }
 
-      // Calculate total duration based on AI-generated scenes
       const totalDuration = slides.length * 15;
 
-      // Create video with AI-generated scenes
       const videoResponse = await videoApi.create({
         client_id: clientId,
         title: formData.title || `${researchMode ? 'Research-Based' : 'AI Generated'} - ${new Date().toLocaleDateString()}`,
@@ -234,7 +226,6 @@ export default function ClientDetailPage() {
         behavior_overrides: behaviorOverrides,
       });
 
-      // Create the AI-generated scenes for the new video
       const videoId = videoResponse.id;
       for (const slide of slides) {
         await fetch(`http://localhost:8787/api/videos/${videoId}/scenes`, {
@@ -299,47 +290,34 @@ export default function ClientDetailPage() {
     }
   }
 
-  function getStatusIcon(status: string) {
+  function getStatusBadge(status: string) {
     switch (status) {
       case "completed":
-        return <CheckCircle className="w-5 h-5 text-green-400" />;
+        return <Badge variant="success"><CheckCircle className="w-3 h-3 mr-1" />{status}</Badge>;
       case "rendering":
-        return <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />;
+        return <Badge variant="default"><Loader2 className="w-3 h-3 mr-1 animate-spin" />{status}</Badge>;
       case "error":
-        return <AlertCircle className="w-5 h-5 text-red-400" />;
+        return <Badge variant="error"><AlertCircle className="w-3 h-3 mr-1" />{status}</Badge>;
       default:
-        return <Clock className="w-5 h-5 text-yellow-400" />;
-    }
-  }
-
-  function getStatusColor(status: string) {
-    switch (status) {
-      case "completed":
-        return "bg-green-500/20 text-green-400 border-green-500/30";
-      case "rendering":
-        return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-      case "error":
-        return "bg-red-500/20 text-red-400 border-red-500/30";
-      default:
-        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+        return <Badge variant="warning"><Clock className="w-3 h-3 mr-1" />{status}</Badge>;
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+      <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-[hsl(var(--foreground-muted))] animate-spin" />
       </div>
     );
   }
 
   if (!client) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Client not found</h1>
-          <Link href="/clients">
-            <button className="text-purple-400 hover:text-purple-300">Go back to clients</button>
+          <h1 className="headline text-2xl text-[hsl(var(--foreground))] mb-4">Client not found</h1>
+          <Link href="/clients" className="link-subtle">
+            Go back to clients
           </Link>
         </div>
       </div>
@@ -347,770 +325,694 @@ export default function ClientDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="container mx-auto px-4 py-16">
-        <div className="flex items-center justify-between mb-6">
-          <Link href="/">
-            <button className="flex items-center gap-2 text-purple-300 hover:text-purple-200 transition-colors">
-              <Home className="w-5 h-5" />
-              Home
-            </button>
+    <div className="min-h-screen bg-[hsl(var(--background))]">
+      {/* Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-5 bg-[hsl(var(--background))]/90 backdrop-blur-sm border-b border-[hsl(var(--border))]">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <Link
+            href="/clients"
+            className="text-sm text-[hsl(var(--foreground-muted))] flex items-center gap-2 hover:text-[hsl(var(--foreground))] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to projects
           </Link>
-          <Link href="/clients">
-            <button className="flex items-center gap-2 text-purple-300 hover:text-purple-200 transition-colors">
-              <ArrowLeft className="w-5 h-5" />
-              Back to Clients
-            </button>
-          </Link>
-        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">{client.company}</h1>
-              <p className="text-purple-200">{client.name}</p>
-              {client.industry && (
-                <p className="text-purple-300 text-sm mt-1">{client.industry}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <button
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => setShowAIModal(true)}
+              icon={<Sparkles className="w-4 h-4" />}
+            >
+              AI Generate
+            </Button>
+            <Button onClick={() => setShowForm(!showForm)} icon={<Plus className="w-4 h-4" />}>
+              New Video
+            </Button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Content */}
+      <div className="pt-32 pb-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="mb-12">
+            <p className="caption mb-4">{client.industry || "Project"}</p>
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="headline text-4xl md:text-5xl text-[hsl(var(--foreground))] mb-2">
+                  {client.company}
+                </h1>
+                {client.name && (
+                  <p className="text-lg text-[hsl(var(--foreground-muted))]">{client.name}</p>
+                )}
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={handleDeleteClient}
-                className="flex items-center gap-2 bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 text-red-400 hover:text-red-300 px-4 py-2 rounded-lg transition-colors"
+                icon={<Trash2 className="w-4 h-4" />}
               >
-                <Trash2 className="w-5 h-5" />
-                Delete Client
-              </button>
-              <button
-                onClick={() => setShowAIModal(true)}
-                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg transition-all shadow-lg"
-              >
-                <Sparkles className="w-5 h-5" />
-                AI Generate
-              </button>
-              <button
-                onClick={() => setShowForm(!showForm)}
-                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                New Video
-              </button>
+                Delete
+              </Button>
             </div>
           </div>
-        </motion.div>
 
-        {showForm && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-purple-500/20 mb-8"
-          >
-            <h2 className="text-xl font-bold text-white mb-4">Create New Video</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-2">
-                  Video Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
-                  placeholder="Product Launch Video"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-2">
-                  Template *
-                </label>
-                <select
-                  value={formData.template_id}
-                  onChange={(e) => handleTemplateChange(e.target.value)}
-                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white"
-                >
-                  {templates.map(template => (
-                    <option key={template.id} value={template.id}>
-                      {template.name} - {template.scene_count} scenes, {template.duration_seconds}s, {template.aspect_ratio}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-purple-300 text-xs mt-1">
-                  {templates.find(t => t.id === formData.template_id)?.description}
+          {/* Create Video Form */}
+          {showForm && (
+            <Card variant="bordered" className="mb-12 animate-fade-in">
+              <CardHeader>
+                <CardTitle>Create new video</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <Label htmlFor="video-title">Video title *</Label>
+                    <Input
+                      id="video-title"
+                      type="text"
+                      required
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder="Product Launch Video"
+                    />
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="template">Template</Label>
+                      <select
+                        id="template"
+                        value={formData.template_id}
+                        onChange={(e) => handleTemplateChange(e.target.value)}
+                        className="w-full bg-[hsl(var(--surface))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
+                      >
+                        {templates.map(template => (
+                          <option key={template.id} value={template.id}>
+                            {template.name} - {template.scene_count} scenes, {template.duration_seconds}s
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-[hsl(var(--foreground-subtle))] mt-1">
+                        {templates.find(t => t.id === formData.template_id)?.description}
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="theme">Theme</Label>
+                      <select
+                        id="theme"
+                        value={formData.theme_id}
+                        onChange={(e) => setFormData({ ...formData, theme_id: e.target.value })}
+                        className="w-full bg-[hsl(var(--surface))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
+                      >
+                        {Object.values(THEMES).map(theme => (
+                          <option key={theme.id} value={theme.id}>
+                            {theme.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="aspect-ratio">Aspect ratio</Label>
+                      <select
+                        id="aspect-ratio"
+                        value={formData.aspect_ratio}
+                        onChange={(e) => setFormData({ ...formData, aspect_ratio: e.target.value })}
+                        className="w-full bg-[hsl(var(--surface))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
+                      >
+                        {ASPECT_RATIO_OPTIONS.map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-[hsl(var(--foreground-subtle))] mt-1">
+                        {ASPECT_RATIO_OPTIONS.find(o => o.value === formData.aspect_ratio)?.platforms}
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="duration">Duration (seconds)</Label>
+                      <Input
+                        id="duration"
+                        type="number"
+                        value={formData.duration_seconds}
+                        disabled
+                        className="opacity-60"
+                      />
+                      <p className="text-xs text-[hsl(var(--foreground-subtle))] mt-1">Set by template</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button type="submit" loading={submitting} icon={<Plus className="w-4 h-4" />}>
+                      Create video
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* AI Generator Modal */}
+          {showAIModal && (
+            <Card variant="bordered" className="mb-12 animate-fade-in">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Wand2 className="w-5 h-5 text-[hsl(var(--accent))]" />
+                    <CardTitle>AI Video Generator</CardTitle>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowAIModal(false);
+                      setAiDescription("");
+                      setResearchResults(null);
+                      setShowResearchResults(false);
+                    }}
+                    className="p-1 hover:bg-[hsl(var(--surface))] transition-colors"
+                  >
+                    <X className="w-5 h-5 text-[hsl(var(--foreground-muted))]" />
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-[hsl(var(--foreground-muted))] mb-6">
+                  Describe your video and AI will generate professional slides. Include details about your product, target audience, key benefits, and call-to-action.
                 </p>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-2">
-                  Theme *
-                </label>
-                <select
-                  value={formData.theme_id}
-                  onChange={(e) => setFormData({ ...formData, theme_id: e.target.value })}
-                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white"
-                >
-                  {Object.values(THEMES).map(theme => (
-                    <option key={theme.id} value={theme.id}>
-                      {theme.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-purple-300 text-xs mt-1">
-                  {THEMES[formData.theme_id]?.description}
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                    Aspect Ratio
-                  </label>
-                  <select
-                    value={formData.aspect_ratio}
-                    onChange={(e) => setFormData({ ...formData, aspect_ratio: e.target.value })}
-                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white"
-                  >
-                    {ASPECT_RATIO_OPTIONS.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-purple-300 text-xs mt-1">
-                    {ASPECT_RATIO_OPTIONS.find(o => o.value === formData.aspect_ratio)?.platforms}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                    Duration (seconds) <span className="text-purple-400 text-xs">(from template)</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.duration_seconds}
-                    disabled
-                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-purple-300 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white px-4 py-2 rounded-lg transition-colors"
-                >
-                  {submitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Plus className="w-4 h-4" />
-                  )}
-                  Create Video
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-2 rounded-lg border border-purple-500/30 text-purple-200 hover:bg-white/5 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        )}
-
-        {showAIModal && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-br from-purple-900/90 to-pink-900/90 backdrop-blur-lg rounded-lg p-6 border border-purple-500/30 mb-8 shadow-2xl"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <Wand2 className="w-6 h-6 text-purple-300" />
-              <h2 className="text-xl font-bold text-white">AI Video Generator</h2>
-            </div>
-            <p className="text-purple-200 text-sm mb-4">
-              Describe your video and AI will generate professional slides for you. Include details about your product, target audience, key benefits, and call-to-action.
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-2">
-                  Video Title
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
-                  placeholder="My Amazing Product Launch"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-2">
-                  Template <span className="text-purple-400 text-xs font-normal">(optional - AI will decide if not selected)</span>
-                </label>
-                <select
-                  value={formData.template_id}
-                  onChange={(e) => handleTemplateChange(e.target.value)}
-                  className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
-                >
-                  <option value="">None (AI decides structure)</option>
-                  <optgroup label="Available Templates">
-                    {templates.map(template => (
-                      <option key={template.id} value={template.id}>
-                        {template.name} - {template.scene_count} scenes, {template.duration_seconds}s
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                    Theme *
-                  </label>
-                  <select
-                    value={formData.theme_id}
-                    onChange={(e) => setFormData({ ...formData, theme_id: e.target.value })}
-                    className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white"
-                  >
-                    {Object.values(THEMES).map(theme => (
-                      <option key={theme.id} value={theme.id}>
-                        {theme.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-purple-300 text-xs mt-1">
-                    {THEMES[formData.theme_id]?.description}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                    Aspect Ratio
-                  </label>
-                  <select
-                    value={formData.aspect_ratio}
-                    onChange={(e) => setFormData({ ...formData, aspect_ratio: e.target.value })}
-                    className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white"
-                  >
-                    {ASPECT_RATIO_OPTIONS.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-purple-300 text-xs mt-1">
-                    {ASPECT_RATIO_OPTIONS.find(o => o.value === formData.aspect_ratio)?.platforms}
-                  </p>
-                </div>
-              </div>
-
-              {/* AI Personas Section */}
-              <div className="pt-3 border-t border-purple-500/20">
-                <PersonaSelector
-                  selectedPersonas={selectedPersonas}
-                  behaviorOverrides={behaviorOverrides}
-                  onChange={(personas, overrides) => {
-                    setSelectedPersonas(personas);
-                    setBehaviorOverrides(overrides);
-                  }}
-                />
-              </div>
-
-              {/* Research Mode Toggle */}
-              <div className="flex items-center gap-3 pt-3 border-t border-purple-500/20">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={researchMode}
-                    onChange={(e) => setResearchMode(e.target.checked)}
-                    className="w-4 h-4 rounded border-purple-500/30 bg-white/10 text-purple-600 focus:ring-purple-500 focus:ring-offset-0"
-                  />
-                  <Search className="w-4 h-4 text-purple-300" />
-                  <span className="text-sm font-medium text-purple-200">
-                    Research Mode
-                  </span>
-                </label>
-                <span className="text-xs text-purple-400">
-                  (Find sources, cite facts, extract case studies)
-                </span>
-              </div>
-
-              {/* Research Mode Fields */}
-              {researchMode && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-3 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <BookOpen className="w-4 h-4 text-blue-300" />
-                    <span className="text-sm font-medium text-blue-200">Research Sources</span>
+                <div className="space-y-6">
+                  <div>
+                    <Label htmlFor="ai-title">Video title</Label>
+                    <Input
+                      id="ai-title"
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder="My Amazing Product Launch"
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-blue-200 mb-1">
-                      <Globe className="w-3 h-3 inline mr-1" />
-                      Portfolio/Case Studies URL
-                    </label>
-                    <input
-                      type="url"
-                      value={portfolioUrl}
-                      onChange={(e) => setPortfolioUrl(e.target.value)}
-                      className="w-full bg-white/5 border border-blue-500/30 rounded px-3 py-2 text-sm text-white placeholder-blue-300/50 focus:outline-none focus:border-blue-500"
-                      placeholder="https://company.com/case-studies"
-                    />
-                    <p className="text-blue-400 text-xs mt-1">AI will extract case studies and success stories</p>
+                    <Label htmlFor="ai-template">Template (optional)</Label>
+                    <select
+                      id="ai-template"
+                      value={formData.template_id}
+                      onChange={(e) => handleTemplateChange(e.target.value)}
+                      className="w-full bg-[hsl(var(--surface))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
+                    >
+                      <option value="">None (AI decides structure)</option>
+                      <optgroup label="Available Templates">
+                        {templates.map(template => (
+                          <option key={template.id} value={template.id}>
+                            {template.name} - {template.scene_count} scenes
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-blue-200 mb-1">
-                      <Globe className="w-3 h-3 inline mr-1" />
-                      Company Website URL
-                    </label>
-                    <input
-                      type="url"
-                      value={websiteUrl}
-                      onChange={(e) => setWebsiteUrl(e.target.value)}
-                      className="w-full bg-white/5 border border-blue-500/30 rounded px-3 py-2 text-sm text-white placeholder-blue-300/50 focus:outline-none focus:border-blue-500"
-                      placeholder="https://company.com"
-                    />
-                    <p className="text-blue-400 text-xs mt-1">AI will analyze for product info and value propositions</p>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="ai-theme">Theme</Label>
+                      <select
+                        id="ai-theme"
+                        value={formData.theme_id}
+                        onChange={(e) => setFormData({ ...formData, theme_id: e.target.value })}
+                        className="w-full bg-[hsl(var(--surface))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
+                      >
+                        {Object.values(THEMES).map(theme => (
+                          <option key={theme.id} value={theme.id}>
+                            {theme.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="ai-aspect">Aspect ratio</Label>
+                      <select
+                        id="ai-aspect"
+                        value={formData.aspect_ratio}
+                        onChange={(e) => setFormData({ ...formData, aspect_ratio: e.target.value })}
+                        className="w-full bg-[hsl(var(--surface))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
+                      >
+                        {ASPECT_RATIO_OPTIONS.map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2">
+                  {/* AI Personas */}
+                  <div className="pt-4 border-t border-[hsl(var(--border))]">
+                    <PersonaSelector
+                      selectedPersonas={selectedPersonas}
+                      behaviorOverrides={behaviorOverrides}
+                      onChange={(personas, overrides) => {
+                        setSelectedPersonas(personas);
+                        setBehaviorOverrides(overrides);
+                      }}
+                    />
+                  </div>
+
+                  {/* Research Mode Toggle */}
+                  <div className="flex items-center gap-3 pt-4 border-t border-[hsl(var(--border))]">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={enableWebSearch}
-                        onChange={(e) => setEnableWebSearch(e.target.checked)}
-                        className="w-4 h-4 rounded border-blue-500/30 bg-white/10 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
+                        checked={researchMode}
+                        onChange={(e) => setResearchMode(e.target.checked)}
+                        className="w-4 h-4 border-[hsl(var(--border))] bg-[hsl(var(--surface))] accent-[hsl(var(--accent))]"
                       />
-                      <Search className="w-3 h-3 text-blue-300" />
-                      <span className="text-xs font-medium text-blue-200">
-                        Enable Web Search
-                      </span>
+                      <Search className="w-4 h-4 text-[hsl(var(--foreground-muted))]" />
+                      <span className="text-sm text-[hsl(var(--foreground))]">Research Mode</span>
                     </label>
-                    <span className="text-xs text-blue-400">
-                      (Search for additional facts and statistics)
+                    <span className="text-xs text-[hsl(var(--foreground-subtle))]">
+                      (Find sources, cite facts, extract case studies)
                     </span>
                   </div>
 
-                  <div className="bg-blue-950/50 p-3 rounded text-xs text-blue-200">
-                    <strong>Research Mode will:</strong>
-                    <ul className="list-disc list-inside mt-1 space-y-1 text-blue-300">
-                      <li>Extract case studies from your portfolio</li>
-                      <li>Find relevant statistics and facts</li>
-                      <li>Include exact quotes with source citations</li>
-                      <li>Show confidence scores for each claim</li>
-                      <li>Link to original sources</li>
-                    </ul>
-                  </div>
-                </motion.div>
-              )}
+                  {/* Research Mode Fields */}
+                  {researchMode && (
+                    <div className="space-y-4 p-4 bg-[hsl(var(--surface))] border border-[hsl(var(--border))]">
+                      <div className="flex items-center gap-2 mb-2">
+                        <BookOpen className="w-4 h-4 text-[hsl(var(--accent))]" />
+                        <span className="text-sm font-medium text-[hsl(var(--foreground))]">Research Sources</span>
+                      </div>
 
-              <div>
-                <label className="block text-sm font-medium text-purple-200 mb-2">
-                  Describe Your Video *
-                </label>
-                <textarea
-                  value={aiDescription}
-                  onChange={(e) => setAiDescription(e.target.value)}
-                  className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-3 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
-                  rows={6}
-                  placeholder="Example: A video for a SaaS tool that helps marketing teams automate their social media posting. Target audience is marketing managers at mid-size companies. Key benefits include saving 10+ hours per week, increasing engagement by 40%, and seamless integration with existing tools. CTA is to start a 14-day free trial."
-                />
-              </div>
+                      <div>
+                        <Label htmlFor="portfolio-url">
+                          <Globe className="w-3 h-3 inline mr-1" />
+                          Portfolio/Case Studies URL
+                        </Label>
+                        <Input
+                          id="portfolio-url"
+                          type="url"
+                          value={portfolioUrl}
+                          onChange={(e) => setPortfolioUrl(e.target.value)}
+                          placeholder="https://company.com/case-studies"
+                        />
+                        <p className="text-xs text-[hsl(var(--foreground-subtle))] mt-1">AI will extract case studies and success stories</p>
+                      </div>
 
-              {/* Advanced Mode Toggle */}
-              <div className="flex items-center gap-3 pt-2 border-t border-purple-500/20">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={advancedMode}
-                    onChange={(e) => setAdvancedMode(e.target.checked)}
-                    className="w-4 h-4 rounded border-purple-500/30 bg-white/10 text-purple-600 focus:ring-purple-500 focus:ring-offset-0"
-                  />
-                  <span className="text-sm font-medium text-purple-200">
-                    Advanced Mode
-                  </span>
-                </label>
-                <span className="text-xs text-purple-400">
-                  (Add company-specific details for highly personalized video)
-                </span>
-              </div>
+                      <div>
+                        <Label htmlFor="website-url">
+                          <Globe className="w-3 h-3 inline mr-1" />
+                          Company Website URL
+                        </Label>
+                        <Input
+                          id="website-url"
+                          type="url"
+                          value={websiteUrl}
+                          onChange={(e) => setWebsiteUrl(e.target.value)}
+                          placeholder="https://company.com"
+                        />
+                        <p className="text-xs text-[hsl(var(--foreground-subtle))] mt-1">AI will analyze for product info and value propositions</p>
+                      </div>
 
-              {/* Advanced Mode Fields */}
-              {advancedMode && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-3 pt-2 border-t border-purple-500/20"
-                >
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-purple-200 mb-1">
-                        Company Name
-                      </label>
-                      <input
-                        type="text"
-                        value={companyDetails.companyName}
-                        onChange={(e) => setCompanyDetails({ ...companyDetails, companyName: e.target.value })}
-                        className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
-                        placeholder="Acme Corp"
-                      />
+                      <div className="flex items-center gap-2 pt-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enableWebSearch}
+                            onChange={(e) => setEnableWebSearch(e.target.checked)}
+                            className="w-4 h-4 border-[hsl(var(--border))] bg-[hsl(var(--surface))] accent-[hsl(var(--accent))]"
+                          />
+                          <Search className="w-3 h-3 text-[hsl(var(--foreground-muted))]" />
+                          <span className="text-xs text-[hsl(var(--foreground))]">Enable Web Search</span>
+                        </label>
+                      </div>
+
+                      <div className="bg-[hsl(var(--background))] p-3 text-xs text-[hsl(var(--foreground-muted))]">
+                        <strong className="text-[hsl(var(--foreground))]">Research Mode will:</strong>
+                        <ul className="list-disc list-inside mt-1 space-y-1">
+                          <li>Extract case studies from your portfolio</li>
+                          <li>Find relevant statistics and facts</li>
+                          <li>Include exact quotes with source citations</li>
+                          <li>Show confidence scores for each claim</li>
+                        </ul>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-purple-200 mb-1">
-                        Industry
-                      </label>
-                      <input
-                        type="text"
-                        value={companyDetails.industry}
-                        onChange={(e) => setCompanyDetails({ ...companyDetails, industry: e.target.value })}
-                        className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
-                        placeholder="SaaS, Healthcare, etc."
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-purple-200 mb-1">
-                      Target Audience (be specific)
-                    </label>
-                    <input
-                      type="text"
-                      value={companyDetails.targetAudience}
-                      onChange={(e) => setCompanyDetails({ ...companyDetails, targetAudience: e.target.value })}
-                      className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
-                      placeholder="Marketing directors at mid-market B2B companies with 50-500 employees"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-purple-200 mb-1">
-                      Key Pain Points (what problems do they face?)
-                    </label>
-                    <textarea
-                      value={companyDetails.painPoints}
-                      onChange={(e) => setCompanyDetails({ ...companyDetails, painPoints: e.target.value })}
-                      className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
-                      rows={2}
-                      placeholder="Wasting 15+ hours/week on manual data entry, missing revenue opportunities due to delayed insights, struggling to prove ROI to executives"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-purple-200 mb-1">
-                      Unique Value Proposition
-                    </label>
-                    <textarea
-                      value={companyDetails.valueProposition}
-                      onChange={(e) => setCompanyDetails({ ...companyDetails, valueProposition: e.target.value })}
-                      className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
-                      rows={2}
-                      placeholder="Only platform with real-time predictive analytics + automated workflows + executive dashboards in one place"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-purple-200 mb-1">
-                      Key Metrics / Proof Points
-                    </label>
-                    <input
-                      type="text"
-                      value={companyDetails.metrics}
-                      onChange={(e) => setCompanyDetails({ ...companyDetails, metrics: e.target.value })}
-                      className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
-                      placeholder="500+ enterprise customers, 40% time savings on average, 94% customer satisfaction"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-purple-200 mb-1">
-                      Call-to-Action (what should they do?)
-                    </label>
-                    <input
-                      type="text"
-                      value={companyDetails.cta}
-                      onChange={(e) => setCompanyDetails({ ...companyDetails, cta: e.target.value })}
-                      className="w-full bg-white/5 border border-purple-500/20 rounded px-3 py-2 text-sm text-white placeholder-purple-300/30 focus:outline-none focus:border-purple-500"
-                      placeholder="Book a personalized demo, Start 14-day trial, Download whitepaper"
-                    />
-                  </div>
-                </motion.div>
-              )}
-
-              <div className="flex gap-3">
-                <button
-                  onClick={handleGenerateWithAI}
-                  disabled={generatingAI || !aiDescription.trim()}
-                  className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-6 py-3 rounded-lg transition-all shadow-lg font-semibold"
-                >
-                  {generatingAI ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Generating with AI...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5" />
-                      Generate Video with AI
-                    </>
                   )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAIModal(false);
-                    setAiDescription("");
-                    setResearchResults(null);
-                    setShowResearchResults(false);
-                  }}
-                  disabled={generatingAI}
-                  className="px-4 py-2 rounded-lg border border-purple-500/30 text-purple-200 hover:bg-white/10 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
 
-        {/* Research Results Display */}
-        {showResearchResults && researchResults && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-br from-blue-900/90 to-indigo-900/90 backdrop-blur-lg rounded-lg p-6 border border-blue-500/30 mb-8 shadow-2xl"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <FileText className="w-6 h-6 text-blue-300" />
-                <h2 className="text-xl font-bold text-white">Research Results</h2>
-              </div>
-              <button
-                onClick={() => {
-                  setShowResearchResults(false);
-                  setResearchResults(null);
-                  setShowAIModal(false);
-                  setAiDescription("");
-                  loadData();
-                }}
-                className="text-blue-300 hover:text-blue-200 text-sm"
-              >
-                Close & View Video
-              </button>
-            </div>
+                  <div>
+                    <Label htmlFor="ai-description">Describe your video *</Label>
+                    <Textarea
+                      id="ai-description"
+                      value={aiDescription}
+                      onChange={(e) => setAiDescription(e.target.value)}
+                      rows={6}
+                      placeholder="Example: A video for a SaaS tool that helps marketing teams automate their social media posting. Target audience is marketing managers at mid-size companies. Key benefits include saving time, increasing engagement, and seamless integration with existing tools."
+                    />
+                  </div>
 
-            {researchResults.summary && (
-              <p className="text-blue-200 text-sm mb-4 bg-blue-950/50 p-3 rounded">
-                {researchResults.summary}
-              </p>
-            )}
+                  {/* Advanced Mode */}
+                  <div className="flex items-center gap-3 pt-4 border-t border-[hsl(var(--border))]">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={advancedMode}
+                        onChange={(e) => setAdvancedMode(e.target.checked)}
+                        className="w-4 h-4 border-[hsl(var(--border))] bg-[hsl(var(--surface))] accent-[hsl(var(--accent))]"
+                      />
+                      <span className="text-sm text-[hsl(var(--foreground))]">Advanced Mode</span>
+                    </label>
+                    <span className="text-xs text-[hsl(var(--foreground-subtle))]">
+                      (Add company-specific details)
+                    </span>
+                  </div>
 
-            {/* Citations Used */}
-            {researchResults.citations_used.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                  <Quote className="w-5 h-5 text-blue-300" />
-                  Citations Used ({researchResults.citations_used.length})
-                </h3>
-                <div className="space-y-3">
-                  {researchResults.citations_used.map((citation, index) => (
-                    <div
-                      key={index}
-                      className="bg-blue-950/50 border border-blue-500/20 rounded-lg p-4"
+                  {advancedMode && (
+                    <div className="space-y-4 p-4 bg-[hsl(var(--surface))] border border-[hsl(var(--border))]">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="company-name">Company Name</Label>
+                          <Input
+                            id="company-name"
+                            type="text"
+                            value={companyDetails.companyName}
+                            onChange={(e) => setCompanyDetails({ ...companyDetails, companyName: e.target.value })}
+                            placeholder="Acme Corp"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="company-industry">Industry</Label>
+                          <Input
+                            id="company-industry"
+                            type="text"
+                            value={companyDetails.industry}
+                            onChange={(e) => setCompanyDetails({ ...companyDetails, industry: e.target.value })}
+                            placeholder="SaaS, Healthcare, etc."
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="target-audience">Target Audience</Label>
+                        <Input
+                          id="target-audience"
+                          type="text"
+                          value={companyDetails.targetAudience}
+                          onChange={(e) => setCompanyDetails({ ...companyDetails, targetAudience: e.target.value })}
+                          placeholder="Marketing directors at mid-market B2B companies"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="pain-points">Key Pain Points</Label>
+                        <Textarea
+                          id="pain-points"
+                          value={companyDetails.painPoints}
+                          onChange={(e) => setCompanyDetails({ ...companyDetails, painPoints: e.target.value })}
+                          rows={2}
+                          placeholder="What problems does your audience face?"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="value-prop">Unique Value Proposition</Label>
+                        <Textarea
+                          id="value-prop"
+                          value={companyDetails.valueProposition}
+                          onChange={(e) => setCompanyDetails({ ...companyDetails, valueProposition: e.target.value })}
+                          rows={2}
+                          placeholder="What makes your solution unique?"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="metrics">Key Metrics / Proof Points</Label>
+                        <Input
+                          id="metrics"
+                          type="text"
+                          value={companyDetails.metrics}
+                          onChange={(e) => setCompanyDetails({ ...companyDetails, metrics: e.target.value })}
+                          placeholder="500+ customers, 40% time savings, etc."
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="cta">Call-to-Action</Label>
+                        <Input
+                          id="cta"
+                          type="text"
+                          value={companyDetails.cta}
+                          onChange={(e) => setCompanyDetails({ ...companyDetails, cta: e.target.value })}
+                          placeholder="Book a demo, Start free trial, etc."
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      onClick={handleGenerateWithAI}
+                      disabled={generatingAI || !aiDescription.trim()}
+                      loading={generatingAI}
+                      icon={<Sparkles className="w-4 h-4" />}
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
+                      {generatingAI ? "Generating..." : "Generate with AI"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setShowAIModal(false);
+                        setAiDescription("");
+                        setResearchResults(null);
+                        setShowResearchResults(false);
+                      }}
+                      disabled={generatingAI}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Research Results */}
+          {showResearchResults && researchResults && (
+            <Card variant="bordered" className="mb-12 animate-fade-in">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-5 h-5 text-[hsl(var(--accent))]" />
+                    <CardTitle>Research Results</CardTitle>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowResearchResults(false);
+                      setResearchResults(null);
+                      setShowAIModal(false);
+                      setAiDescription("");
+                      loadData();
+                    }}
+                    className="text-sm link-subtle"
+                  >
+                    Close & View Video
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {researchResults.summary && (
+                  <p className="text-sm text-[hsl(var(--foreground-muted))] mb-6 p-3 bg-[hsl(var(--surface))]">
+                    {researchResults.summary}
+                  </p>
+                )}
+
+                {/* Citations Used */}
+                {researchResults.citations_used.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-medium text-[hsl(var(--foreground))] mb-4 flex items-center gap-2">
+                      <Quote className="w-5 h-5 text-[hsl(var(--accent))]" />
+                      Citations Used ({researchResults.citations_used.length})
+                    </h3>
+                    <div className="space-y-3">
+                      {researchResults.citations_used.map((citation, index) => (
+                        <div key={index} className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-4">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-500/30 text-blue-200">
-                              Confidence: {citation.confidence_score}%
-                            </span>
+                            <Badge variant="outline" size="sm">
+                              {citation.confidence_score}% confidence
+                            </Badge>
                             <a
                               href={citation.source_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-300 hover:text-blue-200 text-xs flex items-center gap-1"
+                              className="text-xs link-subtle flex items-center gap-1"
                             >
                               {citation.source_title}
                               <ExternalLink className="w-3 h-3" />
                             </a>
                           </div>
-                          <blockquote className="text-white text-sm italic border-l-2 border-blue-400 pl-3 mb-2">
+                          <blockquote className="text-sm text-[hsl(var(--foreground))] italic border-l-2 border-[hsl(var(--accent))] pl-3 mb-2">
                             &quot;{citation.exact_quote}&quot;
                           </blockquote>
-                          <p className="text-blue-300 text-xs">
+                          <p className="text-xs text-[hsl(var(--foreground-muted))]">
                             {citation.summary}
                           </p>
                           {citation.used_in_scenes && citation.used_in_scenes.length > 0 && (
-                            <p className="text-blue-400 text-xs mt-1">
+                            <p className="text-xs text-[hsl(var(--foreground-subtle))] mt-1">
                               Used in scene{citation.used_in_scenes.length > 1 ? 's' : ''}: {citation.used_in_scenes.join(', ')}
                             </p>
                           )}
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
+                )}
 
-            {/* Case Studies */}
-            {researchResults.case_studies_used.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-green-300" />
-                  Case Studies Found ({researchResults.case_studies_used.length})
+                {/* Case Studies */}
+                {researchResults.case_studies_used.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-medium text-[hsl(var(--foreground))] mb-4 flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-[hsl(var(--success))]" />
+                      Case Studies Found ({researchResults.case_studies_used.length})
+                    </h3>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      {researchResults.case_studies_used.map((caseStudy, index) => (
+                        <div key={index} className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-4">
+                          <h4 className="font-medium text-[hsl(var(--foreground))] mb-1">{caseStudy.title}</h4>
+                          <p className="text-xs text-[hsl(var(--foreground-muted))] mb-2">
+                            {caseStudy.client_name} &bull; {caseStudy.industry}
+                          </p>
+                          <div className="text-xs text-[hsl(var(--foreground-muted))] space-y-1">
+                            <p><strong>Challenge:</strong> {caseStudy.challenge}</p>
+                            <p><strong>Solution:</strong> {caseStudy.solution}</p>
+                            {caseStudy.results.length > 0 && (
+                              <p><strong>Results:</strong> {caseStudy.results.join(', ')}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="success" size="sm">
+                              {caseStudy.relevance_score}% relevant
+                            </Badge>
+                            <a
+                              href={caseStudy.source_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs link-subtle flex items-center gap-1"
+                            >
+                              Source <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* All Citations */}
+                {researchResults.all_citations.length > researchResults.citations_used.length && (
+                  <details className="mt-4">
+                    <summary className="text-sm link-subtle cursor-pointer">
+                      Show all {researchResults.all_citations.length} citations found
+                    </summary>
+                    <div className="mt-3 space-y-2 max-h-60 overflow-y-auto">
+                      {researchResults.all_citations.map((citation, index) => (
+                        <div key={index} className="bg-[hsl(var(--surface))] p-3 text-xs">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" size="sm">{citation.confidence_score}%</Badge>
+                            <a
+                              href={citation.source_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="link-subtle truncate"
+                            >
+                              {citation.source_title}
+                            </a>
+                          </div>
+                          <p className="text-[hsl(var(--foreground-muted))] italic">
+                            &quot;{citation.exact_quote.substring(0, 150)}...&quot;
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+                {researchResults.search_queries && researchResults.search_queries.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-[hsl(var(--border))]">
+                    <p className="text-xs text-[hsl(var(--foreground-subtle))]">
+                      <strong>Search queries used:</strong> {researchResults.search_queries.join(' \u2022 ')}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Videos Section */}
+          <div className="divider mb-12" />
+
+          <div>
+            <p className="caption mb-4">Videos</p>
+
+            {videos.length === 0 ? (
+              <div className="text-center py-24 border border-[hsl(var(--border))]">
+                <VideoIcon className="w-12 h-12 text-[hsl(var(--foreground-subtle))] mx-auto mb-6" />
+                <h3 className="headline text-2xl text-[hsl(var(--foreground))] mb-2">
+                  No videos yet
                 </h3>
-                <div className="grid md:grid-cols-2 gap-3">
-                  {researchResults.case_studies_used.map((caseStudy, index) => (
-                    <div
-                      key={index}
-                      className="bg-green-950/30 border border-green-500/20 rounded-lg p-4"
-                    >
-                      <h4 className="text-white font-medium mb-1">{caseStudy.title}</h4>
-                      <p className="text-green-200 text-xs mb-2">
-                        {caseStudy.client_name} • {caseStudy.industry}
-                      </p>
-                      <div className="text-green-300 text-xs space-y-1">
-                        <p><strong>Challenge:</strong> {caseStudy.challenge}</p>
-                        <p><strong>Solution:</strong> {caseStudy.solution}</p>
-                        {caseStudy.results.length > 0 && (
-                          <p><strong>Results:</strong> {caseStudy.results.join(', ')}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs px-2 py-0.5 rounded bg-green-500/30 text-green-200">
-                          Relevance: {caseStudy.relevance_score}%
-                        </span>
-                        <a
-                          href={caseStudy.source_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-green-300 hover:text-green-200 text-xs flex items-center gap-1"
-                        >
-                          Source <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* All Citations (collapsed) */}
-            {researchResults.all_citations.length > researchResults.citations_used.length && (
-              <details className="mt-4">
-                <summary className="text-blue-300 text-sm cursor-pointer hover:text-blue-200">
-                  Show all {researchResults.all_citations.length} citations found
-                </summary>
-                <div className="mt-3 space-y-2 max-h-60 overflow-y-auto">
-                  {researchResults.all_citations.map((citation, index) => (
-                    <div key={index} className="bg-blue-950/30 p-3 rounded text-xs">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-200">
-                          {citation.confidence_score}%
-                        </span>
-                        <a
-                          href={citation.source_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-300 hover:text-blue-200 truncate"
-                        >
-                          {citation.source_title}
-                        </a>
-                      </div>
-                      <p className="text-blue-200 italic">&quot;{citation.exact_quote.substring(0, 150)}...&quot;</p>
-                    </div>
-                  ))}
-                </div>
-              </details>
-            )}
-
-            {/* Search Queries Used */}
-            {researchResults.search_queries && researchResults.search_queries.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-blue-500/20">
-                <p className="text-blue-400 text-xs">
-                  <strong>Search queries used:</strong> {researchResults.search_queries.join(' • ')}
+                <p className="text-[hsl(var(--foreground-muted))] mb-8">
+                  Create your first video for this client
                 </p>
+                <Button onClick={() => setShowForm(true)} icon={<Plus className="w-4 h-4" />}>
+                  Create video
+                </Button>
               </div>
-            )}
-          </motion.div>
-        )}
-
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-white mb-4">Videos</h2>
-          {videos.length === 0 ? (
-            <div className="bg-white/5 backdrop-blur-lg rounded-lg p-12 border border-purple-500/20 text-center">
-              <VideoIcon className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">No videos yet</h3>
-              <p className="text-purple-200 mb-4">Create your first video for this client</p>
-              <button
-                onClick={() => setShowForm(true)}
-                className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                Create Video
-              </button>
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 gap-4">
-              {videos.map((video, idx) => (
-                <motion.div
-                  key={video.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all group relative"
-                >
-                  <Link href={`/videos/${video.id}`}>
-                    <div className="cursor-pointer">
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6">
+                {videos.map((video) => (
+                  <div
+                    key={video.id}
+                    className="group relative bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-6 hover:border-[hsl(var(--border-hover))] transition-colors"
+                  >
+                    <Link href={`/videos/${video.id}`} className="block">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
-                          <h3 className="text-xl font-bold text-white mb-2">{video.title}</h3>
-                          <div className="flex items-center gap-2 text-sm text-purple-300">
+                          <h3 className="headline text-xl text-[hsl(var(--foreground))] mb-2">
+                            {video.title}
+                          </h3>
+                          <div className="flex items-center gap-2 text-sm text-[hsl(var(--foreground-muted))]">
                             <span>{video.aspect_ratio}</span>
-                            <span>•</span>
+                            <span>&bull;</span>
                             <span>{video.duration_seconds}s</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(video.status)}
-                        </div>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className={`text-xs px-3 py-1 rounded-full border ${getStatusColor(video.status)}`}>
-                          {video.status}
-                        </span>
-                        <Play className="w-5 h-5 text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        {getStatusBadge(video.status)}
+                        <Play className="w-5 h-5 text-[hsl(var(--foreground-subtle))] opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
-                    </div>
-                  </Link>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleDeleteVideo(video.id, video.title);
-                    }}
-                    className="absolute top-4 right-4 p-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-colors opacity-0 group-hover:opacity-100"
-                    title="Delete video"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </motion.div>
-              ))}
-            </div>
-          )}
+                    </Link>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeleteVideo(video.id, video.title);
+                      }}
+                      className="absolute top-4 right-4 p-2 bg-[hsl(var(--error-muted))] border border-[hsl(var(--error))]/20 text-[hsl(var(--error))] hover:bg-[hsl(var(--error))]/20 transition-colors opacity-0 group-hover:opacity-100"
+                      title="Delete video"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

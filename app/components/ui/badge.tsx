@@ -19,7 +19,6 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 
 const baseStyles = `
   inline-flex items-center font-medium
-  rounded-full
   transition-colors
 `.trim().replace(/\s+/g, " ");
 

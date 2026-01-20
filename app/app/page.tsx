@@ -1,244 +1,254 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Video, Users, Film, Zap, Database, ArrowRight, Loader2, Instagram } from "lucide-react";
 import Link from "next/link";
-import { clientApi, videoApi, Client, Video as VideoType } from "@/lib/api";
+import { ArrowUpRight } from "lucide-react";
+
+// -----------------------------------------------------------------------------
+// Page
+// -----------------------------------------------------------------------------
 
 export default function Home() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [videos, setVideos] = useState<VideoType[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadStats();
-  }, []);
-
-  async function loadStats() {
-    try {
-      const [clientsData, videosData] = await Promise.all([
-        clientApi.getAll(),
-        videoApi.getAll(),
-      ]);
-      setClients(clientsData);
-      setVideos(videosData);
-    } catch (error) {
-      console.error("Failed to load stats:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const renderingVideos = videos.filter(v => v.status === 'rendering').length;
-  const completedVideos = videos.filter(v => v.status === 'completed').length;
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <main className="container mx-auto px-4 py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-12"
-        >
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Video className="w-12 h-12 text-purple-400" />
-            <h1 className="text-5xl font-bold text-white">Rendomat</h1>
-          </div>
-          <p className="text-xl text-purple-200">
-            Generative video creation with intelligent scene caching
-          </p>
-        </motion.div>
+    <div className="min-h-screen bg-[hsl(var(--background))]">
+      {/* Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <Link
+            href="/"
+            className="text-sm tracking-wide text-[hsl(var(--foreground))]"
+          >
+            Rendomat
+          </Link>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
-          </div>
-        ) : (
-          <>
-            <div className="grid md:grid-cols-4 gap-6 mb-12">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-purple-500/20"
-              >
-                <Users className="w-8 h-8 text-purple-400 mb-3" />
-                <div className="text-3xl font-bold text-white mb-1">{clients.length}</div>
-                <p className="text-purple-200">Total Clients</p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-purple-500/20"
-              >
-                <Film className="w-8 h-8 text-purple-400 mb-3" />
-                <div className="text-3xl font-bold text-white mb-1">{videos.length}</div>
-                <p className="text-purple-200">Total Videos</p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-purple-500/20"
-              >
-                <Zap className="w-8 h-8 text-green-400 mb-3" />
-                <div className="text-3xl font-bold text-white mb-1">{completedVideos}</div>
-                <p className="text-purple-200">Completed</p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-purple-500/20"
-              >
-                <Database className="w-8 h-8 text-blue-400 mb-3" />
-                <div className="text-3xl font-bold text-white mb-1">{renderingVideos}</div>
-                <p className="text-purple-200">Rendering</p>
-              </motion.div>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-6 mb-12">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-              >
-                <Link href="/clients">
-                  <div className="bg-white/10 backdrop-blur-lg rounded-lg p-8 border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer group h-full">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="w-16 h-16 bg-purple-600/20 rounded-lg flex items-center justify-center group-hover:bg-purple-600/30 transition-colors">
-                        <Users className="w-8 h-8 text-purple-400" />
-                      </div>
-                      <ArrowRight className="w-6 h-6 text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Manage Clients</h2>
-                    <p className="text-purple-200 mb-4">
-                      View and manage your clients, create new client profiles, and organize their video projects.
-                    </p>
-                    <div className="flex items-center gap-2 text-purple-300">
-                      <span className="text-sm">{clients.length} active clients</span>
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="bg-white/10 backdrop-blur-lg rounded-lg p-8 border border-purple-500/20"
-              >
-                <div className="w-16 h-16 bg-purple-600/20 rounded-lg flex items-center justify-center mb-4">
-                  <Zap className="w-8 h-8 text-purple-400" />
-                </div>
-                <h2 className="text-2xl font-bold text-white mb-2">Scene Caching System</h2>
-                <p className="text-purple-200 mb-4">
-                  Intelligent caching only re-renders what changed.
-                </p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between text-purple-300">
-                    <span>Change 1 scene:</span>
-                    <span className="text-green-400 font-semibold">~35s</span>
-                  </div>
-                  <div className="flex items-center justify-between text-purple-300">
-                    <span>No changes:</span>
-                    <span className="text-green-400 font-semibold">~10s</span>
-                  </div>
-                  <div className="flex items-center justify-between text-purple-300">
-                    <span>Full render:</span>
-                    <span className="text-purple-400 font-semibold">~3m</span>
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7 }}
-              >
-                <Link href="/ig-post">
-                  <div className="bg-gradient-to-br from-pink-500/20 to-purple-500/20 backdrop-blur-lg rounded-lg p-8 border border-pink-500/30 hover:border-pink-500/50 transition-all cursor-pointer group h-full">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-pink-500/30 to-purple-500/30 rounded-lg flex items-center justify-center group-hover:from-pink-500/40 group-hover:to-purple-500/40 transition-colors">
-                        <Instagram className="w-8 h-8 text-pink-400" />
-                      </div>
-                      <ArrowRight className="w-6 h-6 text-pink-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">IG Reel Demo</h2>
-                    <p className="text-pink-200 mb-4">
-                      Week 2: Create an Instagram Reel showcasing this very tool.
-                    </p>
-                    <div className="flex items-center gap-2 text-pink-300">
-                      <span className="text-sm">Meta demo ready</span>
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            </div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-              className="bg-white/10 backdrop-blur-lg rounded-lg p-8 border border-purple-500/20"
+          <div className="flex items-center gap-8">
+            <Link href="/clients" className="link-subtle text-sm">
+              Projects
+            </Link>
+            <Link
+              href="/clients"
+              className="text-sm text-[hsl(var(--foreground))] flex items-center gap-1 hover:opacity-70 transition-opacity"
             >
-              <h2 className="text-2xl font-bold text-white mb-6">Getting Started</h2>
-              <div className="grid md:grid-cols-3 gap-6">
-                <div>
-                  <div className="w-10 h-10 bg-purple-600/30 rounded-lg flex items-center justify-center mb-3">
-                    <span className="text-purple-200 font-bold">1</span>
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Create a Client</h3>
-                  <p className="text-purple-300 text-sm">
-                    Add a new client profile with their company information and industry.
-                  </p>
-                </div>
-                <div>
-                  <div className="w-10 h-10 bg-purple-600/30 rounded-lg flex items-center justify-center mb-3">
-                    <span className="text-purple-200 font-bold">2</span>
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Create a Video</h3>
-                  <p className="text-purple-300 text-sm">
-                    Set up a video project with composition type, aspect ratio, and duration.
-                  </p>
-                </div>
-                <div>
-                  <div className="w-10 h-10 bg-purple-600/30 rounded-lg flex items-center justify-center mb-3">
-                    <span className="text-purple-200 font-bold">3</span>
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Render & Iterate</h3>
-                  <p className="text-purple-300 text-sm">
-                    Edit scenes and re-render quickly thanks to intelligent caching.
-                  </p>
-                </div>
-              </div>
+              Start creating
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      </nav>
 
-              <div className="mt-8 pt-8 border-t border-purple-500/20">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                    <p className="text-yellow-200 text-sm">
-                      <strong>Server Required:</strong> Make sure the render server is running.
-                      Run <code className="bg-black/30 px-2 py-1 rounded">npm run render-server</code> in the root directory.
-                    </p>
-                  </div>
-                  <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                    <p className="text-blue-200 text-sm">
-                      <strong>Optional:</strong> Add AI voiceover with ElevenLabs.
-                      See <code className="bg-black/30 px-2 py-1 rounded">QUICK_REFERENCE.md</code> for setup.
-                    </p>
-                  </div>
+      {/* Hero */}
+      <section className="pt-32 pb-24 px-6">
+        <div className="max-w-4xl mx-auto">
+          <p className="caption mb-6">Video Creation Tool</p>
+
+          <h1 className="headline text-5xl md:text-7xl text-[hsl(var(--foreground))] mb-8">
+            Turn documents
+            <br />
+            <span className="text-[hsl(var(--foreground-muted))]">
+              into videos
+            </span>
+          </h1>
+
+          <p className="text-lg text-[hsl(var(--foreground-muted))] max-w-xl leading-relaxed">
+            Drop in a markdown file, Word doc, or plain text. Get back a video
+            with scenes, transitions, and themes you can edit or export.
+          </p>
+        </div>
+      </section>
+
+      {/* Divider */}
+      <div className="divider mx-6" />
+
+      {/* Feature Strip */}
+      <section className="py-16 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-4">
+            {[
+              { label: "Input", value: "Markdown, Word, Text" },
+              { label: "Output", value: "MP4, WebM, AE" },
+              { label: "Formats", value: "16:9, 9:16, 1:1" },
+              { label: "Rendering", value: "Cached scenes" },
+            ].map((item) => (
+              <div key={item.label}>
+                <p className="caption mb-2">{item.label}</p>
+                <p className="text-[hsl(var(--foreground))] text-sm">
+                  {item.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Divider */}
+      <div className="divider mx-6" />
+
+      {/* Main Visual */}
+      <section className="py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="frame">
+            <div className="aspect-[16/9] bg-[hsl(var(--background-subtle))] flex items-center justify-center">
+              <p className="caption">App Preview</p>
+            </div>
+          </div>
+          <p className="caption mt-4 text-center">
+            The editor interface. Simple, focused, fast.
+          </p>
+        </div>
+      </section>
+
+      {/* Process */}
+      <section className="py-24 px-6 bg-[hsl(var(--surface))]">
+        <div className="max-w-4xl mx-auto">
+          <p className="caption mb-12">How it works</p>
+
+          <div className="space-y-16">
+            {[
+              {
+                num: "01",
+                title: "Drop in your document",
+                text: "Paste text or upload a file. Our parser automatically turns your headings into scenes and your paragraphs into supporting copy.",
+              },
+              {
+                num: "02",
+                title: "Review and refine",
+                text: "AI generates scene content from your material. Keep what works, edit what doesn't. Regenerate any scene with one click.",
+              },
+              {
+                num: "03",
+                title: "Export anywhere",
+                text: "Render to YouTube, TikTok, Instagram, or square format. Need more control? Export to After Effects with full layer data.",
+              },
+            ].map((step) => (
+              <div key={step.num} className="grid md:grid-cols-12 gap-6">
+                <div className="md:col-span-2">
+                  <span className="font-mono text-sm text-[hsl(var(--foreground-subtle))]">
+                    {step.num}
+                  </span>
+                </div>
+                <div className="md:col-span-10">
+                  <h3 className="headline text-2xl text-[hsl(var(--foreground))] mb-3">
+                    {step.title}
+                  </h3>
+                  <p className="text-[hsl(var(--foreground-muted))] leading-relaxed max-w-lg">
+                    {step.text}
+                  </p>
                 </div>
               </div>
-            </motion.div>
-          </>
-        )}
-      </main>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Value prop */}
+      <section className="py-24 px-6">
+        <div className="max-w-3xl mx-auto">
+          <p className="headline text-3xl md:text-4xl text-[hsl(var(--foreground))] leading-snug">
+            You already have the content.
+            <span className="text-[hsl(var(--foreground-muted))]">
+              {" "}This turns it into something you can share.
+            </span>
+          </p>
+        </div>
+      </section>
+
+      {/* Divider */}
+      <div className="divider mx-6" />
+
+      {/* Tech */}
+      <section className="py-24 px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-16">
+            <div>
+              <p className="caption mb-6">Built with</p>
+              <ul className="space-y-3 text-sm">
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>Frontend</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    Next.js, React
+                  </span>
+                </li>
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>Video</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    Remotion
+                  </span>
+                </li>
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>AI</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    Claude API
+                  </span>
+                </li>
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>Storage</span>
+                  <span className="text-[hsl(var(--foreground))]">SQLite</span>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="caption mb-6">Export options</p>
+              <ul className="space-y-3 text-sm">
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>YouTube</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    1920×1080
+                  </span>
+                </li>
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>Reels / TikTok</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    1080×1920
+                  </span>
+                </li>
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>Square</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    1080×1080
+                  </span>
+                </li>
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>After Effects</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    JSON manifest
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-24 px-6 bg-[hsl(var(--surface))]">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="headline text-3xl md:text-4xl text-[hsl(var(--foreground))] mb-6">
+            Try it with your own content
+          </h2>
+          <p className="text-[hsl(var(--foreground-muted))] mb-8">
+            Paste some text or upload a document and see what comes out.
+          </p>
+          <Link
+            href="/clients"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-sm hover:opacity-90 transition-opacity"
+          >
+            Open the editor
+            <ArrowUpRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-8 px-6 border-t border-[hsl(var(--border))]">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <span className="text-sm text-[hsl(var(--foreground-subtle))]">
+            Rendomat
+          </span>
+          <span className="text-sm text-[hsl(var(--foreground-subtle))] font-mono">
+            2026
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }

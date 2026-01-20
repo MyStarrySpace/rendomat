@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Video as VideoIcon,
@@ -17,7 +16,6 @@ import {
   Download,
   Zap,
   Database,
-  Home,
   Upload,
   Image as ImageIcon,
   Trash2,
@@ -33,6 +31,10 @@ import { videoApi, sceneApi, clientApi, platformApi, personaApi, Video, Scene, C
 import { THEMES } from "@/lib/themes";
 import StockImageBrowser from "../../components/StockImageBrowser";
 import PersonaSelector from "@/components/PersonaSelector";
+import { Button } from "@/components/ui";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input, Textarea, Label } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 // Platform configuration
 const PLATFORMS = {
@@ -96,7 +98,6 @@ export default function VideoDetailPage() {
       try {
         const videoData = await videoApi.getById(videoId);
 
-        // Parse render_progress if it exists
         if (videoData.render_progress) {
           const progress = JSON.parse(videoData.render_progress);
           setProgressData(progress);
@@ -109,14 +110,13 @@ export default function VideoDetailPage() {
           }
         }
 
-        // If video is no longer rendering, stop polling
         if (videoData.status !== 'rendering') {
           clearInterval(interval);
         }
       } catch (error) {
         console.error("Failed to poll progress:", error);
       }
-    }, 500); // Poll every 500ms
+    }, 500);
 
     return () => clearInterval(interval);
   }, [rendering, videoId]);
@@ -135,7 +135,6 @@ export default function VideoDetailPage() {
         setClient(clientData);
       }
 
-      // Load effective personas
       try {
         const personas = await personaApi.getEffectiveForVideo(videoId);
         setEffectivePersonas(personas);
@@ -164,7 +163,6 @@ export default function VideoDetailPage() {
     try {
       const blob = await videoApi.renderScenes(videoId);
 
-      // Download the video
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -181,7 +179,6 @@ export default function VideoDetailPage() {
         setRendering(false);
       }, 2000);
 
-      // Reload to get updated cache info
       loadData();
     } catch (error) {
       console.error("Failed to render video:", error);
@@ -250,7 +247,7 @@ export default function VideoDetailPage() {
         behavior_overrides: editBehaviorOverrides,
       });
       setEditingPersonas(false);
-      loadData(); // Reload to get fresh effective personas
+      loadData();
     } catch (error) {
       console.error('Failed to save persona changes:', error);
       alert('Failed to save persona changes');
@@ -279,7 +276,6 @@ export default function VideoDetailPage() {
     try {
       await sceneApi.update(sceneId, {
         data: JSON.stringify(editData),
-        // Clear cache when data changes so scene gets re-rendered
         cache_path: null,
         cache_hash: null,
         cached_at: null,
@@ -334,7 +330,6 @@ export default function VideoDetailPage() {
       const data = await response.json();
       const imageUrl = `http://localhost:8787${data.url}`;
 
-      // Update editData with the new image URL
       setEditData({
         ...editData,
         [fieldName]: imageUrl
@@ -353,20 +348,6 @@ export default function VideoDetailPage() {
     setEditData(newData);
   }
 
-  function getSceneName(sceneNumber: number): string {
-    const sceneNames = [
-      "Cold Open",
-      "Respect the Ambition",
-      "The Inflection Point",
-      "Naming the Hidden Problem",
-      "Dashboard-of-Dashboards",
-      "Reframing the Opportunity",
-      "Why You're Reaching Out",
-      "Soft Close"
-    ];
-    return sceneNames[sceneNumber] || `Scene ${sceneNumber}`;
-  }
-
   function formatFrameRange(startFrame: number, endFrame: number): string {
     const fps = 30;
     const startSeconds = Math.floor(startFrame / fps);
@@ -383,19 +364,19 @@ export default function VideoDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+      <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-[hsl(var(--foreground-muted))] animate-spin" />
       </div>
     );
   }
 
   if (!video) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Video not found</h1>
-          <Link href="/clients">
-            <button className="text-purple-400 hover:text-purple-300">Go back to clients</button>
+          <h1 className="headline text-2xl text-[hsl(var(--foreground))] mb-4">Video not found</h1>
+          <Link href="/clients" className="link-subtle">
+            Go back to clients
           </Link>
         </div>
       </div>
@@ -407,309 +388,261 @@ export default function VideoDetailPage() {
   const cachePercentage = totalScenes > 0 ? Math.round((cachedScenes / totalScenes) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="container mx-auto px-4 py-16">
-        <div className="flex items-center justify-between mb-6">
-          <Link href="/">
-            <button className="flex items-center gap-2 text-purple-300 hover:text-purple-200 transition-colors">
-              <Home className="w-5 h-5" />
-              Home
-            </button>
+    <div className="min-h-screen bg-[hsl(var(--background))]">
+      {/* Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-5 bg-[hsl(var(--background))]/90 backdrop-blur-sm border-b border-[hsl(var(--border))]">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <Link
+            href={`/clients/${video.client_id}`}
+            className="text-sm text-[hsl(var(--foreground-muted))] flex items-center gap-2 hover:text-[hsl(var(--foreground))] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to client
           </Link>
-          <Link href={`/clients/${video.client_id}`}>
-            <button className="flex items-center gap-2 text-purple-300 hover:text-purple-200 transition-colors">
-              <ArrowLeft className="w-5 h-5" />
-              Back to Client
-            </button>
-          </Link>
-        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <VideoIcon className="w-8 h-8 text-purple-400" />
-                <h1 className="text-4xl font-bold text-white">{video.title}</h1>
-              </div>
-              {client && (
-                <p className="text-purple-200 text-lg">{client.company}</p>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => setShowExportModal(true)}
+              disabled={rendering || exporting}
+              icon={<Share2 className="w-4 h-4" />}
+            >
+              Export
+            </Button>
+            <Button
+              onClick={handleRender}
+              disabled={rendering}
+              loading={rendering}
+              icon={<Play className="w-4 h-4" />}
+            >
+              {rendering ? "Rendering..." : "Render Video"}
+            </Button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Content */}
+      <div className="pt-32 pb-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="mb-12">
+            <p className="caption mb-4">{client?.company || "Video"}</p>
+            <h1 className="headline text-4xl md:text-5xl text-[hsl(var(--foreground))] mb-4">
+              {video.title}
+            </h1>
+            <div className="flex items-center gap-4 text-sm text-[hsl(var(--foreground-muted))]">
+              <span className="flex items-center gap-1">
+                <Film className="w-4 h-4" />
+                {video.aspect_ratio || "16:9"}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="w-4 h-4" />
+                {video.duration_seconds}s
+              </span>
+              <span className="flex items-center gap-1">
+                <Database className="w-4 h-4" />
+                Cache: {cachePercentage}%
+              </span>
+              {video.theme_id && THEMES[video.theme_id] && (
+                <span className="flex items-center gap-1">
+                  <div
+                    className="w-4 h-4"
+                    style={{ background: THEMES[video.theme_id].colors.backgroundGradient || THEMES[video.theme_id].colors.background }}
+                  />
+                  {THEMES[video.theme_id].name}
+                </span>
               )}
-              <div className="flex items-center gap-4 mt-3 text-sm text-purple-300">
-                <span className="flex items-center gap-1">
-                  <Film className="w-4 h-4" />
-                  {video.aspect_ratio || "16:9"}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  {video.duration_seconds}s
-                </span>
-                <span className="flex items-center gap-1">
-                  <Database className="w-4 h-4" />
-                  Cache: {cachePercentage}%
-                </span>
-                {video.theme_id && THEMES[video.theme_id] && (
-                  <span className="flex items-center gap-1">
-                    <div
-                      className="w-4 h-4 rounded-sm"
-                      style={{ background: THEMES[video.theme_id].colors.backgroundGradient || THEMES[video.theme_id].colors.background }}
-                    />
-                    {THEMES[video.theme_id].name}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleRender}
-                disabled={rendering}
-                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
-              >
-                {rendering ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Rendering...
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-5 h-5" />
-                    Render Video
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => setShowExportModal(true)}
-                disabled={rendering || exporting}
-                className="flex items-center gap-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
-              >
-                <Share2 className="w-5 h-5" />
-                Export to Platforms
-              </button>
             </div>
           </div>
 
+          {/* Render Progress */}
           {renderProgress && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-4 mb-6"
-            >
+            <div className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-4 mb-8 animate-fade-in">
               <div className="flex items-center gap-3 mb-3">
                 {rendering ? (
-                  <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-[hsl(var(--accent))] animate-spin" />
                 ) : (
-                  <CheckCircle className="w-5 h-5 text-green-400" />
+                  <CheckCircle className="w-5 h-5 text-[hsl(var(--success))]" />
                 )}
-                <p className="text-white font-medium">{renderProgress}</p>
+                <p className="text-[hsl(var(--foreground))] font-medium">{renderProgress}</p>
               </div>
               {progressData && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm text-purple-200">
+                  <div className="flex items-center justify-between text-sm text-[hsl(var(--foreground-muted))]">
                     <span>
                       Scene {progressData.rendered_scenes + 1} of {progressData.total_scenes}
                     </span>
-                    <span className="font-semibold">{progressData.percentage}%</span>
+                    <span className="font-mono">{progressData.percentage}%</span>
                   </div>
-                  <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
+                  <div className="w-full bg-[hsl(var(--background))] h-2 overflow-hidden">
                     <div
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-300"
+                      className="bg-[hsl(var(--accent))] h-full transition-all duration-300"
                       style={{ width: `${progressData.percentage}%` }}
                     />
                   </div>
                 </div>
               )}
-            </motion.div>
+            </div>
           )}
 
+          {/* Cache Status */}
           {cachedScenes > 0 && (
-            <div className="bg-white/5 backdrop-blur-lg rounded-lg p-4 border border-purple-500/20 mb-6">
+            <div className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-4 mb-8">
               <div className="flex items-center gap-3 mb-2">
-                <Zap className="w-5 h-5 text-yellow-400" />
-                <h3 className="text-lg font-semibold text-white">Cache Status</h3>
+                <Zap className="w-5 h-5 text-[hsl(var(--warning))]" />
+                <h3 className="font-medium text-[hsl(var(--foreground))]">Cache Status</h3>
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex-1 bg-white/10 rounded-full h-2 overflow-hidden">
+                <div className="flex-1 bg-[hsl(var(--background))] h-2 overflow-hidden">
                   <div
-                    className="bg-gradient-to-r from-green-400 to-emerald-500 h-full transition-all duration-500"
+                    className="bg-[hsl(var(--success))] h-full transition-all duration-500"
                     style={{ width: `${cachePercentage}%` }}
                   />
                 </div>
-                <span className="text-purple-200 text-sm font-medium">
-                  {cachedScenes}/{totalScenes} scenes cached
+                <span className="text-sm text-[hsl(var(--foreground-muted))] font-mono">
+                  {cachedScenes}/{totalScenes} cached
                 </span>
               </div>
-              <p className="text-purple-300 text-sm mt-2">
+              <p className="text-sm text-[hsl(var(--foreground-subtle))] mt-2">
                 Only {totalScenes - cachedScenes} scene{totalScenes - cachedScenes !== 1 ? 's' : ''} will be re-rendered
               </p>
             </div>
           )}
 
           {/* AI Personas Section */}
-          <div className="bg-white/5 backdrop-blur-lg rounded-lg border border-purple-500/20 mb-6 overflow-hidden">
+          <div className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] mb-8 overflow-hidden">
             <button
               onClick={() => setShowPersonaSection(!showPersonaSection)}
-              className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+              className="w-full p-4 flex items-center justify-between hover:bg-[hsl(var(--surface-hover))] transition-colors"
             >
               <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-purple-400" />
-                <h3 className="text-lg font-semibold text-white">AI Personas</h3>
+                <Users className="w-5 h-5 text-[hsl(var(--accent))]" />
+                <span className="font-medium text-[hsl(var(--foreground))]">AI Personas</span>
                 {effectivePersonas && (
-                  <span className="text-sm text-purple-300">
-                    ({effectivePersonas.personaIds.length} selected)
-                  </span>
+                  <Badge variant="secondary" size="sm">
+                    {effectivePersonas.personaIds.length} selected
+                  </Badge>
                 )}
                 {effectivePersonas?.source === 'client' && (
-                  <span className="text-xs bg-purple-600/30 text-purple-200 px-2 py-0.5 rounded">
+                  <Badge variant="outline" size="sm">
                     Inherited from client
-                  </span>
+                  </Badge>
                 )}
               </div>
               {showPersonaSection ? (
-                <ChevronUp className="w-5 h-5 text-purple-300" />
+                <ChevronUp className="w-5 h-5 text-[hsl(var(--foreground-muted))]" />
               ) : (
-                <ChevronDown className="w-5 h-5 text-purple-300" />
+                <ChevronDown className="w-5 h-5 text-[hsl(var(--foreground-muted))]" />
               )}
             </button>
 
-            <AnimatePresence>
-              {showPersonaSection && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="p-4 pt-0 border-t border-purple-500/20">
-                    {editingPersonas ? (
-                      <div className="space-y-4">
-                        <PersonaSelector
-                          selectedPersonas={editPersonas}
-                          behaviorOverrides={editBehaviorOverrides}
-                          onChange={(personas, overrides) => {
-                            setEditPersonas(personas);
-                            setEditBehaviorOverrides(overrides);
-                          }}
-                        />
-                        <div className="flex gap-3 pt-3 border-t border-purple-500/20">
-                          <button
-                            onClick={savePersonaChanges}
-                            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-                          >
-                            <Save className="w-4 h-4" />
-                            Save Changes
-                          </button>
-                          <button
-                            onClick={cancelPersonaEdit}
-                            className="flex items-center gap-2 border border-purple-500/30 text-purple-200 hover:bg-white/5 px-4 py-2 rounded-lg transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                            Cancel
-                          </button>
+            {showPersonaSection && (
+              <div className="p-4 pt-0 border-t border-[hsl(var(--border))]">
+                {editingPersonas ? (
+                  <div className="space-y-4 pt-4">
+                    <PersonaSelector
+                      selectedPersonas={editPersonas}
+                      behaviorOverrides={editBehaviorOverrides}
+                      onChange={(personas, overrides) => {
+                        setEditPersonas(personas);
+                        setEditBehaviorOverrides(overrides);
+                      }}
+                    />
+                    <div className="flex gap-3 pt-3 border-t border-[hsl(var(--border))]">
+                      <Button onClick={savePersonaChanges} icon={<Save className="w-4 h-4" />} size="sm">
+                        Save Changes
+                      </Button>
+                      <Button variant="ghost" onClick={cancelPersonaEdit} icon={<X className="w-4 h-4" />} size="sm">
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 pt-4">
+                    {effectivePersonas && (
+                      <>
+                        <div className="flex flex-wrap gap-2">
+                          {effectivePersonas.preview.metadata.personas.map((persona) => (
+                            <Badge key={persona.id} variant="default">
+                              {persona.name}
+                            </Badge>
+                          ))}
                         </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {/* Display current personas */}
-                        {effectivePersonas && (
-                          <>
+
+                        {Object.keys(effectivePersonas.preview.metadata.behaviors).length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-xs text-[hsl(var(--foreground-subtle))]">Active Behaviors:</p>
                             <div className="flex flex-wrap gap-2">
-                              {effectivePersonas.preview.metadata.personas.map((persona) => (
-                                <span
-                                  key={persona.id}
-                                  className="px-3 py-1.5 rounded-lg bg-purple-600/30 border border-purple-500/40 text-purple-100 text-sm"
-                                >
-                                  {persona.name}
-                                </span>
+                              {Object.entries(effectivePersonas.preview.metadata.behaviors).map(([key, behavior]: [string, any]) => (
+                                <Badge key={key} variant="outline" size="sm">
+                                  {behavior.label}: {behavior.selectedId || (behavior.selectedIds?.join(', '))}
+                                </Badge>
                               ))}
                             </div>
-
-                            {/* Show active behaviors */}
-                            {Object.keys(effectivePersonas.preview.metadata.behaviors).length > 0 && (
-                              <div className="space-y-2">
-                                <p className="text-xs text-purple-400 font-medium">Active Behaviors:</p>
-                                <div className="flex flex-wrap gap-2">
-                                  {Object.entries(effectivePersonas.preview.metadata.behaviors).map(([key, behavior]: [string, any]) => (
-                                    <span
-                                      key={key}
-                                      className="text-xs px-2 py-1 rounded bg-white/5 text-purple-300 border border-purple-500/20"
-                                    >
-                                      {behavior.label}: {behavior.selectedId || (behavior.selectedIds?.join(', '))}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            <button
-                              onClick={() => setEditingPersonas(true)}
-                              className="flex items-center gap-2 text-sm text-purple-300 hover:text-purple-200"
-                            >
-                              <Edit className="w-4 h-4" />
-                              Edit Personas
-                            </button>
-                          </>
+                          </div>
                         )}
-                      </div>
+
+                        <button
+                          onClick={() => setEditingPersonas(true)}
+                          className="flex items-center gap-2 text-sm link-subtle"
+                        >
+                          <Edit className="w-4 h-4" />
+                          Edit Personas
+                        </button>
+                      </>
                     )}
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                )}
+              </div>
+            )}
           </div>
-        </motion.div>
 
-        {video.output_path && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-              <VideoIcon className="w-6 h-6 text-purple-400" />
-              Output Video
-            </h2>
-            <div className="bg-white/10 backdrop-blur-lg rounded-lg p-4 border border-purple-500/20">
-              <div className="max-w-4xl mx-auto">
-                <video
-                  controls
-                  className="w-full rounded-lg"
-                  style={{ aspectRatio: video.aspect_ratio || '16/9' }}
-                  src={`http://localhost:8787/api/videos/${videoId}/preview`}
-                >
-                  Your browser does not support the video tag.
-                </video>
+          {/* Output Video */}
+          {video.output_path && (
+            <div className="mb-12">
+              <p className="caption mb-4">Output Video</p>
+              <div className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-4">
+                <div className="max-w-4xl mx-auto">
+                  <video
+                    controls
+                    className="w-full"
+                    style={{ aspectRatio: video.aspect_ratio || '16/9' }}
+                    src={`http://localhost:8787/api/videos/${videoId}/preview`}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
               </div>
             </div>
-          </motion.div>
-        )}
+          )}
 
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-white mb-4">Scenes</h2>
+          {/* Scenes */}
+          <div className="divider mb-8" />
+          <p className="caption mb-6">Scenes</p>
+
           {scenes.length === 0 ? (
-            <div className="bg-white/5 backdrop-blur-lg rounded-lg p-12 border border-purple-500/20 text-center">
-              <Film className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">No scenes yet</h3>
-              <p className="text-purple-200">Scenes will appear here once the video is set up</p>
+            <div className="text-center py-24 border border-[hsl(var(--border))]">
+              <Film className="w-12 h-12 text-[hsl(var(--foreground-subtle))] mx-auto mb-6" />
+              <h3 className="headline text-2xl text-[hsl(var(--foreground))] mb-2">
+                No scenes yet
+              </h3>
+              <p className="text-[hsl(var(--foreground-muted))]">
+                Scenes will appear here once the video is set up
+              </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {scenes.map((scene, idx) => (
-                <motion.div
+            <div className="space-y-4">
+              {scenes.map((scene) => (
+                <div
                   key={scene.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="bg-white/10 backdrop-blur-lg rounded-lg border border-purple-500/20 overflow-hidden"
+                  className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] overflow-hidden"
                 >
                   <div className="p-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <div className="w-10 h-10 bg-purple-600/30 rounded-lg flex items-center justify-center">
-                            <span className="text-purple-200 font-bold">{scene.scene_number}</span>
+                          <div className="w-10 h-10 bg-[hsl(var(--accent-muted))] flex items-center justify-center">
+                            <span className="text-[hsl(var(--accent))] font-bold font-mono">{scene.scene_number}</span>
                           </div>
                           <div className="flex-1">
                             {editingSceneName === scene.id ? (
@@ -722,40 +655,32 @@ export default function VideoDetailPage() {
                                     if (e.key === 'Enter') saveSceneName(scene.id);
                                     if (e.key === 'Escape') cancelEditSceneName();
                                   }}
-                                  className="flex-1 bg-white/10 border border-purple-500/50 rounded-lg px-3 py-1 text-white text-xl font-bold focus:outline-none focus:border-purple-500"
+                                  className="flex-1 bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-3 py-1 text-[hsl(var(--foreground))] text-xl font-bold focus:outline-none focus:border-[hsl(var(--accent))]"
                                   autoFocus
                                 />
-                                <button
-                                  onClick={() => saveSceneName(scene.id)}
-                                  className="p-2 rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors"
-                                  title="Save"
-                                >
-                                  <Save className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={cancelEditSceneName}
-                                  className="p-2 rounded-lg border border-purple-500/30 text-purple-300 hover:bg-white/5 transition-colors"
-                                  title="Cancel"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
+                                <Button size="sm" onClick={() => saveSceneName(scene.id)} icon={<Save className="w-4 h-4" />}>
+                                  Save
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={cancelEditSceneName} icon={<X className="w-4 h-4" />}>
+                                  Cancel
+                                </Button>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2 group">
-                                <h3 className="text-xl font-bold text-white">
+                                <h3 className="headline text-xl text-[hsl(var(--foreground))]">
                                   {scene.name}
                                 </h3>
                                 <button
                                   onClick={() => startEditSceneName(scene)}
-                                  className="opacity-0 group-hover:opacity-100 p-1 rounded text-purple-300 hover:text-purple-200 hover:bg-white/10 transition-all"
+                                  className="opacity-0 group-hover:opacity-100 p-1 text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--background))] transition-all"
                                   title="Rename scene"
                                 >
                                   <Edit className="w-4 h-4" />
                                 </button>
                               </div>
                             )}
-                            <p className="text-purple-300 text-sm mt-1">
-                              {formatFrameRange(scene.start_frame, scene.end_frame)} • {scene.end_frame - scene.start_frame} frames
+                            <p className="text-sm text-[hsl(var(--foreground-muted))] mt-1 font-mono">
+                              {formatFrameRange(scene.start_frame, scene.end_frame)} &bull; {scene.end_frame - scene.start_frame} frames
                             </p>
                           </div>
                         </div>
@@ -764,81 +689,75 @@ export default function VideoDetailPage() {
                           <div className="mt-4 space-y-4">
                             {/* Scene Type Selector */}
                             <div>
-                              <label className="block text-sm font-medium text-purple-200 mb-2">
-                                Scene Type
-                              </label>
+                              <Label>Scene Type</Label>
                               <select
                                 value={scene.scene_type || 'text-only'}
                                 onChange={(e) => {
                                   sceneApi.update(scene.id, { scene_type: e.target.value });
                                   loadData();
                                 }}
-                                className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white [&>optgroup]:text-gray-900 [&>optgroup]:bg-gray-100"
+                                className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
                               >
-                                <optgroup label="📝 Text Content">
+                                <optgroup label="Text Content">
                                   <option value="text-only">Text Only</option>
                                   <option value="quote">Quote/Testimonial</option>
                                   <option value="stats">Stats/Numbers</option>
                                 </optgroup>
-                                <optgroup label="🖼️ Visual Content">
+                                <optgroup label="Visual Content">
                                   <option value="single-image">Single Image + Title</option>
                                   <option value="dual-images">Dual Images + Title</option>
-                                  <option value="grid-2x2">Grid (2×2 Images)</option>
+                                  <option value="grid-2x2">Grid (2x2 Images)</option>
                                   <option value="image-gallery">Image Gallery</option>
                                 </optgroup>
-                                <optgroup label="📊 Data Visualization">
+                                <optgroup label="Data Visualization">
                                   <option value="line-chart">Line Chart</option>
                                   <option value="bar-chart">Bar Chart</option>
                                   <option value="pie-chart">Pie/Donut Chart</option>
                                   <option value="area-chart">Area Chart</option>
                                   <option value="progress-bars">Progress Bars</option>
                                 </optgroup>
-                                <optgroup label="🔬 Scientific">
+                                <optgroup label="Scientific">
                                   <option value="equation">Equation (LaTeX)</option>
                                 </optgroup>
                               </select>
                             </div>
 
-                            {/* Animation Style Selector */}
+                            {/* Animation Style */}
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <label className="block text-sm font-medium text-purple-200 mb-2">
-                                  Background Animation
-                                </label>
+                                <Label>Background Animation</Label>
                                 <select
                                   value={editData.animation_style || 'none'}
                                   onChange={(e) => setEditData({ ...editData, animation_style: e.target.value })}
-                                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 [&>option]:text-gray-900 [&>option]:bg-white [&>optgroup]:text-gray-900 [&>optgroup]:bg-gray-100"
+                                  className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
                                 >
                                   <option value="none">None</option>
-                                  <optgroup label="✨ Subtle">
+                                  <optgroup label="Subtle">
                                     <option value="particles">Particles</option>
                                     <option value="floating-shapes">Floating Shapes</option>
                                     <option value="waves">Waves</option>
                                     <option value="bokeh">Bokeh</option>
                                     <option value="aurora">Aurora</option>
                                   </optgroup>
-                                  <optgroup label="💻 Tech">
+                                  <optgroup label="Tech">
                                     <option value="grid-pulse">Grid Pulse</option>
                                     <option value="matrix">Matrix</option>
                                   </optgroup>
-                                  <optgroup label="🎯 Dynamic">
+                                  <optgroup label="Dynamic">
                                     <option value="geometric">Geometric</option>
                                   </optgroup>
-                                  <optgroup label="🎉 Playful">
+                                  <optgroup label="Playful">
                                     <option value="confetti">Confetti</option>
                                   </optgroup>
                                 </select>
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-purple-200 mb-2">
-                                  Animation Intensity
-                                </label>
+                                <Label>Animation Intensity</Label>
                                 <select
                                   value={editData.animation_intensity || 'medium'}
                                   onChange={(e) => setEditData({ ...editData, animation_intensity: e.target.value })}
                                   disabled={editData.animation_style === 'none' || !editData.animation_style}
-                                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed [&>option]:text-gray-900 [&>option]:bg-white"
+                                  className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))] disabled:opacity-50"
                                 >
                                   <option value="low">Low (Subtle)</option>
                                   <option value="medium">Medium (Balanced)</option>
@@ -847,95 +766,87 @@ export default function VideoDetailPage() {
                               </div>
                             </div>
 
-                            {/* Conditional Fields Based on Scene Type */}
+                            {/* Image Fields */}
                             {(scene.scene_type === 'single-image' || scene.scene_type === 'dual-images' || scene.scene_type === 'grid-2x2' || scene.scene_type === 'image-gallery') && (
                               <div className="space-y-2">
-                                <label className="block text-sm font-medium text-purple-200">
-                                  Images
-                                </label>
+                                <Label>Images</Label>
                                 <div className="grid grid-cols-2 gap-3">
-                                {['image_url', 'image_url_2', 'image_url_3', 'image_url_4'].map((field) => (
-                                  <div key={field} className="relative">
-                                    {editData[field] ? (
-                                      <div className="relative bg-white/5 rounded-lg p-2 border border-purple-500/30">
-                                        <img
-                                          src={editData[field]}
-                                          alt={field}
-                                          className="w-full h-32 object-cover rounded"
-                                        />
-                                        <button
-                                          onClick={() => removeImage(field)}
-                                          className="absolute top-3 right-3 p-1 rounded-full bg-red-500/80 hover:bg-red-600 text-white transition-colors"
-                                        >
-                                          <Trash2 className="w-3 h-3" />
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <div className="space-y-2">
-                                        <label className="block bg-white/5 border-2 border-dashed border-purple-500/30 rounded-lg p-6 hover:border-purple-500/50 cursor-pointer transition-colors">
-                                          <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={(e) => handleImageUpload(e, field)}
-                                            className="hidden"
-                                            disabled={uploading}
+                                  {['image_url', 'image_url_2', 'image_url_3', 'image_url_4'].map((field) => (
+                                    <div key={field} className="relative">
+                                      {editData[field] ? (
+                                        <div className="relative bg-[hsl(var(--background))] p-2 border border-[hsl(var(--border))]">
+                                          <img
+                                            src={editData[field]}
+                                            alt={field}
+                                            className="w-full h-32 object-cover"
                                           />
-                                          <div className="flex flex-col items-center gap-2 text-purple-300">
-                                            {uploading ? (
-                                              <Loader2 className="w-8 h-8 animate-spin" />
-                                            ) : (
-                                              <>
-                                                <Upload className="w-8 h-8" />
-                                                <span className="text-xs">Upload Image</span>
-                                              </>
-                                            )}
-                                          </div>
-                                        </label>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setCurrentImageField(field);
-                                            setShowStockBrowser(true);
-                                          }}
-                                          className="w-full bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-200 px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-                                        >
-                                          <div className="flex items-center justify-center gap-2">
-                                            <ImageIcon className="w-4 h-4" />
-                                            Browse Stock Images
-                                          </div>
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
+                                          <button
+                                            onClick={() => removeImage(field)}
+                                            className="absolute top-3 right-3 p-1 bg-[hsl(var(--error))] text-white transition-colors"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <div className="space-y-2">
+                                          <label className="block bg-[hsl(var(--background))] border-2 border-dashed border-[hsl(var(--border))] p-6 hover:border-[hsl(var(--accent))] cursor-pointer transition-colors">
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              onChange={(e) => handleImageUpload(e, field)}
+                                              className="hidden"
+                                              disabled={uploading}
+                                            />
+                                            <div className="flex flex-col items-center gap-2 text-[hsl(var(--foreground-muted))]">
+                                              {uploading ? (
+                                                <Loader2 className="w-8 h-8 animate-spin" />
+                                              ) : (
+                                                <>
+                                                  <Upload className="w-8 h-8" />
+                                                  <span className="text-xs">Upload Image</span>
+                                                </>
+                                              )}
+                                            </div>
+                                          </label>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setCurrentImageField(field);
+                                              setShowStockBrowser(true);
+                                            }}
+                                            className="w-full bg-[hsl(var(--accent-muted))] hover:bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 text-[hsl(var(--accent))] px-4 py-2 transition-colors text-sm font-medium"
+                                          >
+                                            <div className="flex items-center justify-center gap-2">
+                                              <ImageIcon className="w-4 h-4" />
+                                              Browse Stock Images
+                                            </div>
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
                             )}
 
-                            {/* Common Text Fields */}
+                            {/* Text Fields */}
                             <div className="space-y-3">
                               <div>
-                                <label className="block text-sm font-medium text-purple-200 mb-2">
-                                  Title
-                                </label>
-                                <input
+                                <Label>Title</Label>
+                                <Input
                                   type="text"
                                   value={editData.title || ''}
                                   onChange={(e) => setEditData({ ...editData, title: e.target.value })}
-                                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
                                   placeholder="Scene title"
                                 />
                               </div>
 
                               {scene.scene_type !== 'quote' && scene.scene_type !== 'stats' && !scene.scene_type?.includes('chart') && (
                                 <div>
-                                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                                    Body Text
-                                  </label>
-                                  <textarea
+                                  <Label>Body Text</Label>
+                                  <Textarea
                                     value={editData.body_text || ''}
                                     onChange={(e) => setEditData({ ...editData, body_text: e.target.value })}
-                                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
                                     rows={3}
                                     placeholder="Additional text for this scene"
                                   />
@@ -943,62 +854,52 @@ export default function VideoDetailPage() {
                               )}
                             </div>
 
-                            {/* Quote-specific fields */}
+                            {/* Quote Fields */}
                             {scene.scene_type === 'quote' && (
                               <div className="space-y-3">
                                 <div>
-                                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                                    Quote
-                                  </label>
-                                  <textarea
+                                  <Label>Quote</Label>
+                                  <Textarea
                                     value={editData.quote || ''}
                                     onChange={(e) => setEditData({ ...editData, quote: e.target.value })}
-                                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
                                     rows={3}
                                     placeholder="The quote text"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                                    Author
-                                  </label>
-                                  <input
+                                  <Label>Author</Label>
+                                  <Input
                                     type="text"
                                     value={editData.author || ''}
                                     onChange={(e) => setEditData({ ...editData, author: e.target.value })}
-                                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
                                     placeholder="Author name"
                                   />
                                 </div>
                               </div>
                             )}
 
-                            {/* Stats-specific fields */}
+                            {/* Stats Fields */}
                             {scene.scene_type === 'stats' && (
                               <div>
-                                <label className="block text-sm font-medium text-purple-200 mb-2">
-                                  Stats (one per line, format: "75% | Increase in engagement")
-                                </label>
-                                <textarea
+                                <Label>Stats (one per line, format: "75% | Increase in engagement")</Label>
+                                <Textarea
                                   value={editData.stats_text || ''}
                                   onChange={(e) => setEditData({ ...editData, stats_text: e.target.value })}
-                                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500 font-mono text-sm"
+                                  className="font-mono text-sm"
                                   rows={5}
-                                  placeholder="75% | Increase in engagement&#10;10+ hours | Saved per week&#10;$50K | Revenue growth"
+                                  placeholder="75% | Increase in engagement&#10;10+ hours | Saved per week"
                                 />
                               </div>
                             )}
 
-                            {/* Chart data fields */}
+                            {/* Chart Data */}
                             {scene.scene_type?.includes('chart') && (
                               <div>
-                                <label className="block text-sm font-medium text-purple-200 mb-2">
-                                  Chart Data (JSON format)
-                                </label>
-                                <textarea
+                                <Label>Chart Data (JSON format)</Label>
+                                <Textarea
                                   value={editData.chart_data || ''}
                                   onChange={(e) => setEditData({ ...editData, chart_data: e.target.value })}
-                                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500 font-mono text-sm"
+                                  className="font-mono text-sm"
                                   rows={6}
                                   placeholder='{"labels": ["Jan", "Feb", "Mar"], "data": [10, 20, 30]}'
                                 />
@@ -1006,7 +907,6 @@ export default function VideoDetailPage() {
                                   onClick={async () => {
                                     const description = prompt('Describe the data you want to visualize:');
                                     if (!description) return;
-
                                     try {
                                       const response = await fetch('http://localhost:8787/api/ai/generate-chart-data', {
                                         method: 'POST',
@@ -1019,7 +919,7 @@ export default function VideoDetailPage() {
                                       alert('Failed to generate chart data');
                                     }
                                   }}
-                                  className="mt-2 flex items-center gap-2 text-sm text-purple-300 hover:text-purple-200"
+                                  className="mt-2 flex items-center gap-2 text-sm link-subtle"
                                 >
                                   <Sparkles className="w-4 h-4" />
                                   Generate with AI
@@ -1027,56 +927,39 @@ export default function VideoDetailPage() {
                               </div>
                             )}
 
-                            {/* Equation-specific fields */}
+                            {/* Equation Fields */}
                             {scene.scene_type === 'equation' && (
                               <div className="space-y-3">
                                 <div>
-                                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                                    Equation (LaTeX format)
-                                  </label>
-                                  <textarea
+                                  <Label>Equation (LaTeX format)</Label>
+                                  <Textarea
                                     value={editData.equation || ''}
                                     onChange={(e) => setEditData({ ...editData, equation: e.target.value })}
-                                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500 font-mono text-sm"
+                                    className="font-mono text-sm"
                                     rows={2}
                                     placeholder="E = mc^2"
                                   />
-                                  <p className="text-xs text-purple-400 mt-1">
-                                    Use LaTeX syntax: ^2 for superscript, _n for subscript, \frac&#123;a&#125;&#123;b&#125; for fractions, \sqrt&#123;x&#125; for square root
+                                  <p className="text-xs text-[hsl(var(--foreground-subtle))] mt-1">
+                                    Use LaTeX syntax: ^2 for superscript, _n for subscript
                                   </p>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                                    Multiple Equations (one per line, for step-by-step)
-                                  </label>
-                                  <textarea
+                                  <Label>Multiple Equations (one per line)</Label>
+                                  <Textarea
                                     value={editData.equations?.join('\n') || ''}
                                     onChange={(e) => setEditData({
                                       ...editData,
                                       equations: e.target.value.split('\n').filter(eq => eq.trim())
                                     })}
-                                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500 font-mono text-sm"
+                                    className="font-mono text-sm"
                                     rows={4}
-                                    placeholder="x^2 + y^2 = r^2&#10;y = \sqrt{r^2 - x^2}&#10;y = \pm\sqrt{r^2 - x^2}"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                                    Description (optional)
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={editData.equation_description || ''}
-                                    onChange={(e) => setEditData({ ...editData, equation_description: e.target.value })}
-                                    className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-2 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500"
-                                    placeholder="The equation for kinetic energy"
+                                    placeholder="x^2 + y^2 = r^2"
                                   />
                                 </div>
                                 <button
                                   onClick={async () => {
-                                    const description = prompt('Describe the equation or concept you want to show:');
+                                    const description = prompt('Describe the equation or concept:');
                                     if (!description) return;
-
                                     try {
                                       const response = await fetch('http://localhost:8787/api/ai/generate-equation', {
                                         method: 'POST',
@@ -1095,7 +978,7 @@ export default function VideoDetailPage() {
                                       alert('Failed to generate equation');
                                     }
                                   }}
-                                  className="flex items-center gap-2 text-sm text-purple-300 hover:text-purple-200"
+                                  className="flex items-center gap-2 text-sm link-subtle"
                                 >
                                   <Sparkles className="w-4 h-4" />
                                   Generate with AI
@@ -1103,50 +986,42 @@ export default function VideoDetailPage() {
                               </div>
                             )}
 
-                            {/* JSON Editor for Advanced Users */}
-                            <details className="bg-white/5 rounded-lg border border-purple-500/20">
-                              <summary className="cursor-pointer p-3 text-purple-300 text-sm font-medium hover:text-purple-200">
+                            {/* Raw JSON Editor */}
+                            <details className="bg-[hsl(var(--background))] border border-[hsl(var(--border))]">
+                              <summary className="cursor-pointer p-3 text-sm font-medium text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))]">
                                 Advanced: Edit Raw JSON
                               </summary>
                               <div className="p-3 pt-0">
-                                <textarea
+                                <Textarea
                                   value={JSON.stringify(editData, null, 2)}
                                   onChange={(e) => {
                                     try {
                                       setEditData(JSON.parse(e.target.value));
                                     } catch {}
                                   }}
-                                  className="w-full bg-white/5 border border-purple-500/30 rounded-lg px-4 py-3 text-white font-mono text-sm focus:outline-none focus:border-purple-500"
+                                  className="font-mono text-sm"
                                   rows={8}
                                 />
                               </div>
                             </details>
 
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => saveEdit(scene.id)}
-                                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
-                              >
-                                <Save className="w-4 h-4" />
+                            <div className="flex gap-2 pt-2">
+                              <Button onClick={() => saveEdit(scene.id)} icon={<Save className="w-4 h-4" />}>
                                 Save Changes
-                              </button>
-                              <button
-                                onClick={cancelEdit}
-                                className="flex items-center gap-2 border border-purple-500/30 text-purple-200 hover:bg-white/5 px-4 py-2 rounded-lg transition-colors text-sm"
-                              >
-                                <X className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" onClick={cancelEdit} icon={<X className="w-4 h-4" />}>
                                 Cancel
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         ) : (
                           <div className="mt-4 space-y-3">
                             {scene.cache_path && (
-                              <div className="bg-white/5 rounded-lg p-3">
+                              <div className="bg-[hsl(var(--background))] p-3">
                                 <div className="max-w-2xl">
                                   <video
                                     controls
-                                    className="w-full rounded-lg"
+                                    className="w-full"
                                     style={{ aspectRatio: video.aspect_ratio || '16/9' }}
                                     src={`http://localhost:8787/api/scenes/${scene.id}/preview`}
                                   >
@@ -1156,12 +1031,12 @@ export default function VideoDetailPage() {
                               </div>
                             )}
                             {scene.data && (
-                              <details className="bg-white/5 rounded-lg">
-                                <summary className="cursor-pointer p-3 text-purple-300 text-sm font-medium hover:text-purple-200">
+                              <details className="bg-[hsl(var(--background))]">
+                                <summary className="cursor-pointer p-3 text-sm font-medium text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))]">
                                   View Scene Data
                                 </summary>
                                 <div className="p-3 pt-0">
-                                  <pre className="text-purple-200 text-xs font-mono overflow-x-auto">
+                                  <pre className="text-[hsl(var(--foreground-muted))] text-xs font-mono overflow-x-auto">
                                     {JSON.stringify(JSON.parse(scene.data), null, 2)}
                                   </pre>
                                 </div>
@@ -1173,35 +1048,37 @@ export default function VideoDetailPage() {
 
                       <div className="flex items-center gap-3 ml-4">
                         {scene.cache_path ? (
-                          <div className="flex items-center gap-2 text-green-400">
-                            <CheckCircle className="w-5 h-5" />
-                            <span className="text-sm font-medium">Cached</span>
-                          </div>
+                          <Badge variant="success" size="sm">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Cached
+                          </Badge>
                         ) : (
-                          <div className="flex items-center gap-2 text-yellow-400">
-                            <AlertCircle className="w-5 h-5" />
-                            <span className="text-sm font-medium">Not Cached</span>
-                          </div>
+                          <Badge variant="warning" size="sm">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            Not Cached
+                          </Badge>
                         )}
 
                         {editingScene !== scene.id && (
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => startEditScene(scene)}
-                            className="p-2 rounded-lg border border-purple-500/30 text-purple-300 hover:bg-white/5 transition-colors"
+                            icon={<Edit className="w-4 h-4" />}
                           >
-                            <Edit className="w-4 h-4" />
-                          </button>
+                            Edit
+                          </Button>
                         )}
                       </div>
                     </div>
 
                     {scene.cached_at && (
-                      <div className="mt-3 text-xs text-purple-400">
+                      <div className="mt-3 text-xs text-[hsl(var(--foreground-subtle))] font-mono">
                         Last cached: {new Date(scene.cached_at).toLocaleString()}
                       </div>
                     )}
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           )}
@@ -1211,16 +1088,12 @@ export default function VideoDetailPage() {
       {/* Export Modal */}
       {showExportModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-gradient-to-br from-slate-900 via-purple-900/90 to-slate-900 rounded-xl border border-purple-500/30 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-          >
-            <div className="p-6 border-b border-purple-500/20">
+          <div className="bg-[hsl(var(--background))] border border-[hsl(var(--border))] w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scale-in">
+            <div className="p-6 border-b border-[hsl(var(--border))]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Share2 className="w-6 h-6 text-purple-400" />
-                  <h2 className="text-2xl font-bold text-white">Export to Platforms</h2>
+                  <Share2 className="w-5 h-5 text-[hsl(var(--accent))]" />
+                  <h2 className="headline text-2xl text-[hsl(var(--foreground))]">Export to Platforms</h2>
                 </div>
                 <button
                   onClick={() => {
@@ -1228,24 +1101,23 @@ export default function VideoDetailPage() {
                     setSelectedPlatforms([]);
                     setExportOutputs(null);
                   }}
-                  className="p-2 rounded-lg text-purple-300 hover:bg-white/10 transition-colors"
+                  className="p-2 text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--surface))] transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <p className="text-purple-200 mt-2 text-sm">
-                Select the platforms you want to export to. Videos will be rendered in the optimal aspect ratio for each platform.
+              <p className="text-sm text-[hsl(var(--foreground-muted))] mt-2">
+                Select platforms to export to. Videos will be rendered in the optimal aspect ratio for each.
               </p>
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Platform Selection */}
               {!exportOutputs && (
                 <>
                   {Object.entries(ASPECT_RATIO_GROUPS).map(([ratio, group]) => (
                     <div key={ratio} className="space-y-3">
-                      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                        <Film className="w-5 h-5 text-purple-400" />
+                      <h3 className="font-medium text-[hsl(var(--foreground))] flex items-center gap-2">
+                        <Film className="w-4 h-4 text-[hsl(var(--accent))]" />
                         {group.label}
                       </h3>
                       <div className="grid grid-cols-2 gap-3">
@@ -1258,19 +1130,19 @@ export default function VideoDetailPage() {
                               key={platformId}
                               onClick={() => togglePlatform(platformId)}
                               disabled={exporting}
-                              className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${
+                              className={`flex items-center gap-3 p-4 border transition-all ${
                                 isSelected
-                                  ? 'bg-purple-600/30 border-purple-500 text-white'
-                                  : 'bg-white/5 border-purple-500/20 text-purple-200 hover:bg-white/10'
+                                  ? 'bg-[hsl(var(--accent-muted))] border-[hsl(var(--accent))] text-[hsl(var(--foreground))]'
+                                  : 'bg-[hsl(var(--surface))] border-[hsl(var(--border))] text-[hsl(var(--foreground-muted))] hover:bg-[hsl(var(--surface-hover))]'
                               } ${exporting ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                               <span className="text-2xl">{platform.icon}</span>
                               <div className="text-left">
                                 <div className="font-medium">{platform.name}</div>
-                                <div className="text-xs text-purple-400">{platform.aspectRatio}</div>
+                                <div className="text-xs text-[hsl(var(--foreground-subtle))]">{platform.aspectRatio}</div>
                               </div>
                               {isSelected && (
-                                <CheckCircle className="w-5 h-5 text-green-400 ml-auto" />
+                                <CheckCircle className="w-5 h-5 text-[hsl(var(--success))] ml-auto" />
                               )}
                             </button>
                           );
@@ -1279,61 +1151,50 @@ export default function VideoDetailPage() {
                     </div>
                   ))}
 
-                  {/* Export Progress */}
                   {exporting && exportProgress && (
-                    <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-4">
+                    <div className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-4">
                       <div className="flex items-center gap-3 mb-2">
-                        <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
-                        <span className="text-white font-medium">{exportProgress.current || 'Rendering...'}</span>
+                        <Loader2 className="w-5 h-5 text-[hsl(var(--accent))] animate-spin" />
+                        <span className="text-[hsl(var(--foreground))] font-medium">{exportProgress.current || 'Rendering...'}</span>
                       </div>
-                      <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                      <div className="w-full bg-[hsl(var(--background))] h-2 overflow-hidden">
                         <div
-                          className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-300"
+                          className="bg-[hsl(var(--accent))] h-full transition-all duration-300"
                           style={{ width: `${exportProgress.percentage || 0}%` }}
                         />
                       </div>
                     </div>
                   )}
 
-                  {/* Export Button */}
                   <div className="flex gap-3">
-                    <button
+                    <Button
                       onClick={handleMultiPlatformExport}
                       disabled={selectedPlatforms.length === 0 || exporting}
-                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
+                      loading={exporting}
+                      icon={<Sparkles className="w-4 h-4" />}
+                      className="flex-1"
                     >
-                      {exporting ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Exporting...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-5 h-5" />
-                          Export {selectedPlatforms.length > 0 ? `(${selectedPlatforms.length} platforms)` : ''}
-                        </>
-                      )}
-                    </button>
-                    <button
+                      {exporting ? "Exporting..." : `Export ${selectedPlatforms.length > 0 ? `(${selectedPlatforms.length} platforms)` : ''}`}
+                    </Button>
+                    <Button
+                      variant="ghost"
                       onClick={() => {
                         setShowExportModal(false);
                         setSelectedPlatforms([]);
                       }}
                       disabled={exporting}
-                      className="px-6 py-3 rounded-lg border border-purple-500/30 text-purple-200 hover:bg-white/5 transition-colors font-semibold disabled:opacity-50"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
 
-              {/* Export Results */}
               {exportOutputs && (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-green-400 mb-4">
+                  <div className="flex items-center gap-2 text-[hsl(var(--success))] mb-4">
                     <CheckCircle className="w-6 h-6" />
-                    <span className="text-lg font-semibold">Export Complete!</span>
+                    <span className="text-lg font-medium">Export Complete!</span>
                   </div>
 
                   <div className="space-y-3">
@@ -1343,41 +1204,41 @@ export default function VideoDetailPage() {
                       return (
                         <div
                           key={platformId}
-                          className="flex items-center justify-between bg-white/5 rounded-lg p-4 border border-purple-500/20"
+                          className="flex items-center justify-between bg-[hsl(var(--surface))] p-4 border border-[hsl(var(--border))]"
                         >
                           <div className="flex items-center gap-3">
                             <span className="text-2xl">{platform.icon}</span>
                             <div>
-                              <div className="font-medium text-white">{platform.name}</div>
-                              <div className="text-xs text-purple-400">{output.aspectRatio}</div>
+                              <div className="font-medium text-[hsl(var(--foreground))]">{platform.name}</div>
+                              <div className="text-xs text-[hsl(var(--foreground-muted))]">{output.aspectRatio}</div>
                             </div>
                           </div>
-                          <button
+                          <Button
                             onClick={() => downloadPlatformExport(platformId)}
-                            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+                            icon={<Download className="w-4 h-4" />}
+                            size="sm"
                           >
-                            <Download className="w-4 h-4" />
                             Download
-                          </button>
+                          </Button>
                         </div>
                       );
                     })}
                   </div>
 
-                  <button
+                  <Button
                     onClick={() => {
                       setShowExportModal(false);
                       setSelectedPlatforms([]);
                       setExportOutputs(null);
                     }}
-                    className="w-full mt-4 px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors"
+                    className="w-full"
                   >
                     Done
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         </div>
       )}
 
