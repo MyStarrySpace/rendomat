@@ -44,16 +44,16 @@ export default function ShowcasePage() {
           <p className="caption mb-6">Video Creation Tool</p>
 
           <h1 className="headline text-5xl md:text-7xl text-[hsl(var(--foreground))] mb-8">
-            Documents become
+            Turn documents
             <br />
             <span className="text-[hsl(var(--foreground-muted))]">
-              moving pictures
+              into videos
             </span>
           </h1>
 
           <p className="text-lg text-[hsl(var(--foreground-muted))] max-w-xl leading-relaxed">
-            Drop a markdown file, a Word doc, or plain text. Watch it transform
-            into scenes with transitions, themes, and motion.
+            Drop in a markdown file, Word doc, or plain text. Get back a video
+            with scenes, transitions, and themes you can edit or export.
           </p>
         </div>
       </section>
@@ -94,7 +94,7 @@ export default function ShowcasePage() {
             </div>
           </div>
           <p className="caption mt-4 text-center">
-            The editor interface — where documents become video
+            The editor interface. Simple, focused, fast.
           </p>
         </div>
       </section>
@@ -108,18 +108,18 @@ export default function ShowcasePage() {
             {[
               {
                 num: "01",
-                title: "Import your content",
-                text: "Paste text or upload a document. The parser identifies structure — headings become scenes, paragraphs become supporting copy.",
+                title: "Drop in your document",
+                text: "Paste text or upload a file. Our parser automatically turns your headings into scenes and your paragraphs into supporting copy.",
               },
               {
                 num: "02",
-                title: "Generate and refine",
-                text: "AI creates scene content based on your material. Edit anything. Regenerate individual scenes. Adjust timing and transitions.",
+                title: "Review and refine",
+                text: "AI generates scene content from your material. Keep what works, edit what doesn't. Regenerate any scene with one click.",
               },
               {
                 num: "03",
-                title: "Render and export",
-                text: "One click to render. Choose your platform format. Export to After Effects for further refinement if needed.",
+                title: "Export anywhere",
+                text: "Render to YouTube, TikTok, Instagram, or square format. Need more control? Export to After Effects with full layer data.",
               },
             ].map((step) => (
               <div key={step.num} className="grid md:grid-cols-12 gap-6">
@@ -142,13 +142,15 @@ export default function ShowcasePage() {
         </div>
       </section>
 
-      {/* Quote */}
+      {/* Value prop */}
       <section className="py-24 px-6">
         <div className="max-w-3xl mx-auto">
-          <blockquote className="pullquote">
-            &ldquo;The goal isn&rsquo;t automation. It&rsquo;s giving you a
-            better starting point.&rdquo;
-          </blockquote>
+          <p className="headline text-3xl md:text-4xl text-[hsl(var(--foreground))] leading-snug">
+            You already have the content.
+            <span className="text-[hsl(var(--foreground-muted))]">
+              {" "}This turns it into something you can share.
+            </span>
+          </p>
         </div>
       </section>
 
@@ -224,16 +226,16 @@ export default function ShowcasePage() {
       <section className="py-24 px-6 bg-[hsl(var(--surface))]">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="headline text-3xl md:text-4xl text-[hsl(var(--foreground))] mb-6">
-            Ready to start?
+            Try it with your own content
           </h2>
           <p className="text-[hsl(var(--foreground-muted))] mb-8">
-            Create your first video from a document.
+            Paste some text or upload a document and see what comes out.
           </p>
           <Link
             href="/clients"
             className="inline-flex items-center gap-2 px-6 py-3 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-sm hover:opacity-90 transition-opacity"
           >
-            Open dashboard
+            Open the editor
             <ArrowUpRight className="w-4 h-4" />
           </Link>
         </div>
