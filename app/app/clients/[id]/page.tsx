@@ -968,9 +968,14 @@ export default function ClientDetailPage() {
                 <p className="text-[hsl(var(--foreground-muted))] mb-8">
                   Create your first video for this client
                 </p>
-                <Button onClick={() => setShowForm(true)} icon={<Plus className="w-4 h-4" />}>
-                  Create video
-                </Button>
+                <div className="flex items-center justify-center gap-3">
+                  <Button onClick={() => setShowAIModal(true)} icon={<Sparkles className="w-4 h-4" />}>
+                    AI Generate
+                  </Button>
+                  <Button variant="secondary" onClick={() => setShowForm(true)} icon={<Plus className="w-4 h-4" />}>
+                    Create manually
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="grid md:grid-cols-2 gap-6">
