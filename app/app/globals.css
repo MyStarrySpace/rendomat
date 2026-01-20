@@ -8,46 +8,49 @@
 :root {
   /* -----------------------------------------------------------------------------
      COLOR TOKENS (Dark Theme Primary)
-     Using HSL for easy manipulation
+     VSCO-inspired: warm, muted, film-like
      ----------------------------------------------------------------------------- */
 
-  /* Backgrounds */
-  --background: 0 0% 4%;              /* Near black - main bg */
-  --background-subtle: 0 0% 7%;       /* Slightly lighter */
-  --surface: 0 0% 10%;                /* Cards, panels */
-  --surface-hover: 0 0% 14%;          /* Interactive hover */
-  --surface-active: 0 0% 18%;         /* Active/pressed state */
+  /* Backgrounds - warm dark tones */
+  --background: 30 8% 7%;             /* Warm near-black */
+  --background-subtle: 30 6% 11%;     /* Slightly lighter */
+  --surface: 30 5% 14%;               /* Cards, panels */
+  --surface-hover: 30 5% 18%;         /* Interactive hover */
+  --surface-active: 30 5% 22%;        /* Active/pressed state */
 
-  /* Foregrounds */
-  --foreground: 0 0% 98%;             /* Primary text */
-  --foreground-muted: 0 0% 65%;       /* Secondary text */
-  --foreground-subtle: 0 0% 45%;      /* Tertiary/disabled */
+  /* Foregrounds - cream/warm white */
+  --foreground: 45 20% 95%;           /* Cream white - primary text */
+  --foreground-muted: 30 8% 60%;      /* Muted warm gray */
+  --foreground-subtle: 30 6% 42%;     /* Tertiary/disabled */
 
-  /* Accent - Electric purple, used sparingly */
-  --accent: 262 83% 58%;
-  --accent-hover: 262 83% 65%;
-  --accent-muted: 262 40% 25%;
-  --accent-foreground: 0 0% 100%;
+  /* Accent - Warm terracotta/rust */
+  --accent: 18 60% 55%;
+  --accent-hover: 18 60% 62%;
+  --accent-muted: 18 30% 20%;
+  --accent-foreground: 45 20% 95%;
 
-  /* Semantic Colors */
-  --success: 142 76% 36%;
-  --success-muted: 142 40% 15%;
-  --warning: 38 92% 50%;
-  --warning-muted: 38 50% 15%;
-  --error: 0 84% 60%;
-  --error-muted: 0 50% 15%;
+  /* Secondary accent - sage green */
+  --accent-alt: 150 20% 45%;
+  --accent-alt-muted: 150 15% 18%;
 
-  /* Borders */
-  --border: 0 0% 15%;
-  --border-hover: 0 0% 25%;
-  --border-focus: 262 83% 58%;
+  /* Semantic Colors - muted versions */
+  --success: 150 35% 42%;
+  --success-muted: 150 25% 15%;
+  --warning: 35 70% 50%;
+  --warning-muted: 35 40% 15%;
+  --error: 8 55% 52%;
+  --error-muted: 8 35% 16%;
+
+  /* Borders - warm */
+  --border: 30 6% 20%;
+  --border-hover: 30 6% 30%;
+  --border-focus: 18 60% 55%;
 
   /* -----------------------------------------------------------------------------
      TYPOGRAPHY
+     Editorial mix: serif headlines, clean sans body
+     Font families are set via Next.js font loading in layout.tsx
      ----------------------------------------------------------------------------- */
-
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 
   /* Font Sizes - Restrained scale */
   --text-xs: 0.75rem;      /* 12px */
@@ -116,13 +119,13 @@
 
   /* -----------------------------------------------------------------------------
      SHADOWS
-     Subtle, not dramatic
+     Layered, slightly tinted for depth
      ----------------------------------------------------------------------------- */
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-default: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.08);
+  --shadow-default: 0 2px 8px 0 rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 16px 0 rgb(0 0 0 / 0.12);
+  --shadow-lg: 0 8px 32px 0 rgb(0 0 0 / 0.16);
 
   /* -----------------------------------------------------------------------------
      TRANSITIONS
@@ -181,9 +184,6 @@
   --color-success: hsl(var(--success));
   --color-warning: hsl(var(--warning));
   --color-error: hsl(var(--error));
-
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
 }
 
 /* =============================================================================
@@ -202,7 +202,7 @@ html {
 body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: var(--font-sans);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: var(--text-base);
   line-height: var(--leading-normal);
 }
@@ -286,4 +286,80 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* =============================================================================
+   EDITORIAL UTILITIES
+   Clean, minimal, VSCO-inspired
+   ============================================================================= */
+
+/* Serif font utility */
+.font-serif {
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+}
+
+/* Editorial headline style */
+.headline {
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* Muted link style */
+.link-subtle {
+  color: hsl(var(--foreground-muted));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: hsl(var(--border));
+  transition: color var(--duration-default), text-decoration-color var(--duration-default);
+}
+
+.link-subtle:hover {
+  color: hsl(var(--foreground));
+  text-decoration-color: hsl(var(--foreground-muted));
+}
+
+/* Pill/tag style */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-full);
+  color: hsl(var(--foreground-muted));
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: hsl(var(--border));
+}
+
+/* Image frame - film-like */
+.frame {
+  padding: 0.5rem;
+  background: hsl(var(--surface));
+  border: 1px solid hsl(var(--border));
+}
+
+/* Caption text */
+.caption {
+  font-size: var(--text-xs);
+  color: hsl(var(--foreground-subtle));
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Pull quote */
+.pullquote {
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: var(--text-2xl);
+  font-style: italic;
+  color: hsl(var(--foreground-muted));
+  border-left: 2px solid hsl(var(--accent));
+  padding-left: 1.5rem;
 }

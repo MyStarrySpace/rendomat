@@ -1,23 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  FileText,
-  Sparkles,
-  Layers,
-  Download,
-  Palette,
-  Zap,
-  ArrowRight,
-  Play,
-  Github,
-} from "lucide-react";
-
-import { Button } from "@/components/ui";
-import { Container, Section, Stack, HStack, VStack } from "@/components/layout";
-import { FeatureCard } from "@/components/patterns/feature-card";
-import { StatGrid } from "@/components/patterns/stat-block";
-import { Badge } from "@/components/ui/badge";
+import { ArrowUpRight } from "lucide-react";
 
 // -----------------------------------------------------------------------------
 // Page
@@ -26,306 +10,245 @@ import { Badge } from "@/components/ui/badge";
 export default function ShowcasePage() {
   return (
     <div className="min-h-screen bg-[hsl(var(--background))]">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/80 backdrop-blur-sm">
-        <Container size="xl">
-          <HStack justify="between" align="center" className="h-16">
-            <HStack gap="lg" align="center">
-              <Link href="/" className="text-lg font-semibold text-[hsl(var(--foreground))]">
-                Rendomat
-              </Link>
-              <Badge variant="outline" size="sm" mono>
-                v0.1.0
-              </Badge>
-            </HStack>
+      {/* Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <Link
+            href="/"
+            className="text-sm tracking-wide text-[hsl(var(--foreground))]"
+          >
+            Rendomat
+          </Link>
 
-            <HStack gap="sm" align="center">
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/">Dashboard</Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/clients">Clients</Link>
-              </Button>
-              <Button size="sm" icon={<ArrowRight className="w-4 h-4" />} iconPosition="right" asChild>
-                <Link href="/clients">Get Started</Link>
-              </Button>
-            </HStack>
-          </HStack>
-        </Container>
-      </header>
+          <div className="flex items-center gap-8">
+            <Link href="/" className="link-subtle text-sm">
+              Dashboard
+            </Link>
+            <Link href="/clients" className="link-subtle text-sm">
+              Projects
+            </Link>
+            <Link
+              href="/clients"
+              className="text-sm text-[hsl(var(--foreground))] flex items-center gap-1 hover:opacity-70 transition-opacity"
+            >
+              Start creating
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      </nav>
 
       {/* Hero */}
-      <Section spacing="xl" className="border-b border-[hsl(var(--border))]">
-        <Container size="lg">
-          <VStack gap="lg" align="center" className="text-center">
-            <Badge variant="secondary">Now with After Effects export</Badge>
+      <section className="pt-32 pb-24 px-6">
+        <div className="max-w-4xl mx-auto">
+          <p className="caption mb-6">Video Creation Tool</p>
 
-            <h1 className="text-4xl md:text-5xl font-bold text-[hsl(var(--foreground))] tracking-tight text-balance max-w-3xl">
-              Turn documents into videos
-            </h1>
+          <h1 className="headline text-5xl md:text-7xl text-[hsl(var(--foreground))] mb-8">
+            Documents become
+            <br />
+            <span className="text-[hsl(var(--foreground-muted))]">
+              moving pictures
+            </span>
+          </h1>
 
-            <p className="text-lg text-[hsl(var(--foreground-muted))] max-w-2xl text-balance">
-              Drop in a markdown file, Word doc, or raw text. Get a rendered video with
-              scenes, transitions, and themes. Export to any platform or After Effects.
-            </p>
+          <p className="text-lg text-[hsl(var(--foreground-muted))] max-w-xl leading-relaxed">
+            Drop a markdown file, a Word doc, or plain text. Watch it transform
+            into scenes with transitions, themes, and motion.
+          </p>
+        </div>
+      </section>
 
-            <HStack gap="sm" className="mt-4">
-              <Button size="lg" icon={<Play className="w-4 h-4" />}>
-                Watch Demo
-              </Button>
-              <Button variant="secondary" size="lg">
-                Read Docs
-              </Button>
-            </HStack>
-          </VStack>
-        </Container>
-      </Section>
+      {/* Divider */}
+      <div className="divider mx-6" />
 
-      {/* Product Screenshot */}
-      <Section spacing="lg" className="border-b border-[hsl(var(--border))]">
-        <Container size="xl">
-          <div className="relative rounded-[var(--radius-lg)] border border-[hsl(var(--border))] overflow-hidden bg-[hsl(var(--surface))]">
-            {/* Fake browser chrome */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--background-subtle))]">
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-[hsl(var(--foreground-subtle))]/30" />
-                <div className="w-3 h-3 rounded-full bg-[hsl(var(--foreground-subtle))]/30" />
-                <div className="w-3 h-3 rounded-full bg-[hsl(var(--foreground-subtle))]/30" />
-              </div>
-              <div className="flex-1 mx-4">
-                <div className="max-w-md mx-auto h-6 rounded-[var(--radius-default)] bg-[hsl(var(--surface))] border border-[hsl(var(--border))] flex items-center justify-center">
-                  <span className="text-xs text-[hsl(var(--foreground-subtle))] font-mono">
-                    localhost:3000
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* App preview placeholder */}
-            <div className="aspect-[16/10] bg-gradient-to-br from-[hsl(var(--surface))] to-[hsl(var(--background))] flex items-center justify-center">
-              <div className="text-center">
-                <p className="text-[hsl(var(--foreground-muted))] text-sm mb-2">
-                  App screenshot will go here
-                </p>
-                <p className="text-[hsl(var(--foreground-subtle))] text-xs font-mono">
-                  1920 × 1200
+      {/* Feature Strip */}
+      <section className="py-16 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-4">
+            {[
+              { label: "Input", value: "Markdown, Word, Text" },
+              { label: "Output", value: "MP4, WebM, AE" },
+              { label: "Formats", value: "16:9, 9:16, 1:1" },
+              { label: "Rendering", value: "Cached scenes" },
+            ].map((item) => (
+              <div key={item.label}>
+                <p className="caption mb-2">{item.label}</p>
+                <p className="text-[hsl(var(--foreground))] text-sm">
+                  {item.value}
                 </p>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Divider */}
+      <div className="divider mx-6" />
+
+      {/* Main Visual */}
+      <section className="py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="frame">
+            <div className="aspect-[16/9] bg-[hsl(var(--background-subtle))] flex items-center justify-center">
+              <p className="caption">App Preview</p>
             </div>
           </div>
-        </Container>
-      </Section>
+          <p className="caption mt-4 text-center">
+            The editor interface — where documents become video
+          </p>
+        </div>
+      </section>
 
-      {/* Stats */}
-      <Section spacing="default" className="border-b border-[hsl(var(--border))]">
-        <Container size="lg">
-          <StatGrid
-            stats={[
-              { value: "10x", label: "Faster with scene caching" },
-              { value: "5", label: "Export formats" },
-              { value: "∞", label: "Themes supported" },
-            ]}
-            mono
-          />
-        </Container>
-      </Section>
+      {/* Process */}
+      <section className="py-24 px-6 bg-[hsl(var(--surface))]">
+        <div className="max-w-4xl mx-auto">
+          <p className="caption mb-12">How it works</p>
 
-      {/* Features */}
-      <Section spacing="lg" className="border-b border-[hsl(var(--border))]">
-        <Container size="lg">
-          <VStack gap="xl">
-            <VStack gap="sm" align="center" className="text-center">
-              <h2 className="text-2xl font-semibold text-[hsl(var(--foreground))]">
-                Capabilities
-              </h2>
-              <p className="text-[hsl(var(--foreground-muted))] max-w-lg">
-                Everything you need to go from document to published video.
-              </p>
-            </VStack>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <FeatureCard
-                icon={<FileText className="w-5 h-5" />}
-                title="Document Import"
-                description="Parse Markdown, Word docs, or plain text. Structure is automatically detected and converted to scenes."
-              />
-              <FeatureCard
-                icon={<Sparkles className="w-5 h-5" />}
-                title="AI Scene Generation"
-                description="Claude analyzes your content and generates compelling scene copy with headlines and supporting text."
-              />
-              <FeatureCard
-                icon={<Layers className="w-5 h-5" />}
-                title="Multi-platform Export"
-                description="Render once, export to YouTube (16:9), Instagram (9:16), TikTok, or square format."
-              />
-              <FeatureCard
-                icon={<Download className="w-5 h-5" />}
-                title="After Effects Export"
-                description="Full-fidelity JSON manifest with ExtendScript plugin. Recreate your composition in AE."
-              />
-              <FeatureCard
-                icon={<Palette className="w-5 h-5" />}
-                title="Theme System"
-                description="Swap colors, fonts, and styles with a single setting. Create custom themes for clients."
-              />
-              <FeatureCard
-                icon={<Zap className="w-5 h-5" />}
-                title="Scene Caching"
-                description="Only re-render what changed. Edit one scene, skip the other six. 10x faster iteration."
-              />
-            </div>
-          </VStack>
-        </Container>
-      </Section>
-
-      {/* How it works */}
-      <Section spacing="lg" className="border-b border-[hsl(var(--border))]">
-        <Container size="lg">
-          <VStack gap="xl">
-            <VStack gap="sm" align="center" className="text-center">
-              <h2 className="text-2xl font-semibold text-[hsl(var(--foreground))]">
-                How it works
-              </h2>
-            </VStack>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              {[
-                {
-                  step: "01",
-                  title: "Import",
-                  description: "Upload a document or paste text. The parser extracts structure and creates a video seed.",
-                },
-                {
-                  step: "02",
-                  title: "Generate",
-                  description: "AI creates scene content. Review, edit, or regenerate individual scenes until it's right.",
-                },
-                {
-                  step: "03",
-                  title: "Render",
-                  description: "One-click render to any platform. Scene caching makes re-renders nearly instant.",
-                },
-              ].map((item) => (
-                <div key={item.step} className="relative">
-                  <div className="text-5xl font-bold text-[hsl(var(--surface-hover))] mb-4 font-mono">
-                    {item.step}
-                  </div>
-                  <h3 className="text-lg font-semibold text-[hsl(var(--foreground))] mb-2">
-                    {item.title}
+          <div className="space-y-16">
+            {[
+              {
+                num: "01",
+                title: "Import your content",
+                text: "Paste text or upload a document. The parser identifies structure — headings become scenes, paragraphs become supporting copy.",
+              },
+              {
+                num: "02",
+                title: "Generate and refine",
+                text: "AI creates scene content based on your material. Edit anything. Regenerate individual scenes. Adjust timing and transitions.",
+              },
+              {
+                num: "03",
+                title: "Render and export",
+                text: "One click to render. Choose your platform format. Export to After Effects for further refinement if needed.",
+              },
+            ].map((step) => (
+              <div key={step.num} className="grid md:grid-cols-12 gap-6">
+                <div className="md:col-span-2">
+                  <span className="font-mono text-sm text-[hsl(var(--foreground-subtle))]">
+                    {step.num}
+                  </span>
+                </div>
+                <div className="md:col-span-10">
+                  <h3 className="headline text-2xl text-[hsl(var(--foreground))] mb-3">
+                    {step.title}
                   </h3>
-                  <p className="text-sm text-[hsl(var(--foreground-muted))]">
-                    {item.description}
+                  <p className="text-[hsl(var(--foreground-muted))] leading-relaxed max-w-lg">
+                    {step.text}
                   </p>
                 </div>
-              ))}
-            </div>
-          </VStack>
-        </Container>
-      </Section>
-
-      {/* Tech specs */}
-      <Section spacing="lg" className="border-b border-[hsl(var(--border))]">
-        <Container size="lg">
-          <VStack gap="lg">
-            <VStack gap="sm" align="center" className="text-center">
-              <h2 className="text-2xl font-semibold text-[hsl(var(--foreground))]">
-                Technical Details
-              </h2>
-              <p className="text-[hsl(var(--foreground-muted))]">
-                For developers who want to know what's under the hood.
-              </p>
-            </VStack>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="p-6 bg-[hsl(var(--surface))] border border-[hsl(var(--border))] rounded-[var(--radius-lg)]">
-                <h3 className="text-sm font-medium text-[hsl(var(--foreground-muted))] mb-4 uppercase tracking-wide">
-                  Stack
-                </h3>
-                <div className="space-y-3 font-mono text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-[hsl(var(--foreground-subtle))]">Frontend</span>
-                    <span className="text-[hsl(var(--foreground))]">Next.js 15 + React 19</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[hsl(var(--foreground-subtle))]">Video</span>
-                    <span className="text-[hsl(var(--foreground))]">Remotion 4</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[hsl(var(--foreground-subtle))]">Database</span>
-                    <span className="text-[hsl(var(--foreground))]">SQLite</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[hsl(var(--foreground-subtle))]">AI</span>
-                    <span className="text-[hsl(var(--foreground))]">Claude API</span>
-                  </div>
-                </div>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-              <div className="p-6 bg-[hsl(var(--surface))] border border-[hsl(var(--border))] rounded-[var(--radius-lg)]">
-                <h3 className="text-sm font-medium text-[hsl(var(--foreground-muted))] mb-4 uppercase tracking-wide">
-                  Export Formats
-                </h3>
-                <div className="space-y-3 font-mono text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-[hsl(var(--foreground-subtle))]">YouTube</span>
-                    <span className="text-[hsl(var(--foreground))]">1920×1080 / 16:9</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[hsl(var(--foreground-subtle))]">Reels/TikTok</span>
-                    <span className="text-[hsl(var(--foreground))]">1080×1920 / 9:16</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[hsl(var(--foreground-subtle))]">Square</span>
-                    <span className="text-[hsl(var(--foreground))]">1080×1080 / 1:1</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[hsl(var(--foreground-subtle))]">After Effects</span>
-                    <span className="text-[hsl(var(--foreground))]">JSON + JSX</span>
-                  </div>
-                </div>
-              </div>
+      {/* Quote */}
+      <section className="py-24 px-6">
+        <div className="max-w-3xl mx-auto">
+          <blockquote className="pullquote">
+            &ldquo;The goal isn&rsquo;t automation. It&rsquo;s giving you a
+            better starting point.&rdquo;
+          </blockquote>
+        </div>
+      </section>
+
+      {/* Divider */}
+      <div className="divider mx-6" />
+
+      {/* Tech */}
+      <section className="py-24 px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-16">
+            <div>
+              <p className="caption mb-6">Built with</p>
+              <ul className="space-y-3 text-sm">
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>Frontend</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    Next.js, React
+                  </span>
+                </li>
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>Video</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    Remotion
+                  </span>
+                </li>
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>AI</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    Claude API
+                  </span>
+                </li>
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>Storage</span>
+                  <span className="text-[hsl(var(--foreground))]">SQLite</span>
+                </li>
+              </ul>
             </div>
-          </VStack>
-        </Container>
-      </Section>
+
+            <div>
+              <p className="caption mb-6">Export options</p>
+              <ul className="space-y-3 text-sm">
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>YouTube</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    1920×1080
+                  </span>
+                </li>
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>Reels / TikTok</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    1080×1920
+                  </span>
+                </li>
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>Square</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    1080×1080
+                  </span>
+                </li>
+                <li className="flex justify-between text-[hsl(var(--foreground-muted))]">
+                  <span>After Effects</span>
+                  <span className="text-[hsl(var(--foreground))]">
+                    JSON manifest
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* CTA */}
-      <Section spacing="lg">
-        <Container size="default">
-          <VStack gap="lg" align="center" className="text-center">
-            <h2 className="text-2xl font-semibold text-[hsl(var(--foreground))]">
-              Ready to try it?
-            </h2>
-            <p className="text-[hsl(var(--foreground-muted))]">
-              Create your first video in under five minutes.
-            </p>
-            <HStack gap="sm">
-              <Button size="lg" asChild>
-                <Link href="/clients">Open Dashboard</Link>
-              </Button>
-              <Button variant="secondary" size="lg" icon={<Github className="w-4 h-4" />} asChild>
-                <a href="https://github.com" target="_blank" rel="noopener noreferrer">
-                  View Source
-                </a>
-              </Button>
-            </HStack>
-          </VStack>
-        </Container>
-      </Section>
+      <section className="py-24 px-6 bg-[hsl(var(--surface))]">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="headline text-3xl md:text-4xl text-[hsl(var(--foreground))] mb-6">
+            Ready to start?
+          </h2>
+          <p className="text-[hsl(var(--foreground-muted))] mb-8">
+            Create your first video from a document.
+          </p>
+          <Link
+            href="/clients"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-sm hover:opacity-90 transition-opacity"
+          >
+            Open dashboard
+            <ArrowUpRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
 
       {/* Footer */}
-      <footer className="border-t border-[hsl(var(--border))] py-8">
-        <Container size="lg">
-          <HStack justify="between" align="center">
-            <span className="text-sm text-[hsl(var(--foreground-subtle))]">
-              Rendomat — Generative video creation
-            </span>
-            <span className="text-sm text-[hsl(var(--foreground-subtle))] font-mono">
-              2026
-            </span>
-          </HStack>
-        </Container>
+      <footer className="py-8 px-6 border-t border-[hsl(var(--border))]">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <span className="text-sm text-[hsl(var(--foreground-subtle))]">
+            Rendomat
+          </span>
+          <span className="text-sm text-[hsl(var(--foreground-subtle))] font-mono">
+            2026
+          </span>
+        </div>
       </footer>
     </div>
   );
