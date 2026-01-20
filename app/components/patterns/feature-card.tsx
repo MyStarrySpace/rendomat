@@ -28,8 +28,7 @@ export function FeatureCard({
         p-6
         bg-[hsl(var(--surface))]
         border border-[hsl(var(--border))]
-        rounded-[var(--radius-lg)]
-        transition-colors
+                transition-colors
         hover:border-[hsl(var(--border-hover))]
         ${className}
       `.trim().replace(/\s+/g, " ")}

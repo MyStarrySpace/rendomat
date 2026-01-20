@@ -10,7 +10,6 @@ const baseInputStyles = `
   border border-[hsl(var(--border))]
   text-[hsl(var(--foreground))]
   placeholder:text-[hsl(var(--foreground-subtle))]
-  rounded-[var(--radius-md)]
   transition-colors
   focus:outline-none focus:border-[hsl(var(--accent))] focus:ring-1 focus:ring-[hsl(var(--accent))]
   disabled:cursor-not-allowed disabled:opacity-50

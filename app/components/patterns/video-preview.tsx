@@ -83,8 +83,7 @@ export function VideoPreview({
         relative overflow-hidden
         bg-[hsl(var(--surface))]
         border border-[hsl(var(--border))]
-        rounded-[var(--radius-lg)]
-        ${aspectRatioStyles[aspectRatio]}
+                ${aspectRatioStyles[aspectRatio]}
         ${className}
       `.trim().replace(/\s+/g, " ")}
     >
@@ -190,8 +189,7 @@ export function VideoSkeleton({
         relative overflow-hidden
         bg-[hsl(var(--surface))]
         border border-[hsl(var(--border))]
-        rounded-[var(--radius-lg)]
-        ${aspectRatioStyles[aspectRatio]}
+                ${aspectRatioStyles[aspectRatio]}
         animate-pulse
         ${className}
       `.trim().replace(/\s+/g, " ")}

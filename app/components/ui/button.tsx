@@ -49,9 +49,9 @@ const variantStyles: Record<ButtonVariant, string> = {
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-sm rounded-[var(--radius-default)]",
-  default: "h-10 px-4 text-sm rounded-[var(--radius-md)]",
-  lg: "h-12 px-6 text-base rounded-[var(--radius-md)]",
+  sm: "h-8 px-3 text-sm",
+  default: "h-10 px-4 text-sm",
+  lg: "h-12 px-6 text-base",
 };
 
 // -----------------------------------------------------------------------------

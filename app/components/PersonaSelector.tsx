@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronUp, Info, Sparkles, Users, Monitor, CheckCircle, GraduationCap } from "lucide-react";
+import { ChevronDown, ChevronUp, Info, Sparkles, Users, Monitor, CheckCircle, GraduationCap, Loader2 } from "lucide-react";
 
 // Types for personas
 interface PersonaBehaviorOption {
@@ -56,7 +56,6 @@ export default function PersonaSelector({
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [grouped, setGrouped] = useState<Record<string, Persona[]>>({});
   const [loading, setLoading] = useState(true);
-  const [expandedPersona, setExpandedPersona] = useState<string | null>(null);
   const [showPromptPreview, setShowPromptPreview] = useState(false);
   const [promptPreview, setPromptPreview] = useState<string>("");
 
@@ -145,7 +144,7 @@ export default function PersonaSelector({
   if (loading) {
     return (
       <div className="flex items-center justify-center p-4">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+        <Loader2 className="w-6 h-6 text-[hsl(var(--foreground-muted))] animate-spin" />
       </div>
     );
   }
@@ -166,16 +165,16 @@ export default function PersonaSelector({
     <div className="space-y-4">
       {/* Persona Selection */}
       <div className="space-y-3">
-        <label className="flex items-center gap-2 text-sm font-medium text-purple-200">
+        <label className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--foreground))]">
           <Users className="w-4 h-4" />
           AI Personas
-          <span className="text-purple-400 text-xs font-normal">(select one or more)</span>
+          <span className="text-[hsl(var(--foreground-muted))] text-xs font-normal">(select one or more)</span>
         </label>
 
         {/* Categories */}
         {Object.entries(grouped).map(([category, categoryPersonas]) => (
           <div key={category} className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-purple-300">
+            <div className="flex items-center gap-2 text-xs text-[hsl(var(--foreground-muted))]">
               {CATEGORY_ICONS[category as keyof typeof CATEGORY_ICONS]}
               <span>{CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS]}</span>
             </div>
@@ -187,10 +186,10 @@ export default function PersonaSelector({
                     key={persona.id}
                     onClick={() => togglePersona(persona.id)}
                     className={`
-                      flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all
+                      flex items-center gap-2 px-3 py-1.5 text-sm transition-all
                       ${isSelected
-                        ? "bg-purple-600 text-white border border-purple-500"
-                        : "bg-white/5 text-purple-200 border border-purple-500/20 hover:border-purple-500/40 hover:bg-white/10"
+                        ? "bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] border border-[hsl(var(--accent))]"
+                        : "bg-[hsl(var(--surface))] text-[hsl(var(--foreground-muted))] border border-[hsl(var(--border))] hover:border-[hsl(var(--border-hover))] hover:bg-[hsl(var(--surface-hover))]"
                       }
                     `}
                     title={persona.description}
@@ -207,16 +206,16 @@ export default function PersonaSelector({
 
       {/* Behavior Customization */}
       {selectedPersonas.length > 0 && Object.keys(availableBehaviors).length > 0 && (
-        <div className="space-y-3 pt-3 border-t border-purple-500/20">
+        <div className="space-y-3 pt-3 border-t border-[hsl(var(--border))]">
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-sm font-medium text-purple-200">
+            <label className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--foreground))]">
               <Sparkles className="w-4 h-4" />
               Behavior Customization
             </label>
             {!compact && (
               <button
                 onClick={() => setShowPromptPreview(!showPromptPreview)}
-                className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                className="text-xs text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] flex items-center gap-1 transition-colors"
               >
                 <Info className="w-3 h-3" />
                 {showPromptPreview ? "Hide" : "Preview"} Prompt
@@ -232,9 +231,9 @@ export default function PersonaSelector({
 
               return (
                 <div key={key} className="space-y-1">
-                  <label className="text-xs text-purple-300 flex items-center justify-between">
+                  <label className="text-xs text-[hsl(var(--foreground-muted))] flex items-center justify-between">
                     <span>{behavior.label}</span>
-                    <span className="text-purple-400 text-[10px]">
+                    <span className="text-[hsl(var(--foreground-subtle))] text-[10px]">
                       from {persona.name}
                     </span>
                   </label>
@@ -256,10 +255,10 @@ export default function PersonaSelector({
                               updateBehavior(key, newValues);
                             }}
                             className={`
-                              px-2 py-1 text-xs rounded transition-all
+                              px-2 py-1 text-xs transition-all
                               ${isChecked
-                                ? "bg-purple-600/50 text-purple-100 border border-purple-500/50"
-                                : "bg-white/5 text-purple-300 border border-purple-500/20 hover:border-purple-500/40"
+                                ? "bg-[hsl(var(--accent-muted))] text-[hsl(var(--accent))] border border-[hsl(var(--accent))]/30"
+                                : "bg-[hsl(var(--surface))] text-[hsl(var(--foreground-muted))] border border-[hsl(var(--border))] hover:border-[hsl(var(--border-hover))]"
                               }
                             `}
                             title={option.prompt}
@@ -274,10 +273,10 @@ export default function PersonaSelector({
                     <select
                       value={currentValue as string}
                       onChange={(e) => updateBehavior(key, e.target.value)}
-                      className="w-full bg-white/5 border border-purple-500/20 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500"
+                      className="w-full bg-[hsl(var(--surface))] border border-[hsl(var(--border))] px-2 py-1.5 text-sm text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
                     >
                       {behavior.options.map((option) => (
-                        <option key={option.id} value={option.id} className="text-gray-900">
+                        <option key={option.id} value={option.id}>
                           {option.label}
                         </option>
                       ))}
@@ -297,19 +296,19 @@ export default function PersonaSelector({
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden"
               >
-                <div className="mt-3 p-3 bg-black/30 rounded-lg border border-purple-500/20">
+                <div className="mt-3 p-3 bg-[hsl(var(--background))] border border-[hsl(var(--border))]">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-purple-300">
+                    <span className="text-xs font-medium text-[hsl(var(--foreground-muted))]">
                       Generated Prompt Preview
                     </span>
                     <button
                       onClick={() => setShowPromptPreview(false)}
-                      className="text-purple-400 hover:text-purple-300"
+                      className="text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))]"
                     >
                       <ChevronUp className="w-4 h-4" />
                     </button>
                   </div>
-                  <pre className="text-xs text-purple-200 whitespace-pre-wrap font-mono max-h-60 overflow-y-auto">
+                  <pre className="text-xs text-[hsl(var(--foreground-muted))] whitespace-pre-wrap font-mono max-h-60 overflow-y-auto">
                     {promptPreview}
                   </pre>
                 </div>
@@ -321,7 +320,7 @@ export default function PersonaSelector({
 
       {/* Selected Personas Summary */}
       {selectedPersonas.length > 0 && compact && (
-        <div className="text-xs text-purple-400">
+        <div className="text-xs text-[hsl(var(--foreground-muted))]">
           Selected: {selectedPersonaObjects.map((p) => p.name).join(" + ")}
         </div>
       )}

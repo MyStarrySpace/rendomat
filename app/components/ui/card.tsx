@@ -26,7 +26,7 @@ interface CardFooterProps extends HTMLAttributes<HTMLDivElement> {}
 // Styles
 // -----------------------------------------------------------------------------
 
-const baseStyles = "rounded-[var(--radius-lg)] transition-colors";
+const baseStyles = "transition-colors";
 
 const variantStyles: Record<CardVariant, string> = {
   default: `
