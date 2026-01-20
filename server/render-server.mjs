@@ -21,6 +21,7 @@ import { previewBlendedPrompt, getEffectivePersonas, validatePersonaIds } from '
 import { performResearch, generateSlidesWithResearch, verifyClaim } from './research-service.mjs';
 import { generateAEManifest, generateSelfContainedScript } from './ae-exporter.mjs';
 import { parseDocument, parseMarkdownContent, parseDocxBuffer, generateVideoSeed } from './document-parser.mjs';
+import archiver from 'archiver';
 
 const PORT = Number(process.env.PORT || 8787);
 const DEBUG = String(process.env.RENDER_DEBUG || '').toLowerCase() === 'true';
@@ -1882,6 +1883,50 @@ app.post('/api/documents/create-video-from-seed', async (req, res) => {
     });
   } catch (error) {
     console.error('[document] Create video from seed error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================
+// After Effects Plugin Download
+// =============================
+
+// Download AE plugin as a zip file
+app.get('/api/ae-plugin', async (req, res) => {
+  try {
+    const pluginDir = path.join(process.cwd(), 'ae-plugin');
+
+    // Check if plugin directory exists
+    try {
+      await fs.access(pluginDir);
+    } catch {
+      return res.status(404).json({ error: 'AE plugin not found' });
+    }
+
+    // Set response headers for zip download
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="rendomat-ae-plugin.zip"');
+
+    // Create zip archive
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    // Handle archive errors
+    archive.on('error', (err) => {
+      console.error('[ae-plugin] Archive error:', err);
+      res.status(500).json({ error: 'Failed to create zip archive' });
+    });
+
+    // Pipe archive to response
+    archive.pipe(res);
+
+    // Add the ae-plugin directory contents to the zip
+    archive.directory(pluginDir, 'rendomat-ae-plugin');
+
+    // Finalize the archive
+    await archive.finalize();
+
+  } catch (error) {
+    console.error('[ae-plugin] Download error:', error);
     res.status(500).json({ error: error.message });
   }
 });

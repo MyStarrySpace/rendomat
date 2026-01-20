@@ -339,13 +339,12 @@ export default function ClientDetailPage() {
 
           <div className="flex items-center gap-3">
             <Button
-              variant="ghost"
               onClick={() => setShowAIModal(true)}
               icon={<Sparkles className="w-4 h-4" />}
             >
               AI Generate
             </Button>
-            <Button onClick={() => setShowForm(!showForm)} icon={<Plus className="w-4 h-4" />}>
+            <Button variant="secondary" onClick={() => setShowForm(!showForm)} icon={<Plus className="w-4 h-4" />}>
               New Video
             </Button>
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Download } from "lucide-react";
 
 // -----------------------------------------------------------------------------
 // Page
@@ -24,6 +24,13 @@ export default function Home() {
             <Link href="/clients" className="link-subtle text-sm">
               Projects
             </Link>
+            <a
+              href="http://localhost:8787/api/ae-plugin"
+              className="link-subtle text-sm flex items-center gap-1"
+            >
+              <Download className="w-3 h-3" />
+              AE Plugin
+            </a>
             <Link
               href="/clients"
               className="text-sm text-[hsl(var(--foreground))] flex items-center gap-1 hover:opacity-70 transition-opacity"
