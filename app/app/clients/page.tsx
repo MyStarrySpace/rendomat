@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Building2, Briefcase, Loader2, ArrowLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { clientApi, Client } from "@/lib/api";
@@ -8,6 +9,13 @@ import { Button } from "@/components/ui";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  staggerContainer,
+  fadeInUp,
+  cardVariants,
+  modalContentVariants,
+  spring,
+} from "@/lib/motion";
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -74,17 +82,24 @@ export default function ClientsPage() {
             Back to Rendomat
           </Link>
 
-          <Button onClick={() => setShowForm(!showForm)} icon={<Plus className="w-4 h-4" />}>
-            New Project
-          </Button>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button onClick={() => setShowForm(!showForm)} icon={<Plus className="w-4 h-4" />}>
+              New Project
+            </Button>
+          </motion.div>
         </div>
       </nav>
 
       {/* Content */}
       <div className="pt-32 pb-24 px-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={spring.gentle}
+            className="mb-12"
+          >
             <p className="caption mb-4">Projects</p>
             <h1 className="headline text-4xl md:text-5xl text-[hsl(var(--foreground))] mb-4">
               Your clients
@@ -92,101 +107,157 @@ export default function ClientsPage() {
             <p className="text-lg text-[hsl(var(--foreground-muted))] max-w-xl">
               Manage video projects for your clients. Each client can have multiple videos.
             </p>
-          </div>
+          </motion.div>
 
           {/* Create Form */}
-          {showForm && (
-            <Card variant="bordered" className="mb-12 animate-fade-in">
-              <CardHeader>
-                <CardTitle>Create new project</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <Label htmlFor="company">Company name *</Label>
-                    <Input
-                      id="company"
-                      type="text"
-                      required
-                      value={formData.company}
-                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                      placeholder="Acme Corporation"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="name">Contact name</Label>
-                    <Input
-                      id="name"
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="John Doe"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="industry">Industry</Label>
-                    <Input
-                      id="industry"
-                      type="text"
-                      value={formData.industry}
-                      onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                      placeholder="SaaS, Health Tech, etc."
-                    />
-                  </div>
-                  <div className="flex gap-3 pt-2">
-                    <Button
-                      type="submit"
-                      loading={submitting}
-                      icon={<Plus className="w-4 h-4" />}
-                    >
-                      Create project
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setShowForm(false)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
+          <AnimatePresence>
+            {showForm && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: "auto", marginBottom: 48 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                transition={spring.gentle}
+              >
+                <Card variant="bordered">
+                  <CardHeader>
+                    <CardTitle>Create new project</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                      <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1, ...spring.gentle }}
+                      >
+                        <Label htmlFor="company">Company name *</Label>
+                        <Input
+                          id="company"
+                          type="text"
+                          required
+                          value={formData.company}
+                          onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                          placeholder="Acme Corporation"
+                        />
+                      </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.15, ...spring.gentle }}
+                      >
+                        <Label htmlFor="name">Contact name</Label>
+                        <Input
+                          id="name"
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          placeholder="John Doe"
+                        />
+                      </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.2, ...spring.gentle }}
+                      >
+                        <Label htmlFor="industry">Industry</Label>
+                        <Input
+                          id="industry"
+                          type="text"
+                          value={formData.industry}
+                          onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                          placeholder="SaaS, Health Tech, etc."
+                        />
+                      </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.25 }}
+                        className="flex gap-3 pt-2"
+                      >
+                        <Button
+                          type="submit"
+                          loading={submitting}
+                          icon={<Plus className="w-4 h-4" />}
+                        >
+                          Create project
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setShowForm(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </motion.div>
+                    </form>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Loading State */}
           {loading ? (
-            <div className="flex items-center justify-center py-24">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center justify-center py-24"
+            >
               <Loader2 className="w-6 h-6 text-[hsl(var(--foreground-muted))] animate-spin" />
-            </div>
+            </motion.div>
           ) : clients.length === 0 ? (
             /* Empty State */
-            <div className="text-center py-24 border border-[hsl(var(--border))]">
-              <Building2 className="w-12 h-12 text-[hsl(var(--foreground-subtle))] mx-auto mb-6" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={spring.gentle}
+              className="text-center py-24 border border-[hsl(var(--border))]"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.1, ...spring.bouncy }}
+              >
+                <Building2 className="w-12 h-12 text-[hsl(var(--foreground-subtle))] mx-auto mb-6" />
+              </motion.div>
               <h3 className="headline text-2xl text-[hsl(var(--foreground))] mb-2">
                 No projects yet
               </h3>
               <p className="text-[hsl(var(--foreground-muted))] mb-8">
                 Create your first client project to get started
               </p>
-              <Button onClick={() => setShowForm(true)} icon={<Plus className="w-4 h-4" />}>
-                Create project
-              </Button>
-            </div>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button onClick={() => setShowForm(true)} icon={<Plus className="w-4 h-4" />}>
+                  Create project
+                </Button>
+              </motion.div>
+            </motion.div>
           ) : (
             /* Client Grid */
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {clients.map((client) => (
-                <div
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              animate="show"
+              className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              {clients.map((client, index) => (
+                <motion.div
                   key={client.id}
+                  variants={cardVariants}
+                  whileHover="hover"
+                  whileTap="tap"
                   className="group relative bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-6 hover:border-[hsl(var(--border-hover))] transition-colors"
                 >
                   <Link href={`/clients/${client.id}`} className="block">
-                    <div className="flex items-start mb-4">
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: index * 0.05, ...spring.bouncy }}
+                      className="flex items-start mb-4"
+                    >
                       <div className="w-10 h-10 bg-[hsl(var(--accent-muted))] flex items-center justify-center">
                         <Building2 className="w-5 h-5 text-[hsl(var(--accent))]" />
                       </div>
-                    </div>
+                    </motion.div>
                     <h3 className="headline text-xl text-[hsl(var(--foreground))] mb-1">
                       {client.company}
                     </h3>
@@ -204,20 +275,22 @@ export default function ClientsPage() {
                       </div>
                     )}
                   </Link>
-                  <button
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileHover={{ scale: 1.1, backgroundColor: "hsl(var(--error) / 0.2)" }}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       handleDelete(client.id, client.company);
                     }}
-                    className="absolute top-4 right-4 p-2 bg-[hsl(var(--error-muted))] border border-[hsl(var(--error))]/20 text-[hsl(var(--error))] hover:bg-[hsl(var(--error))]/20 transition-colors opacity-0 group-hover:opacity-100"
+                    className="absolute top-4 right-4 p-2 bg-[hsl(var(--error-muted))] border border-[hsl(var(--error))]/20 text-[hsl(var(--error))] opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Delete client"
                   >
                     <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                  </motion.button>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
       </div>

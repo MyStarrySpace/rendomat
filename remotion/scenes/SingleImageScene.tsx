@@ -1,17 +1,33 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame, interpolate, Img } from 'remotion';
+import { AbsoluteFill, Img } from 'remotion';
 import { SceneProps } from './types';
-import { useFadeAnimation } from './utils';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import {
+  usePresetAnimation,
+  usePresetSceneFade,
+  buildTransform,
+} from '../lib/motion';
+import {
+  AnimationPreset,
+  getElementConfig,
+} from '../lib/animationPresets';
 
 export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
-  const frame = useCurrentFrame();
-  const opacity = useFadeAnimation(durationInFrames);
   const layout = useResponsiveLayout();
 
-  const imageScale = interpolate(frame, [0, 30], [0.95, 1], { extrapolateRight: 'clamp' });
-  const titleDelay = 20;
-  const titleOpacity = frame > titleDelay ? Math.min(1, (frame - titleDelay) / 15) * opacity : 0;
+  // Get animation preset from data or default to 'smooth'
+  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+
+  // Get element-specific configs
+  const imageConfig = getElementConfig('single-image', preset, 'image');
+  const titleConfig = getElementConfig('single-image', preset, 'title');
+
+  // Scene fade
+  const sceneFade = usePresetSceneFade(imageConfig, durationInFrames);
+
+  // Element animations
+  const imageAnim = usePresetAnimation(imageConfig, 0);
+  const titleAnim = usePresetAnimation(titleConfig, 1);
 
   // Adjust image size based on aspect ratio
   const imageWidth = layout.isVertical ? '85%' : '70%';
@@ -20,17 +36,22 @@ export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames,
   return (
     <AbsoluteFill style={{
       background: theme.colors.backgroundGradient || theme.colors.background,
-      fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
+      fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+      opacity: sceneFade,
     }}>
       {data.image_url && (
         <div style={{
           position: 'absolute',
           top: layout.isVertical ? '35%' : '50%',
           left: '50%',
-          transform: `translate(-50%, -50%) scale(${imageScale})`,
+          transform: `translate(-50%, -50%) ${buildTransform({
+            scale: imageAnim.scale,
+            translateX: imageAnim.translateX,
+            translateY: imageAnim.translateY,
+          })}`,
           width: imageWidth,
           height: imageHeight,
-          opacity
+          opacity: imageAnim.opacity,
         }}>
           <Img
             src={data.image_url}
@@ -38,7 +59,6 @@ export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames,
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              borderRadius: 16
             }}
           />
         </div>
@@ -51,16 +71,19 @@ export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames,
           left: 0,
           right: 0,
           textAlign: 'center',
-          padding: `0 ${layout.padding}px`
+          padding: `0 ${layout.padding}px`,
+          opacity: titleAnim.opacity,
+          transform: buildTransform({
+            translateX: titleAnim.translateX,
+            translateY: titleAnim.translateY,
+          }),
         }}>
           <div style={{
             fontSize: layout.isVertical ? 48 : layout.isSquare ? 48 : 56,
             fontWeight: 700,
             color: theme.colors.textPrimary,
-            opacity: titleOpacity,
             backgroundColor: theme.colors.surface || 'rgba(10, 10, 10, 0.8)',
             padding: layout.isVertical ? '16px 24px' : '20px 40px',
-            borderRadius: 12,
             display: 'inline-block'
           }}>
             {data.title}

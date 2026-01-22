@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Video as VideoIcon,
@@ -35,6 +36,11 @@ import { Button } from "@/components/ui";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  staggerContainer,
+  cardVariants,
+  spring,
+} from "@/lib/motion";
 
 // Platform configuration
 const PLATFORMS = {
@@ -390,7 +396,12 @@ export default function VideoDetailPage() {
   return (
     <div className="min-h-screen bg-[hsl(var(--background))]">
       {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-5 bg-[hsl(var(--background))]/90 backdrop-blur-sm border-b border-[hsl(var(--border))]">
+      <motion.nav
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="fixed top-0 left-0 right-0 z-50 px-6 py-5 bg-[hsl(var(--background))]/90 backdrop-blur-sm border-b border-[hsl(var(--border))]"
+      >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link
             href={`/clients/${video.client_id}`}
@@ -401,36 +412,50 @@ export default function VideoDetailPage() {
           </Link>
 
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              onClick={() => setShowExportModal(true)}
-              disabled={rendering || exporting}
-              icon={<Share2 className="w-4 h-4" />}
-            >
-              Export
-            </Button>
-            <Button
-              onClick={handleRender}
-              disabled={rendering}
-              loading={rendering}
-              icon={<Play className="w-4 h-4" />}
-            >
-              {rendering ? "Rendering..." : "Render Video"}
-            </Button>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button
+                variant="ghost"
+                onClick={() => setShowExportModal(true)}
+                disabled={rendering || exporting}
+                icon={<Share2 className="w-4 h-4" />}
+              >
+                Export
+              </Button>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button
+                onClick={handleRender}
+                disabled={rendering}
+                loading={rendering}
+                icon={<Play className="w-4 h-4" />}
+              >
+                {rendering ? "Rendering..." : "Render Video"}
+              </Button>
+            </motion.div>
           </div>
         </div>
-      </nav>
+      </motion.nav>
 
       {/* Content */}
       <div className="pt-32 pb-24 px-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={spring.gentle}
+            className="mb-12"
+          >
             <p className="caption mb-4">{client?.company || "Video"}</p>
             <h1 className="headline text-4xl md:text-5xl text-[hsl(var(--foreground))] mb-4">
               {video.title}
             </h1>
-            <div className="flex items-center gap-4 text-sm text-[hsl(var(--foreground-muted))]">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="flex items-center gap-4 text-sm text-[hsl(var(--foreground-muted))]"
+            >
               <span className="flex items-center gap-1">
                 <Film className="w-4 h-4" />
                 {video.aspect_ratio || "16:9"}
@@ -452,8 +477,8 @@ export default function VideoDetailPage() {
                   {THEMES[video.theme_id].name}
                 </span>
               )}
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           {/* Render Progress */}
           {renderProgress && (
@@ -617,24 +642,54 @@ export default function VideoDetailPage() {
           )}
 
           {/* Scenes */}
-          <div className="divider mb-8" />
-          <p className="caption mb-6">Scenes</p>
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            style={{ transformOrigin: "left" }}
+            className="divider mb-8"
+          />
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, ...spring.gentle }}
+            className="caption mb-6"
+          >
+            Scenes
+          </motion.p>
 
           {scenes.length === 0 ? (
-            <div className="text-center py-24 border border-[hsl(var(--border))]">
-              <Film className="w-12 h-12 text-[hsl(var(--foreground-subtle))] mx-auto mb-6" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={spring.gentle}
+              className="text-center py-24 border border-[hsl(var(--border))]"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.1, ...spring.bouncy }}
+              >
+                <Film className="w-12 h-12 text-[hsl(var(--foreground-subtle))] mx-auto mb-6" />
+              </motion.div>
               <h3 className="headline text-2xl text-[hsl(var(--foreground))] mb-2">
                 No scenes yet
               </h3>
               <p className="text-[hsl(var(--foreground-muted))]">
                 Scenes will appear here once the video is set up
               </p>
-            </div>
+            </motion.div>
           ) : (
-            <div className="space-y-4">
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              animate="show"
+              className="space-y-4"
+            >
               {scenes.map((scene) => (
-                <div
+                <motion.div
                   key={scene.id}
+                  variants={cardVariants}
                   className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] overflow-hidden"
                 >
                   <div className="p-6">
@@ -1078,9 +1133,9 @@ export default function VideoDetailPage() {
                       </div>
                     )}
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
       </div>

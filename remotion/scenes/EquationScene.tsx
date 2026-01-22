@@ -1,9 +1,19 @@
 import React, { useMemo } from 'react';
-import { AbsoluteFill, useCurrentFrame, interpolate } from 'remotion';
+import { AbsoluteFill, spring, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
 import katex from 'katex';
 import { SceneProps } from './types';
-import { useFadeAnimation } from './utils';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import {
+  usePresetAnimation,
+  usePresetSceneFade,
+  springConfig,
+  buildTransform,
+} from '../lib/motion';
+import {
+  AnimationPreset,
+  getElementConfig,
+  PresetConfig,
+} from '../lib/animationPresets';
 
 // KaTeX CSS styles embedded
 const katexStyles = `
@@ -86,9 +96,18 @@ function renderLatex(latex: string): RenderedEquation {
 }
 
 export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
-  const frame = useCurrentFrame();
-  const opacity = useFadeAnimation(durationInFrames);
   const layout = useResponsiveLayout();
+
+  // Get animation preset from data or default to 'smooth'
+  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+
+  // Get element-specific configs
+  const titleConfig = getElementConfig('equation', preset, 'title');
+  const bodyConfig = getElementConfig('equation', preset, 'body');
+  const dataConfig = getElementConfig('equation', preset, 'data');
+
+  // Scene fade
+  const sceneFade = usePresetSceneFade(titleConfig, durationInFrames);
 
   // Parse equations - support both single equation and array of equations
   const equations = useMemo(() => {
@@ -106,29 +125,9 @@ export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, th
     return equations.map(eq => renderLatex(eq));
   }, [equations]);
 
-  // Calculate animation timings
-  const titleDelay = 10;
-  const titleDuration = 15;
-  const descriptionDelay = titleDelay + titleDuration + 5;
-  const descriptionDuration = 15;
-  const equationStartDelay = descriptionDelay + (data.equation_description ? descriptionDuration : 0) + 5;
-  const equationStaggerDelay = 20; // Frames between each equation
-
-  const titleOpacity = interpolate(
-    frame,
-    [titleDelay, titleDelay + titleDuration],
-    [0, 1],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  ) * opacity;
-
-  const descriptionOpacity = data.equation_description
-    ? interpolate(
-        frame,
-        [descriptionDelay, descriptionDelay + descriptionDuration],
-        [0, 1],
-        { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-      ) * opacity
-    : 0;
+  // Title and description animations with presets
+  const titleAnim = usePresetAnimation(titleConfig, 0);
+  const descriptionAnim = usePresetAnimation(bodyConfig, 1);
 
   // Calculate equation size based on layout
   const equationFontSize = layout.isVertical ? '2rem' : '2.5rem';
@@ -136,12 +135,15 @@ export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, th
     ? (layout.isVertical ? '1.5rem' : '1.8rem')
     : equationFontSize;
 
+  const equationStartDelay = dataConfig.startDelay;
+
   return (
     <AbsoluteFill style={{
       background: theme.colors.backgroundGradient || theme.colors.background,
       justifyContent: 'center',
       alignItems: 'center',
-      padding: layout.padding
+      padding: layout.padding,
+      opacity: sceneFade,
     }}>
       <style>{katexStyles}</style>
       <div style={{
@@ -156,7 +158,12 @@ export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, th
             fontSize: layout.titleFontSize,
             fontWeight: 700,
             color: theme.colors.textPrimary,
-            opacity: titleOpacity,
+            opacity: titleAnim.opacity,
+            transform: buildTransform({
+              translateX: titleAnim.translateX,
+              translateY: titleAnim.translateY,
+              scale: titleAnim.scale,
+            }),
             marginBottom: layout.gap,
             lineHeight: 1.2,
             fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
@@ -171,7 +178,11 @@ export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, th
             fontSize: layout.bodyFontSize * 0.9,
             fontWeight: 400,
             color: theme.colors.textSecondary,
-            opacity: descriptionOpacity,
+            opacity: descriptionAnim.opacity,
+            transform: buildTransform({
+              translateX: descriptionAnim.translateX,
+              translateY: descriptionAnim.translateY,
+            }),
             marginBottom: layout.gap * 1.5,
             lineHeight: 1.5,
             fontStyle: 'italic',
@@ -187,69 +198,132 @@ export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, th
           alignItems: 'center',
           gap: layout.gap,
         }}>
-          {renderedEquations.map((rendered, index) => {
-            const eqDelay = equationStartDelay + index * equationStaggerDelay;
-            const eqOpacity = interpolate(
-              frame,
-              [eqDelay, eqDelay + 15],
-              [0, 1],
-              { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-            ) * opacity;
-
-            const eqScale = interpolate(
-              frame,
-              [eqDelay, eqDelay + 20],
-              [0.8, 1],
-              { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-            );
-
-            return (
-              <div
-                key={index}
-                style={{
-                  opacity: eqOpacity,
-                  transform: `scale(${eqScale})`,
-                  background: `${theme.colors.accent}15`,
-                  borderRadius: '12px',
-                  padding: layout.isVertical ? '16px 24px' : '24px 40px',
-                  border: `2px solid ${theme.colors.accent}30`,
-                  fontSize: multipleEquationFontSize,
-                  color: theme.colors.textPrimary,
-                }}
-                dangerouslySetInnerHTML={{ __html: rendered.html }}
-              />
-            );
-          })}
+          {renderedEquations.map((rendered, index) => (
+            <EquationItem
+              key={index}
+              index={index}
+              rendered={rendered}
+              theme={theme}
+              fontSize={multipleEquationFontSize}
+              isVertical={layout.isVertical}
+              config={dataConfig}
+            />
+          ))}
         </div>
 
         {/* Step indicator for multiple equations */}
         {equations.length > 1 && (
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '8px',
-            marginTop: layout.gap,
-            opacity: opacity * 0.7,
-          }}>
-            {equations.map((_, index) => {
-              const eqDelay = equationStartDelay + index * equationStaggerDelay;
-              const isVisible = frame > eqDelay;
-              return (
-                <div
-                  key={index}
-                  style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: isVisible ? theme.colors.accent : `${theme.colors.textSecondary}40`,
-                    transition: 'background 0.3s ease',
-                  }}
-                />
-              );
-            })}
-          </div>
+          <EquationIndicators
+            total={equations.length}
+            theme={theme}
+            gap={layout.gap}
+            config={dataConfig}
+          />
         )}
       </div>
     </AbsoluteFill>
+  );
+};
+
+// Separate component for equation items to use hooks properly
+interface EquationItemProps {
+  index: number;
+  rendered: RenderedEquation;
+  theme: any;
+  fontSize: string;
+  isVertical: boolean;
+  config: PresetConfig;
+}
+
+const EquationItem: React.FC<EquationItemProps> = ({
+  index,
+  rendered,
+  theme,
+  fontSize,
+  isVertical,
+  config,
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  const delay = config.startDelay + index * config.staggerDelay;
+  const adjustedFrame = Math.max(0, frame - delay);
+
+  // Spring-based scale and opacity using preset config
+  const progress = spring({
+    frame: adjustedFrame,
+    fps,
+    config: springConfig[config.spring],
+    durationInFrames: 45,
+  });
+
+  const scale = interpolate(progress, [0, 1], [config.scaleFrom, 1]);
+  const translateY = interpolate(progress, [0, 1], [config.distance, 0]);
+
+  return (
+    <div
+      style={{
+        opacity: progress,
+        transform: `scale(${scale}) translateY(${translateY}px)`,
+        background: `${theme.colors.accent}15`,
+        padding: isVertical ? '16px 24px' : '24px 40px',
+        border: `2px solid ${theme.colors.accent}30`,
+        fontSize: fontSize,
+        color: theme.colors.textPrimary,
+      }}
+      dangerouslySetInnerHTML={{ __html: rendered.html }}
+    />
+  );
+};
+
+// Separate component for indicators
+interface EquationIndicatorsProps {
+  total: number;
+  theme: any;
+  gap: number;
+  config: PresetConfig;
+}
+
+const EquationIndicators: React.FC<EquationIndicatorsProps> = ({
+  total,
+  theme,
+  gap,
+  config,
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      gap: '8px',
+      marginTop: gap,
+    }}>
+      {Array.from({ length: total }).map((_, index) => {
+        const delay = config.startDelay + index * config.staggerDelay;
+        const adjustedFrame = Math.max(0, frame - delay);
+        const progress = spring({
+          frame: adjustedFrame,
+          fps,
+          config: springConfig[config.spring],
+          durationInFrames: 30,
+        });
+
+        return (
+          <div
+            key={index}
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: progress > 0.5 ? theme.colors.accent : `${theme.colors.textSecondary}40`,
+              transform: `scale(${interpolate(progress, [0, 1], [0.5, 1])})`,
+              opacity: 0.7,
+            }}
+          />
+        );
+      })}
+    </div>
   );
 };

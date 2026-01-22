@@ -1,17 +1,33 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame, Img } from 'remotion';
+import { AbsoluteFill, Img } from 'remotion';
 import { SceneProps } from './types';
-import { useFadeAnimation } from './utils';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import {
+  usePresetAnimation,
+  usePresetSceneFade,
+  buildTransform,
+} from '../lib/motion';
+import {
+  AnimationPreset,
+  getElementConfig,
+  PresetConfig,
+} from '../lib/animationPresets';
 
 export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
-  const frame = useCurrentFrame();
-  const opacity = useFadeAnimation(durationInFrames);
   const layout = useResponsiveLayout();
 
+  // Get animation preset from data or default to 'smooth'
+  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+
+  // Get element-specific configs
+  const imageConfig = getElementConfig('grid', preset, 'image');
+  const titleConfig = getElementConfig('grid', preset, 'title');
+
+  // Scene fade
+  const sceneFade = usePresetSceneFade(imageConfig, durationInFrames);
+
   const images = [data.image_url, data.image_url_2, data.image_url_3, data.image_url_4].filter(Boolean);
-  const titleDelay = 40;
-  const titleOpacity = frame > titleDelay ? Math.min(1, (frame - titleDelay) / 15) * opacity : 0;
+  const titleAnim = usePresetAnimation(titleConfig, images.length);
 
   // Adjust grid layout based on aspect ratio
   const gridColumns = layout.isVertical ? '1fr' : '1fr 1fr';
@@ -22,7 +38,8 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme 
     <AbsoluteFill style={{
       background: theme.colors.backgroundGradient || theme.colors.background,
       fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
-      padding: layout.padding
+      padding: layout.padding,
+      opacity: sceneFade,
     }}>
       <div style={{
         display: 'grid',
@@ -31,24 +48,14 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme 
         gap: layout.gap * 0.75,
         height: gridHeight
       }}>
-        {images.map((img, idx) => {
-          const delay = idx * 10;
-          const imgOpacity = frame > delay ? Math.min(1, (frame - delay) / 15) * opacity : 0;
-
-          return img ? (
-            <div key={idx} style={{ opacity: imgOpacity }}>
-              <Img
-                src={img}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  borderRadius: 12
-                }}
-              />
-            </div>
-          ) : null;
-        })}
+        {images.map((img, idx) => (
+          <GridImage
+            key={idx}
+            index={idx}
+            src={img}
+            config={imageConfig}
+          />
+        ))}
       </div>
 
       {data.title && (
@@ -57,13 +64,17 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme 
           bottom: layout.padding,
           left: layout.padding,
           right: layout.padding,
-          textAlign: 'center'
+          textAlign: 'center',
+          opacity: titleAnim.opacity,
+          transform: buildTransform({
+            translateX: titleAnim.translateX,
+            translateY: titleAnim.translateY,
+          }),
         }}>
           <div style={{
             fontSize: layout.isVertical ? 36 : layout.isSquare ? 44 : 56,
             fontWeight: 700,
             color: theme.colors.textPrimary,
-            opacity: titleOpacity,
             fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
           }}>
             {data.title}
@@ -71,5 +82,38 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme 
         </div>
       )}
     </AbsoluteFill>
+  );
+};
+
+// Separate component for grid images to use hooks properly
+interface GridImageProps {
+  index: number;
+  src: string;
+  config: PresetConfig;
+}
+
+const GridImage: React.FC<GridImageProps> = ({ index, src, config }) => {
+  const anim = usePresetAnimation(config, index);
+
+  return (
+    <div style={{
+      opacity: anim.opacity,
+      transform: buildTransform({
+        translateX: anim.translateX,
+        translateY: anim.translateY,
+        scale: anim.scale,
+      }),
+      width: '100%',
+      height: '100%',
+    }}>
+      <Img
+        src={src}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+        }}
+      />
+    </div>
   );
 };

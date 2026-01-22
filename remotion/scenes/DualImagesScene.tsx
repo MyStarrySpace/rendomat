@@ -1,21 +1,38 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame, Img } from 'remotion';
+import { AbsoluteFill, Img } from 'remotion';
 import { SceneProps } from './types';
-import { useFadeAnimation } from './utils';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import {
+  usePresetAnimation,
+  usePresetSceneFade,
+  buildTransform,
+} from '../lib/motion';
+import {
+  AnimationPreset,
+  getElementConfig,
+} from '../lib/animationPresets';
 
 export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
-  const frame = useCurrentFrame();
-  const opacity = useFadeAnimation(durationInFrames);
   const layout = useResponsiveLayout();
 
-  const image1Delay = 10;
-  const image2Delay = 20;
-  const titleDelay = 35;
+  // Get animation preset from data or default to 'smooth'
+  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
 
-  const image1Opacity = frame > image1Delay ? Math.min(1, (frame - image1Delay) / 15) * opacity : 0;
-  const image2Opacity = frame > image2Delay ? Math.min(1, (frame - image2Delay) / 15) * opacity : 0;
-  const titleOpacity = frame > titleDelay ? Math.min(1, (frame - titleDelay) / 15) * opacity : 0;
+  // Get element-specific configs
+  const imageConfig = getElementConfig('dual-images', preset, 'image');
+  const titleConfig = getElementConfig('dual-images', preset, 'title');
+
+  // Scene fade
+  const sceneFade = usePresetSceneFade(imageConfig, durationInFrames);
+
+  // For dual images, override direction to slide from opposite sides
+  const image1Config = { ...imageConfig, direction: 'left' as const };
+  const image2Config = { ...imageConfig, direction: 'right' as const };
+
+  // Element animations
+  const image1Anim = usePresetAnimation(image1Config, 0);
+  const image2Anim = usePresetAnimation(image2Config, 1);
+  const titleAnim = usePresetAnimation(titleConfig, 2);
 
   // In vertical mode, stack images vertically
   const containerStyle = layout.isVertical
@@ -26,31 +43,48 @@ export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, 
     <AbsoluteFill style={{
       background: theme.colors.backgroundGradient || theme.colors.background,
       fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
-      padding: layout.padding
+      padding: layout.padding,
+      opacity: sceneFade,
     }}>
       <div style={containerStyle}>
         {data.image_url && (
-          <div style={{ flex: 1, height: layout.isVertical ? '48%' : '100%', opacity: image1Opacity }}>
+          <div style={{
+            flex: 1,
+            height: layout.isVertical ? '48%' : '100%',
+            opacity: image1Anim.opacity,
+            transform: buildTransform({
+              translateX: image1Anim.translateX,
+              translateY: image1Anim.translateY,
+              scale: image1Anim.scale,
+            }),
+          }}>
             <Img
               src={data.image_url}
               style={{
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                borderRadius: 16
               }}
             />
           </div>
         )}
         {data.image_url_2 && (
-          <div style={{ flex: 1, height: layout.isVertical ? '48%' : '100%', opacity: image2Opacity }}>
+          <div style={{
+            flex: 1,
+            height: layout.isVertical ? '48%' : '100%',
+            opacity: image2Anim.opacity,
+            transform: buildTransform({
+              translateX: image2Anim.translateX,
+              translateY: image2Anim.translateY,
+              scale: image2Anim.scale,
+            }),
+          }}>
             <Img
               src={data.image_url_2}
               style={{
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                borderRadius: 16
               }}
             />
           </div>
@@ -63,13 +97,17 @@ export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, 
           bottom: layout.padding,
           left: layout.padding,
           right: layout.padding,
-          textAlign: 'center'
+          textAlign: 'center',
+          opacity: titleAnim.opacity,
+          transform: buildTransform({
+            translateX: titleAnim.translateX,
+            translateY: titleAnim.translateY,
+          }),
         }}>
           <div style={{
             fontSize: layout.isVertical ? 40 : layout.isSquare ? 48 : 56,
             fontWeight: 700,
             color: theme.colors.textPrimary,
-            opacity: titleOpacity,
             fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
           }}>
             {data.title}

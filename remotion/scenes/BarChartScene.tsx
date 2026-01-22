@@ -1,14 +1,32 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame, interpolate } from 'remotion';
+import { AbsoluteFill, spring, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
 import { SceneProps } from './types';
-import { useFadeAnimation } from './utils';
 import { TextOnlyScene } from './TextOnlyScene';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import {
+  usePresetAnimation,
+  usePresetSceneFade,
+  springConfig,
+  buildTransform,
+} from '../lib/motion';
+import {
+  AnimationPreset,
+  getElementConfig,
+  PresetConfig,
+} from '../lib/animationPresets';
 
 export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
-  const frame = useCurrentFrame();
-  const opacity = useFadeAnimation(durationInFrames);
   const layout = useResponsiveLayout();
+
+  // Get animation preset from data or default to 'smooth'
+  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+
+  // Get element-specific configs
+  const titleConfig = getElementConfig('bar-chart', preset, 'title');
+  const dataConfig = getElementConfig('bar-chart', preset, 'data');
+
+  // Scene fade
+  const sceneFade = usePresetSceneFade(titleConfig, durationInFrames);
 
   let chartData: any = null;
   try {
@@ -28,8 +46,7 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
   }
 
   const maxValue = Math.max(...chartData.data);
-  const titleDelay = 10;
-  const titleOpacity = frame > titleDelay ? Math.min(1, (frame - titleDelay) / 15) * opacity : 0;
+  const titleAnim = usePresetAnimation(titleConfig, 0);
 
   // Responsive chart sizing
   const chartHeight = layout.isVertical ? '50%' : layout.isSquare ? '55%' : '60%';
@@ -41,14 +58,20 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
     <AbsoluteFill style={{
       background: theme.colors.backgroundGradient || theme.colors.background,
       fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
-      padding: layout.padding * 1.5
+      padding: layout.padding * 1.5,
+      opacity: sceneFade,
     }}>
       {data.title && (
         <div style={{
           fontSize: layout.isVertical ? 36 : layout.isSquare ? 40 : 48,
           fontWeight: 700,
           color: theme.colors.textPrimary,
-          opacity: titleOpacity,
+          opacity: titleAnim.opacity,
+          transform: buildTransform({
+            translateX: titleAnim.translateX,
+            translateY: titleAnim.translateY,
+            scale: titleAnim.scale,
+          }),
           textAlign: 'center',
           marginBottom: layout.gap * 1.5,
           fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
@@ -65,54 +88,112 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
         padding: chartPadding,
         gap: layout.gap * 0.75
       }}>
-        {chartData.data.map((value: number, idx: number) => {
-          const delay = 30 + (idx * 8);
-          const barHeight = (value / maxValue) * 100;
-          const animatedHeight = frame > delay
-            ? interpolate(frame, [delay, delay + 20], [0, barHeight], { extrapolateRight: 'clamp' })
-            : 0;
-
-          const barOpacity = frame > delay ? Math.min(1, (frame - delay) / 15) * opacity : 0;
-
-          return (
-            <div
-              key={idx}
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                opacity: barOpacity
-              }}
-            >
-              <div style={{
-                fontSize: valueFontSize,
-                fontWeight: 600,
-                color: theme.colors.textPrimary,
-                marginBottom: 10,
-                height: 30
-              }}>
-                {value}
-              </div>
-              <div style={{
-                width: '100%',
-                height: `${animatedHeight}%`,
-                backgroundColor: theme.colors.accent,
-                borderRadius: '8px 8px 0 0',
-                minHeight: 10
-              }} />
-              <div style={{
-                fontSize: labelFontSize,
-                color: theme.colors.textSecondary,
-                marginTop: layout.isVertical ? 10 : 20,
-                textAlign: 'center'
-              }}>
-                {chartData.labels[idx]}
-              </div>
-            </div>
-          );
-        })}
+        {chartData.data.map((value: number, idx: number) => (
+          <BarItem
+            key={idx}
+            index={idx}
+            value={value}
+            maxValue={maxValue}
+            label={chartData.labels[idx]}
+            theme={theme}
+            valueFontSize={valueFontSize}
+            labelFontSize={labelFontSize}
+            isVertical={layout.isVertical}
+            config={dataConfig}
+          />
+        ))}
       </div>
     </AbsoluteFill>
+  );
+};
+
+// Separate component for bar items to use hooks properly
+interface BarItemProps {
+  index: number;
+  value: number;
+  maxValue: number;
+  label: string;
+  theme: any;
+  valueFontSize: number;
+  labelFontSize: number;
+  isVertical: boolean;
+  config: PresetConfig;
+}
+
+const BarItem: React.FC<BarItemProps> = ({
+  index,
+  value,
+  maxValue,
+  label,
+  theme,
+  valueFontSize,
+  labelFontSize,
+  isVertical,
+  config,
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  const delay = config.startDelay + index * config.staggerDelay;
+  const adjustedFrame = Math.max(0, frame - delay);
+
+  // Spring-based height animation for bars using preset config
+  const progress = spring({
+    frame: adjustedFrame,
+    fps,
+    config: springConfig[config.spring],
+    durationInFrames: 60,
+  });
+
+  const barHeight = (value / maxValue) * 100;
+  const animatedHeight = interpolate(progress, [0, 1], [0, barHeight]);
+
+  // Fade and slide up for labels
+  const labelProgress = spring({
+    frame: Math.max(0, frame - delay - 5),
+    fps,
+    config: springConfig.gentle,
+    durationInFrames: 45,
+  });
+
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        opacity: progress,
+      }}
+    >
+      <div style={{
+        fontSize: valueFontSize,
+        fontWeight: 600,
+        color: theme.colors.textPrimary,
+        marginBottom: 10,
+        height: 30,
+        opacity: labelProgress,
+        transform: `translateY(${interpolate(labelProgress, [0, 1], [10, 0])}px)`,
+      }}>
+        {value}
+      </div>
+      <div style={{
+        width: '100%',
+        height: `${animatedHeight}%`,
+        backgroundColor: theme.colors.accent,
+        minHeight: 4,
+        transformOrigin: 'bottom',
+      }} />
+      <div style={{
+        fontSize: labelFontSize,
+        color: theme.colors.textSecondary,
+        marginTop: isVertical ? 10 : 20,
+        textAlign: 'center',
+        opacity: labelProgress,
+        transform: `translateY(${interpolate(labelProgress, [0, 1], [10, 0])}px)`,
+      }}>
+        {label}
+      </div>
+    </div>
   );
 };

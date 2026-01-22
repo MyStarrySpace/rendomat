@@ -60,7 +60,8 @@
       "WebFetch(domain:who.is)",
       "WebFetch(domain:instantdomainsearch.com)",
       "WebFetch(domain:www.godaddy.com)",
-      "Bash(nslookup:*)"
+      "Bash(nslookup:*)",
+      "Bash(timeout:*)"
     ]
   }
 }
