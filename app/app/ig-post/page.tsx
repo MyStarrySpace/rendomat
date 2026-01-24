@@ -15,8 +15,7 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui";
 import { Badge } from "@/components/ui/badge";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787";
+import { API_BASE } from "@/lib/api";
 
 // Scene content for the IG Reel - following Hook → Value Drop → Story → CTA structure
 const IG_REEL_SCENES = [

@@ -1,7 +1,7 @@
 import React from 'react';
 import { AbsoluteFill } from 'remotion';
 import { SceneProps } from './types';
-import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import { useResponsiveLayout, ResponsiveLayout } from '../hooks/useResponsiveLayout';
 import {
   usePresetAnimation,
   usePresetSceneFade,
@@ -10,13 +10,15 @@ import {
 import {
   AnimationPreset,
   getElementConfig,
+  PresetConfig,
 } from '../lib/animationPresets';
+import { AnimatedText } from '../components/AnimatedText';
 
 export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const layout = useResponsiveLayout();
 
-  // Get animation preset from data or default to 'smooth'
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+  // Get animation preset from data or default to 'energetic'
+  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'energetic';
 
   // Get element-specific configs
   const titleConfig = getElementConfig('stats', preset, 'title');
@@ -24,9 +26,6 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
 
   // Scene fade
   const sceneFade = usePresetSceneFade(titleConfig, durationInFrames);
-
-  // Title animation
-  const titleAnim = usePresetAnimation(titleConfig, 0);
 
   // Parse stats from stats_text format: "75% | Description"
   const stats = data.stats_text
@@ -49,19 +48,21 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
       {data.title && (
         <div style={{
           fontSize: layout.isVertical ? 44 : layout.isSquare ? 48 : 56,
-          fontWeight: 700,
+          fontWeight: layout.titleFontWeight,
           color: theme.colors.textPrimary,
-          opacity: titleAnim.opacity,
-          transform: buildTransform({
-            translateX: titleAnim.translateX,
-            translateY: titleAnim.translateY,
-            scale: titleAnim.scale,
-          }),
           textAlign: 'center',
           marginBottom: layout.gap * 2,
+          letterSpacing: layout.titleLetterSpacing,
+          textShadow: layout.titleTextShadow,
           fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
         }}>
-          {data.title}
+          <AnimatedText
+            preset={preset}
+            startDelay={titleConfig.startDelay}
+            distance={titleConfig.distance}
+          >
+            {data.title}
+          </AnimatedText>
         </div>
       )}
 
@@ -82,6 +83,7 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
             theme={theme}
             layout={layout}
             config={dataConfig}
+            preset={preset}
           />
         ))}
       </div>
@@ -94,12 +96,17 @@ interface StatItemProps {
   index: number;
   stat: { value: string; label: string };
   theme: any;
-  layout: any;
-  config: any;
+  layout: ResponsiveLayout;
+  config: PresetConfig;
+  preset: AnimationPreset;
 }
 
-const StatItem: React.FC<StatItemProps> = ({ index, stat, theme, layout, config }) => {
+const StatItem: React.FC<StatItemProps> = ({ index, stat, theme, layout, config, preset }) => {
   const anim = usePresetAnimation(config, index);
+
+  // Calculate staggered start delay for value and label
+  const valueStartDelay = config.startDelay + index * config.staggerDelay;
+  const labelStartDelay = valueStartDelay + 8;
 
   return (
     <div
@@ -116,20 +123,35 @@ const StatItem: React.FC<StatItemProps> = ({ index, stat, theme, layout, config 
     >
       <div style={{
         fontSize: layout.statValueFontSize,
-        fontWeight: 700,
+        fontWeight: layout.displayFontWeight,
         color: theme.colors.accent,
         marginBottom: layout.isVertical ? 10 : 20,
+        letterSpacing: layout.displayLetterSpacing,
         fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
       }}>
-        {stat.value}
+        <AnimatedText
+          preset={preset}
+          startDelay={valueStartDelay}
+          unit="character"
+          staggerFrames={1}
+        >
+          {stat.value}
+        </AnimatedText>
       </div>
       <div style={{
         fontSize: layout.statLabelFontSize,
-        fontWeight: 400,
+        fontWeight: layout.bodyFontWeight,
         color: theme.colors.textSecondary,
-        lineHeight: 1.4
+        lineHeight: 1.4,
+        letterSpacing: layout.bodyLetterSpacing,
       }}>
-        {stat.label}
+        <AnimatedText
+          preset={preset}
+          startDelay={labelStartDelay}
+          unit="word"
+        >
+          {stat.label}
+        </AnimatedText>
       </div>
     </div>
   );

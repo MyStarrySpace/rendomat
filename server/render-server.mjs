@@ -23,7 +23,7 @@ import { generateAEManifest, generateSelfContainedScript } from './ae-exporter.m
 import { parseDocument, parseMarkdownContent, parseDocxBuffer, generateVideoSeed } from './document-parser.mjs';
 import archiver from 'archiver';
 
-const PORT = Number(process.env.PORT || 8787);
+const PORT = Number(process.env.PORT || 6969);
 const DEBUG = String(process.env.RENDER_DEBUG || '').toLowerCase() === 'true';
 const ALLOWED_ORIGINS = (process.env.RENDER_ALLOWED_ORIGINS || '*')
   .split(',')
@@ -1150,8 +1150,8 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
         });
       }
 
-      const inputProps = video.data ? JSON.parse(video.data) : {};
-      // Add theme_id to input props
+      // Build input props for rendering (video.data contains metadata, not render props)
+      const inputProps = {};
       if (video.theme_id) {
         inputProps.themeId = video.theme_id;
       }
@@ -1217,11 +1217,15 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
     res.status(200).send(file);
 
   } catch (error) {
+    console.error('[render-scenes] Error:', error);
     videoDb.update(req.params.videoId, {
       status: 'error',
       render_progress: null
     });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -1307,7 +1311,8 @@ app.post('/api/videos/:videoId/render-multi', async (req, res) => {
       // Render each scene for this aspect ratio
       for (let i = 0; i < scenes.length; i++) {
         const scene = scenes[i];
-        const inputProps = video.data ? JSON.parse(video.data) : {};
+        // Build input props for rendering (video.data contains metadata, not render props)
+        const inputProps = {};
         if (video.theme_id) {
           inputProps.themeId = video.theme_id;
         }

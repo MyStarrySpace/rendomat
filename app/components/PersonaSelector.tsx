@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp, Info, Sparkles, Users, Monitor, CheckCircle, GraduationCap, Loader2 } from "lucide-react";
+import { API_BASE } from "@/lib/api";
 
 // Types for personas
 interface PersonaBehaviorOption {
@@ -71,7 +72,7 @@ export default function PersonaSelector({
 
   async function loadPersonas() {
     try {
-      const res = await fetch("http://localhost:8787/api/personas");
+      const res = await fetch(`${API_BASE}/api/personas`);
       if (!res.ok) throw new Error("Failed to fetch personas");
       const data = await res.json();
       setPersonas(data.personas);
@@ -85,7 +86,7 @@ export default function PersonaSelector({
 
   async function fetchPromptPreview() {
     try {
-      const res = await fetch("http://localhost:8787/api/personas/preview", {
+      const res = await fetch(`${API_BASE}/api/personas/preview`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

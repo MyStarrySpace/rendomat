@@ -25,6 +25,12 @@ export const springConfig = {
   smooth: { damping: 20, stiffness: 100, mass: 1 },
   /** Crisp animation for text reveals */
   crisp: { damping: 18, stiffness: 200, mass: 1 },
+  /** Elastic animation with overshoot for playful effects */
+  elastic: { damping: 8, stiffness: 350, mass: 1 },
+  /** Anticipation - slower start for wind-up effects */
+  anticipate: { damping: 15, stiffness: 80, mass: 1.2 },
+  /** Follow-through - overshoots then settles */
+  followThrough: { damping: 12, stiffness: 280, mass: 0.8 },
 } as const;
 
 // =============================================================================
@@ -129,6 +135,252 @@ export function useFadeInRight(options: UseFadeUpOptions = {}) {
   return {
     opacity: progress,
     translateX: interpolate(progress, [0, 1], [distance, 0]),
+  };
+}
+
+// =============================================================================
+// ADVANCED MOTION HOOKS
+// =============================================================================
+
+interface UseSquashStretchOptions {
+  /** Frame to start the animation */
+  delay?: number;
+  /** Spring configuration */
+  config?: keyof typeof springConfig;
+  /** Maximum squash amount (0-1, where 0.3 = 30% squash) */
+  squashAmount?: number;
+  /** Maximum stretch amount (0-1, where 0.2 = 20% stretch) */
+  stretchAmount?: number;
+}
+
+/**
+ * Creates independent scaleX/scaleY for squash and stretch bounce effects
+ * Preserves volume (when scaleX increases, scaleY decreases proportionally)
+ */
+export function useSquashStretch(options: UseSquashStretchOptions = {}) {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const {
+    delay = 0,
+    config = 'elastic',
+    squashAmount = 0.3,
+    stretchAmount = 0.2,
+  } = options;
+
+  const adjustedFrame = Math.max(0, frame - delay);
+
+  // Main progress spring
+  const progress = spring({
+    frame: adjustedFrame,
+    fps,
+    config: springConfig[config],
+    durationInFrames: 45,
+  });
+
+  // Create a secondary spring that overshoots for the bounce
+  const bounceProgress = spring({
+    frame: adjustedFrame,
+    fps,
+    config: { damping: 6, stiffness: 400, mass: 1 },
+    durationInFrames: 45,
+  });
+
+  // Calculate squash/stretch based on velocity (derivative of spring)
+  // Early in animation: stretch vertically (landing anticipation)
+  // At impact: squash (compress on landing)
+  // After: stretch then settle
+  const stretchPhase = Math.max(0, 1 - bounceProgress * 3); // Early stretch
+  const squashPhase = Math.max(0, Math.sin(bounceProgress * Math.PI * 2) * (1 - progress));
+
+  const scaleY = 1 + stretchPhase * stretchAmount - squashPhase * squashAmount;
+  const scaleX = 1 / scaleY; // Preserve volume
+
+  return {
+    scaleX: interpolate(progress, [0, 1], [scaleX, 1]),
+    scaleY: interpolate(progress, [0, 1], [scaleY, 1]),
+    progress,
+  };
+}
+
+interface UseAnticipationOptions {
+  /** Frame to start the animation */
+  delay?: number;
+  /** How far to pull back before the main motion (pixels) */
+  pullbackDistance?: number;
+  /** Direction of the main motion */
+  direction?: 'up' | 'down' | 'left' | 'right';
+  /** Duration of the anticipation phase (frames) */
+  anticipationFrames?: number;
+}
+
+/**
+ * Creates anticipation effect - slight reverse motion before main animation
+ * Follows animation principle of "wind-up" before action
+ */
+export function useAnticipation(options: UseAnticipationOptions = {}) {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const {
+    delay = 0,
+    pullbackDistance = 15,
+    direction = 'up',
+    anticipationFrames = 8,
+  } = options;
+
+  const adjustedFrame = Math.max(0, frame - delay);
+
+  // Anticipation phase (pull back)
+  const anticipationProgress = adjustedFrame < anticipationFrames
+    ? spring({
+        frame: adjustedFrame,
+        fps,
+        config: springConfig.anticipate,
+        durationInFrames: anticipationFrames,
+      })
+    : 1;
+
+  // Main motion phase
+  const mainProgress = adjustedFrame >= anticipationFrames
+    ? spring({
+        frame: adjustedFrame - anticipationFrames,
+        fps,
+        config: springConfig.snappy,
+        durationInFrames: 40,
+      })
+    : 0;
+
+  // Calculate pull-back offset
+  const pullback = anticipationProgress * (1 - mainProgress) * pullbackDistance;
+
+  let translateX = 0;
+  let translateY = 0;
+
+  // Pull back is opposite to main direction
+  switch (direction) {
+    case 'up':
+      translateY = pullback; // Pull down before moving up
+      break;
+    case 'down':
+      translateY = -pullback;
+      break;
+    case 'left':
+      translateX = pullback;
+      break;
+    case 'right':
+      translateX = -pullback;
+      break;
+  }
+
+  return {
+    translateX,
+    translateY,
+    anticipationProgress,
+    mainProgress,
+    isAnticipating: adjustedFrame < anticipationFrames,
+  };
+}
+
+interface UseFollowThroughOptions {
+  /** Frame to start the animation */
+  delay?: number;
+  /** How far to overshoot the target (pixels or scale factor) */
+  overshootAmount?: number;
+  /** Final target value */
+  targetValue?: number;
+}
+
+/**
+ * Creates follow-through effect - overshoots target then settles back
+ * Natural motion where momentum carries past the endpoint
+ */
+export function useFollowThrough(options: UseFollowThroughOptions = {}) {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const {
+    delay = 0,
+    overshootAmount = 0.15,
+    targetValue = 1,
+  } = options;
+
+  const adjustedFrame = Math.max(0, frame - delay);
+
+  // Use a spring that naturally overshoots
+  const progress = spring({
+    frame: adjustedFrame,
+    fps,
+    config: springConfig.followThrough,
+    durationInFrames: 50,
+  });
+
+  // The spring naturally overshoots due to low damping
+  // Scale the progress to hit the target
+  const value = interpolate(
+    progress,
+    [0, 1],
+    [0, targetValue]
+  );
+
+  // Calculate if we're in overshoot phase
+  const isOvershooting = progress > 1;
+
+  return {
+    value,
+    progress,
+    isOvershooting,
+  };
+}
+
+/**
+ * Combined hook for energetic text animation with all effects
+ */
+export function useEnergeticEntrance(options: {
+  delay?: number;
+  distance?: number;
+  direction?: 'up' | 'down' | 'left' | 'right';
+} = {}) {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const { delay = 0, distance = 40, direction = 'up' } = options;
+
+  const adjustedFrame = Math.max(0, frame - delay);
+
+  // Main entrance spring with follow-through characteristics
+  const progress = spring({
+    frame: adjustedFrame,
+    fps,
+    config: springConfig.followThrough,
+    durationInFrames: 50,
+  });
+
+  // Squash/stretch effect
+  const { scaleX, scaleY } = useSquashStretch({ delay, config: 'elastic' });
+
+  // Calculate translation based on direction
+  let translateX = 0;
+  let translateY = 0;
+
+  switch (direction) {
+    case 'up':
+      translateY = interpolate(progress, [0, 1], [distance, 0]);
+      break;
+    case 'down':
+      translateY = interpolate(progress, [0, 1], [-distance, 0]);
+      break;
+    case 'left':
+      translateX = interpolate(progress, [0, 1], [-distance, 0]);
+      break;
+    case 'right':
+      translateX = interpolate(progress, [0, 1], [distance, 0]);
+      break;
+  }
+
+  return {
+    opacity: progress,
+    translateX,
+    translateY,
+    scaleX,
+    scaleY,
+    progress,
   };
 }
 

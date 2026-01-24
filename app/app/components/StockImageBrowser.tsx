@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Loader2, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui";
+import { API_BASE } from "@/lib/api";
 
 interface StockPhoto {
   id: number;
@@ -44,7 +45,7 @@ export default function StockImageBrowser({
     setLoading(true);
     try {
       const response = await fetch(
-        `http://localhost:8787/api/stock-images/search?query=${encodeURIComponent(
+        `${API_BASE}/api/stock-images/search?query=${encodeURIComponent(
           searchQuery
         )}&per_page=20&page=${pageNum}`
       );

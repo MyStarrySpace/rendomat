@@ -11,6 +11,7 @@ import {
   AnimationPreset,
   getElementConfig,
 } from '../lib/animationPresets';
+import { AnimatedText } from '../components/AnimatedText';
 
 export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const layout = useResponsiveLayout();
@@ -32,7 +33,6 @@ export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, 
   // Element animations
   const image1Anim = usePresetAnimation(image1Config, 0);
   const image2Anim = usePresetAnimation(image2Config, 1);
-  const titleAnim = usePresetAnimation(titleConfig, 2);
 
   // In vertical mode, stack images vertically
   const containerStyle = layout.isVertical
@@ -98,19 +98,22 @@ export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, 
           left: layout.padding,
           right: layout.padding,
           textAlign: 'center',
-          opacity: titleAnim.opacity,
-          transform: buildTransform({
-            translateX: titleAnim.translateX,
-            translateY: titleAnim.translateY,
-          }),
         }}>
           <div style={{
             fontSize: layout.isVertical ? 40 : layout.isSquare ? 48 : 56,
-            fontWeight: 700,
+            fontWeight: layout.titleFontWeight,
             color: theme.colors.textPrimary,
+            letterSpacing: layout.titleLetterSpacing,
+            textShadow: layout.titleTextShadow,
             fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
           }}>
-            {data.title}
+            <AnimatedText
+              preset={preset}
+              startDelay={titleConfig.startDelay}
+              distance={titleConfig.distance}
+            >
+              {data.title}
+            </AnimatedText>
           </div>
         </div>
       )}

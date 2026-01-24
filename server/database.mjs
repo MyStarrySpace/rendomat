@@ -290,6 +290,10 @@ export const videoDb = {
       updates.push('behavior_overrides = ?');
       values.push(data.behavior_overrides ? JSON.stringify(data.behavior_overrides) : null);
     }
+    if (data.render_progress !== undefined) {
+      updates.push('render_progress = ?');
+      values.push(data.render_progress);
+    }
 
     if (updates.length === 0) {
       return this.getById(id);

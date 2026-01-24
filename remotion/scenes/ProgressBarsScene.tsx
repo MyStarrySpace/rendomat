@@ -3,22 +3,21 @@ import { AbsoluteFill, spring, useCurrentFrame, useVideoConfig, interpolate } fr
 import { SceneProps } from './types';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import {
-  usePresetAnimation,
   usePresetSceneFade,
   springConfig,
-  buildTransform,
 } from '../lib/motion';
 import {
   AnimationPreset,
   getElementConfig,
   PresetConfig,
 } from '../lib/animationPresets';
+import { AnimatedText } from '../components/AnimatedText';
 
 export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const layout = useResponsiveLayout();
 
-  // Get animation preset from data or default to 'smooth'
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+  // Get animation preset from data or default to 'energetic'
+  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'energetic';
 
   // Get element-specific configs
   const titleConfig = getElementConfig('progress-bars', preset, 'title');
@@ -35,8 +34,6 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
       })
     : [];
 
-  const titleAnim = usePresetAnimation(titleConfig, 0);
-
   const labelFontSize = layout.isVertical ? 18 : layout.isSquare ? 20 : 24;
   const barHeight = layout.isVertical ? 18 : 24;
 
@@ -51,19 +48,21 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
       {data.title && (
         <div style={{
           fontSize: layout.isVertical ? 36 : layout.isSquare ? 40 : 48,
-          fontWeight: 700,
+          fontWeight: layout.titleFontWeight,
           color: theme.colors.textPrimary,
-          opacity: titleAnim.opacity,
-          transform: buildTransform({
-            translateX: titleAnim.translateX,
-            translateY: titleAnim.translateY,
-            scale: titleAnim.scale,
-          }),
           textAlign: 'center',
           marginBottom: layout.gap * 2,
+          letterSpacing: layout.titleLetterSpacing,
+          textShadow: layout.titleTextShadow,
           fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
         }}>
-          {data.title}
+          <AnimatedText
+            preset={preset}
+            startDelay={titleConfig.startDelay}
+            distance={titleConfig.distance}
+          >
+            {data.title}
+          </AnimatedText>
         </div>
       )}
 

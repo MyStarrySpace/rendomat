@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { videoApi, sceneApi, clientApi, platformApi, personaApi, Video, Scene, Client, EffectivePersonas } from "@/lib/api";
+import { videoApi, sceneApi, clientApi, platformApi, personaApi, Video, Scene, Client, EffectivePersonas, API_BASE } from "@/lib/api";
 import { THEMES } from "@/lib/themes";
 import StockImageBrowser from "../../components/StockImageBrowser";
 import PersonaSelector from "@/components/PersonaSelector";
@@ -188,12 +188,13 @@ export default function VideoDetailPage() {
       loadData();
     } catch (error) {
       console.error("Failed to render video:", error);
-      setRenderProgress("Render failed");
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      setRenderProgress(`Render failed: ${errorMessage}`);
       setProgressData(null);
       setTimeout(() => {
         setRenderProgress("");
         setRendering(false);
-      }, 3000);
+      }, 5000);
     }
   }
 
@@ -326,7 +327,7 @@ export default function VideoDetailPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:8787/api/upload', {
+      const response = await fetch('${API_BASE}/api/upload', {
         method: 'POST',
         body: formData,
       });
@@ -334,7 +335,7 @@ export default function VideoDetailPage() {
       if (!response.ok) throw new Error('Upload failed');
 
       const data = await response.json();
-      const imageUrl = `http://localhost:8787${data.url}`;
+      const imageUrl = `${API_BASE}${data.url}`;
 
       setEditData({
         ...editData,
@@ -632,7 +633,7 @@ export default function VideoDetailPage() {
                     controls
                     className="w-full"
                     style={{ aspectRatio: video.aspect_ratio || '16/9' }}
-                    src={`http://localhost:8787/api/videos/${videoId}/preview`}
+                    src={`${API_BASE}/api/videos/${videoId}/preview`}
                   >
                     Your browser does not support the video tag.
                   </video>
@@ -963,7 +964,7 @@ export default function VideoDetailPage() {
                                     const description = prompt('Describe the data you want to visualize:');
                                     if (!description) return;
                                     try {
-                                      const response = await fetch('http://localhost:8787/api/ai/generate-chart-data', {
+                                      const response = await fetch('${API_BASE}/api/ai/generate-chart-data', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ description, chartType: scene.scene_type })
@@ -1016,7 +1017,7 @@ export default function VideoDetailPage() {
                                     const description = prompt('Describe the equation or concept:');
                                     if (!description) return;
                                     try {
-                                      const response = await fetch('http://localhost:8787/api/ai/generate-equation', {
+                                      const response = await fetch('${API_BASE}/api/ai/generate-equation', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ description })
@@ -1078,7 +1079,7 @@ export default function VideoDetailPage() {
                                     controls
                                     className="w-full"
                                     style={{ aspectRatio: video.aspect_ratio || '16/9' }}
-                                    src={`http://localhost:8787/api/scenes/${scene.id}/preview`}
+                                    src={`${API_BASE}/api/scenes/${scene.id}/preview`}
                                   >
                                     Your browser does not support the video tag.
                                   </video>

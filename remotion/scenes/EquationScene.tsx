@@ -4,16 +4,15 @@ import katex from 'katex';
 import { SceneProps } from './types';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import {
-  usePresetAnimation,
   usePresetSceneFade,
   springConfig,
-  buildTransform,
 } from '../lib/motion';
 import {
   AnimationPreset,
   getElementConfig,
   PresetConfig,
 } from '../lib/animationPresets';
+import { AnimatedText } from '../components/AnimatedText';
 
 // KaTeX CSS styles embedded
 const katexStyles = `
@@ -98,8 +97,8 @@ function renderLatex(latex: string): RenderedEquation {
 export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const layout = useResponsiveLayout();
 
-  // Get animation preset from data or default to 'smooth'
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+  // Get animation preset from data or default to 'dramatic' for equations
+  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'dramatic';
 
   // Get element-specific configs
   const titleConfig = getElementConfig('equation', preset, 'title');
@@ -125,17 +124,11 @@ export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, th
     return equations.map(eq => renderLatex(eq));
   }, [equations]);
 
-  // Title and description animations with presets
-  const titleAnim = usePresetAnimation(titleConfig, 0);
-  const descriptionAnim = usePresetAnimation(bodyConfig, 1);
-
   // Calculate equation size based on layout
   const equationFontSize = layout.isVertical ? '2rem' : '2.5rem';
   const multipleEquationFontSize = equations.length > 2
     ? (layout.isVertical ? '1.5rem' : '1.8rem')
     : equationFontSize;
-
-  const equationStartDelay = dataConfig.startDelay;
 
   return (
     <AbsoluteFill style={{
@@ -156,19 +149,21 @@ export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, th
         {data.title && (
           <div style={{
             fontSize: layout.titleFontSize,
-            fontWeight: 700,
+            fontWeight: layout.titleFontWeight,
             color: theme.colors.textPrimary,
-            opacity: titleAnim.opacity,
-            transform: buildTransform({
-              translateX: titleAnim.translateX,
-              translateY: titleAnim.translateY,
-              scale: titleAnim.scale,
-            }),
             marginBottom: layout.gap,
             lineHeight: 1.2,
+            letterSpacing: layout.titleLetterSpacing,
+            textShadow: layout.titleTextShadow,
             fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
           }}>
-            {data.title}
+            <AnimatedText
+              preset={preset}
+              startDelay={titleConfig.startDelay}
+              distance={titleConfig.distance}
+            >
+              {data.title}
+            </AnimatedText>
           </div>
         )}
 
@@ -176,18 +171,20 @@ export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, th
         {data.equation_description && (
           <div style={{
             fontSize: layout.bodyFontSize * 0.9,
-            fontWeight: 400,
+            fontWeight: layout.bodyFontWeight,
             color: theme.colors.textSecondary,
-            opacity: descriptionAnim.opacity,
-            transform: buildTransform({
-              translateX: descriptionAnim.translateX,
-              translateY: descriptionAnim.translateY,
-            }),
             marginBottom: layout.gap * 1.5,
             lineHeight: 1.5,
             fontStyle: 'italic',
+            letterSpacing: layout.bodyLetterSpacing,
           }}>
-            {data.equation_description}
+            <AnimatedText
+              preset={preset}
+              startDelay={bodyConfig.startDelay}
+              distance={bodyConfig.distance}
+            >
+              {data.equation_description}
+            </AnimatedText>
           </div>
         )}
 

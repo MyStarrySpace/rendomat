@@ -12,6 +12,7 @@ import {
   getElementConfig,
   PresetConfig,
 } from '../lib/animationPresets';
+import { AnimatedText } from '../components/AnimatedText';
 
 export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const layout = useResponsiveLayout();
@@ -27,7 +28,6 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme 
   const sceneFade = usePresetSceneFade(imageConfig, durationInFrames);
 
   const images = [data.image_url, data.image_url_2, data.image_url_3, data.image_url_4].filter(Boolean);
-  const titleAnim = usePresetAnimation(titleConfig, images.length);
 
   // Adjust grid layout based on aspect ratio
   const gridColumns = layout.isVertical ? '1fr' : '1fr 1fr';
@@ -65,19 +65,22 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme 
           left: layout.padding,
           right: layout.padding,
           textAlign: 'center',
-          opacity: titleAnim.opacity,
-          transform: buildTransform({
-            translateX: titleAnim.translateX,
-            translateY: titleAnim.translateY,
-          }),
         }}>
           <div style={{
             fontSize: layout.isVertical ? 36 : layout.isSquare ? 44 : 56,
-            fontWeight: 700,
+            fontWeight: layout.titleFontWeight,
             color: theme.colors.textPrimary,
+            letterSpacing: layout.titleLetterSpacing,
+            textShadow: layout.titleTextShadow,
             fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
           }}>
-            {data.title}
+            <AnimatedText
+              preset={preset}
+              startDelay={titleConfig.startDelay}
+              distance={titleConfig.distance}
+            >
+              {data.title}
+            </AnimatedText>
           </div>
         </div>
       )}

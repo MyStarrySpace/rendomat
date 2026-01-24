@@ -2,21 +2,18 @@ import React from 'react';
 import { AbsoluteFill } from 'remotion';
 import { SceneProps } from './types';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
-import {
-  usePresetAnimation,
-  usePresetSceneFade,
-  buildTransform,
-} from '../lib/motion';
+import { usePresetSceneFade } from '../lib/motion';
 import {
   AnimationPreset,
   getElementConfig,
 } from '../lib/animationPresets';
+import { AnimatedText } from '../components/AnimatedText';
 
 export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const layout = useResponsiveLayout();
 
-  // Get animation preset from data or default to 'smooth'
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+  // Get animation preset from data or default to 'energetic' (user preference)
+  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'energetic';
 
   // Get element-specific configs
   const titleConfig = getElementConfig('text-only', preset, 'title');
@@ -24,10 +21,6 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, th
 
   // Scene fade
   const sceneFade = usePresetSceneFade(titleConfig, durationInFrames);
-
-  // Element animations
-  const titleAnim = usePresetAnimation(titleConfig, 0);
-  const bodyAnim = usePresetAnimation(bodyConfig, 1);
 
   return (
     <AbsoluteFill style={{
@@ -45,35 +38,39 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, th
         {data.title && (
           <div style={{
             fontSize: layout.titleFontSize,
-            fontWeight: 700,
+            fontWeight: layout.titleFontWeight,
             color: theme.colors.textPrimary,
-            opacity: titleAnim.opacity,
-            transform: buildTransform({
-              translateX: titleAnim.translateX,
-              translateY: titleAnim.translateY,
-              scale: titleAnim.scale,
-            }),
             marginBottom: layout.gap,
             lineHeight: 1.2,
+            letterSpacing: layout.titleLetterSpacing,
+            textShadow: layout.titleTextShadow,
             fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
           }}>
-            {data.title}
+            <AnimatedText
+              preset={preset}
+              startDelay={titleConfig.startDelay}
+              distance={titleConfig.distance}
+            >
+              {data.title}
+            </AnimatedText>
           </div>
         )}
         {data.body_text && (
           <div style={{
             fontSize: layout.bodyFontSize,
-            fontWeight: 300,
+            fontWeight: layout.bodyFontWeight,
             color: theme.colors.textSecondary,
-            opacity: bodyAnim.opacity,
-            transform: buildTransform({
-              translateX: bodyAnim.translateX,
-              translateY: bodyAnim.translateY,
-              scale: bodyAnim.scale,
-            }),
-            lineHeight: 1.5
+            lineHeight: 1.5,
+            letterSpacing: layout.bodyLetterSpacing,
+            textShadow: layout.bodyTextShadow,
           }}>
-            {data.body_text}
+            <AnimatedText
+              preset={preset}
+              startDelay={bodyConfig.startDelay}
+              distance={bodyConfig.distance}
+            >
+              {data.body_text}
+            </AnimatedText>
           </div>
         )}
       </div>

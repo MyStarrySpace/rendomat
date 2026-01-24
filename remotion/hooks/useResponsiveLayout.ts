@@ -12,12 +12,27 @@ export interface ResponsiveLayout {
   padding: number;
   gap: number;
 
-  // Typography
+  // Typography - Font Sizes
   titleFontSize: number;
   bodyFontSize: number;
   statValueFontSize: number;
   statLabelFontSize: number;
   quoteFontSize: number;
+
+  // Typography - Letter Spacing
+  titleLetterSpacing: string;
+  bodyLetterSpacing: string;
+  displayLetterSpacing: string;
+
+  // Typography - Font Weights
+  displayFontWeight: number;
+  titleFontWeight: number;
+  subtitleFontWeight: number;
+  bodyFontWeight: number;
+
+  // Typography - Text Shadows (for legibility on varied backgrounds)
+  titleTextShadow: string;
+  bodyTextShadow: string;
 
   // Dimensions
   maxWidth: number;
@@ -40,6 +55,22 @@ const BASE_LAYOUT = {
   maxWidth: 1000,
   imageHeight: '80%',
   gridColumns: 2,
+};
+
+// Typography constants
+const TYPOGRAPHY = {
+  // Letter spacing - tighter for large text, looser for body
+  titleLetterSpacing: '-0.02em',
+  bodyLetterSpacing: '0.01em',
+  displayLetterSpacing: '-0.03em',
+  // Font weights
+  displayFontWeight: 900,
+  titleFontWeight: 700,
+  subtitleFontWeight: 600,
+  bodyFontWeight: 400,
+  // Text shadows for legibility
+  titleTextShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+  bodyTextShadow: '0 1px 4px rgba(0, 0, 0, 0.1)',
 };
 
 export function useResponsiveLayout(): ResponsiveLayout {
@@ -71,6 +102,16 @@ export function useResponsiveLayout(): ResponsiveLayout {
       statValueFontSize: 80,
       statLabelFontSize: 24,
       quoteFontSize: 40,
+      // Typography
+      titleLetterSpacing: TYPOGRAPHY.titleLetterSpacing,
+      bodyLetterSpacing: TYPOGRAPHY.bodyLetterSpacing,
+      displayLetterSpacing: TYPOGRAPHY.displayLetterSpacing,
+      displayFontWeight: TYPOGRAPHY.displayFontWeight,
+      titleFontWeight: TYPOGRAPHY.titleFontWeight,
+      subtitleFontWeight: TYPOGRAPHY.subtitleFontWeight,
+      bodyFontWeight: TYPOGRAPHY.bodyFontWeight,
+      titleTextShadow: TYPOGRAPHY.titleTextShadow,
+      bodyTextShadow: TYPOGRAPHY.bodyTextShadow,
       maxWidth: width - 120, // Full width minus padding
       imageHeight: '45%',
       stackDirection: 'column',
@@ -90,6 +131,16 @@ export function useResponsiveLayout(): ResponsiveLayout {
       statValueFontSize: 72,
       statLabelFontSize: 22,
       quoteFontSize: 36,
+      // Typography
+      titleLetterSpacing: TYPOGRAPHY.titleLetterSpacing,
+      bodyLetterSpacing: TYPOGRAPHY.bodyLetterSpacing,
+      displayLetterSpacing: TYPOGRAPHY.displayLetterSpacing,
+      displayFontWeight: TYPOGRAPHY.displayFontWeight,
+      titleFontWeight: TYPOGRAPHY.titleFontWeight,
+      subtitleFontWeight: TYPOGRAPHY.subtitleFontWeight,
+      bodyFontWeight: TYPOGRAPHY.bodyFontWeight,
+      titleTextShadow: TYPOGRAPHY.titleTextShadow,
+      bodyTextShadow: TYPOGRAPHY.bodyTextShadow,
       maxWidth: width - 120,
       imageHeight: '70%',
       stackDirection: 'row',
@@ -109,6 +160,16 @@ export function useResponsiveLayout(): ResponsiveLayout {
       statValueFontSize: Math.round(BASE_LAYOUT.statValueFontSize * scaleFactor),
       statLabelFontSize: Math.round(BASE_LAYOUT.statLabelFontSize * scaleFactor),
       quoteFontSize: Math.round(BASE_LAYOUT.quoteFontSize * scaleFactor),
+      // Typography
+      titleLetterSpacing: TYPOGRAPHY.titleLetterSpacing,
+      bodyLetterSpacing: TYPOGRAPHY.bodyLetterSpacing,
+      displayLetterSpacing: TYPOGRAPHY.displayLetterSpacing,
+      displayFontWeight: TYPOGRAPHY.displayFontWeight,
+      titleFontWeight: TYPOGRAPHY.titleFontWeight,
+      subtitleFontWeight: TYPOGRAPHY.subtitleFontWeight,
+      bodyFontWeight: TYPOGRAPHY.bodyFontWeight,
+      titleTextShadow: TYPOGRAPHY.titleTextShadow,
+      bodyTextShadow: TYPOGRAPHY.bodyTextShadow,
       maxWidth: Math.round(BASE_LAYOUT.maxWidth * scaleFactor),
       imageHeight: BASE_LAYOUT.imageHeight,
       stackDirection: 'row',

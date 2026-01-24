@@ -11,6 +11,7 @@ import {
   AnimationPreset,
   getElementConfig,
 } from '../lib/animationPresets';
+import { AnimatedText } from '../components/AnimatedText';
 
 export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const layout = useResponsiveLayout();
@@ -27,7 +28,6 @@ export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames,
 
   // Element animations
   const imageAnim = usePresetAnimation(imageConfig, 0);
-  const titleAnim = usePresetAnimation(titleConfig, 1);
 
   // Adjust image size based on aspect ratio
   const imageWidth = layout.isVertical ? '85%' : '70%';
@@ -72,21 +72,23 @@ export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames,
           right: 0,
           textAlign: 'center',
           padding: `0 ${layout.padding}px`,
-          opacity: titleAnim.opacity,
-          transform: buildTransform({
-            translateX: titleAnim.translateX,
-            translateY: titleAnim.translateY,
-          }),
         }}>
           <div style={{
             fontSize: layout.isVertical ? 48 : layout.isSquare ? 48 : 56,
-            fontWeight: 700,
+            fontWeight: layout.titleFontWeight,
             color: theme.colors.textPrimary,
             backgroundColor: theme.colors.surface || 'rgba(10, 10, 10, 0.8)',
             padding: layout.isVertical ? '16px 24px' : '20px 40px',
-            display: 'inline-block'
+            display: 'inline-block',
+            letterSpacing: layout.titleLetterSpacing,
           }}>
-            {data.title}
+            <AnimatedText
+              preset={preset}
+              startDelay={titleConfig.startDelay}
+              distance={titleConfig.distance}
+            >
+              {data.title}
+            </AnimatedText>
           </div>
         </div>
       )}

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Video as VideoIcon, Plus, Play, Clock, CheckCircle, AlertCircle, Loader2, Trash2, Sparkles, Wand2, Search, Globe, FileText, Quote, ExternalLink, BookOpen, X, FlaskConical } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { clientApi, videoApi, templateApi, aiApi, Client, Video, Template, ResearchGenerationResult } from "@/lib/api";
+import { clientApi, videoApi, templateApi, aiApi, Client, Video, Template, ResearchGenerationResult, API_BASE } from "@/lib/api";
 import { THEMES } from "@/lib/themes";
 import PersonaSelector from "@/components/PersonaSelector";
 import { Button } from "@/components/ui";
@@ -315,7 +315,7 @@ export default function ClientDetailPage() {
           });
         }
       } else {
-        const response = await fetch('http://localhost:8787/api/ai/generate-slides', {
+        const response = await fetch('${API_BASE}/api/ai/generate-slides', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -354,7 +354,7 @@ export default function ClientDetailPage() {
 
       const videoId = videoResponse.id;
       for (const slide of slides) {
-        await fetch(`http://localhost:8787/api/videos/${videoId}/scenes`, {
+        await fetch(`${API_BASE}/api/videos/${videoId}/scenes`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

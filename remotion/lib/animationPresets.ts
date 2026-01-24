@@ -604,3 +604,106 @@ export const PRESET_DESCRIPTIONS: Record<AnimationPreset, string> = {
   typewriter: 'Sequential text reveals',
   cinematic: 'Slow, epic atmosphere',
 };
+
+// =============================================================================
+// TEXT ANIMATION PRESETS
+// =============================================================================
+
+import type { TextUnit, TextEffect } from './textAnimation';
+
+/**
+ * Text-specific animation configuration
+ * Controls how text is split and animated at character/word/line level
+ */
+export interface TextAnimationPreset {
+  /** Unit to animate: character, word, line, or element */
+  unit: TextUnit;
+  /** Frames between each unit's animation start */
+  staggerFrames: number;
+  /** Spring configuration key */
+  spring: keyof typeof springConfig;
+  /** Animation distance in pixels */
+  distance: number;
+  /** Animation direction */
+  direction: 'up' | 'down' | 'left' | 'right';
+  /** Effects to apply */
+  effects: TextEffect[];
+}
+
+/**
+ * Text animation configurations for each preset
+ * These define how text animates at the character/word/line level
+ */
+export const TEXT_ANIMATION_PRESETS: Record<AnimationPreset, TextAnimationPreset> = {
+  minimal: {
+    unit: 'element',
+    staggerFrames: 0,
+    spring: 'smooth',
+    distance: 15,
+    direction: 'up',
+    effects: ['fadeUp'],
+  },
+  smooth: {
+    unit: 'word',
+    staggerFrames: 3,
+    spring: 'gentle',
+    distance: 25,
+    direction: 'up',
+    effects: ['fadeUp', 'scaleUp'],
+  },
+  energetic: {
+    unit: 'word',
+    staggerFrames: 2,
+    spring: 'bouncy',
+    distance: 40,
+    direction: 'up',
+    effects: ['fadeUp', 'squashStretch', 'followThrough'],
+  },
+  dramatic: {
+    unit: 'word',
+    staggerFrames: 4,
+    spring: 'snappy',
+    distance: 50,
+    direction: 'up',
+    effects: ['fadeUp', 'anticipation', 'followThrough'],
+  },
+  elegant: {
+    unit: 'word',
+    staggerFrames: 5,
+    spring: 'smooth',
+    distance: 20,
+    direction: 'up',
+    effects: ['fadeUp', 'scaleUp'],
+  },
+  kinetic: {
+    unit: 'character',
+    staggerFrames: 1,
+    spring: 'snappy',
+    distance: 35,
+    direction: 'left',
+    effects: ['fadeLeft', 'squashStretch'],
+  },
+  typewriter: {
+    unit: 'character',
+    staggerFrames: 2,
+    spring: 'crisp',
+    distance: 10,
+    direction: 'up',
+    effects: ['fadeUp'],
+  },
+  cinematic: {
+    unit: 'line',
+    staggerFrames: 12,
+    spring: 'smooth',
+    distance: 20,
+    direction: 'up',
+    effects: ['fadeUp', 'blur', 'anticipation'],
+  },
+};
+
+/**
+ * Get text animation preset configuration
+ */
+export function getTextAnimationPreset(preset: AnimationPreset): TextAnimationPreset {
+  return TEXT_ANIMATION_PRESETS[preset] ?? TEXT_ANIMATION_PRESETS.smooth;
+}

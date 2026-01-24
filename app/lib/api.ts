@@ -1,6 +1,6 @@
 // API client for Rendomat backend
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787';
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6969';
 
 export interface Client {
   id: number;
@@ -149,7 +149,19 @@ export const videoApi = {
     const res = await fetch(`${API_BASE}/api/videos/${id}/render-scenes`, {
       method: 'POST',
     });
-    if (!res.ok) throw new Error('Failed to render video');
+    if (!res.ok) {
+      let errorMessage = 'Failed to render video';
+      try {
+        const errorData = await res.json();
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // If response isn't JSON, use status text
+        errorMessage = `Failed to render video: ${res.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
     return res.blob();
   },
 };

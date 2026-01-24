@@ -10,6 +10,7 @@ import {
   fadeInUp,
   viewportOnce,
 } from "@/lib/motion";
+import { API_BASE } from "@/lib/api";
 
 // -----------------------------------------------------------------------------
 // AE Plugin Download Page
@@ -121,7 +122,7 @@ export default function AEPluginPage() {
               transition={spring.snappy}
               className="inline-block"
             >
-              <a href="http://localhost:8787/api/ae-plugin">
+              <a href={`${API_BASE}/api/ae-plugin`}>
                 <Button size="lg" icon={<Download className="w-4 h-4" />}>
                   Download Plugin
                 </Button>

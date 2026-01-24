@@ -4,22 +4,21 @@ import { SceneProps } from './types';
 import { TextOnlyScene } from './TextOnlyScene';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import {
-  usePresetAnimation,
   usePresetSceneFade,
   springConfig,
-  buildTransform,
 } from '../lib/motion';
 import {
   AnimationPreset,
   getElementConfig,
   PresetConfig,
 } from '../lib/animationPresets';
+import { AnimatedText } from '../components/AnimatedText';
 
 export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const layout = useResponsiveLayout();
 
-  // Get animation preset from data or default to 'smooth'
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+  // Get animation preset from data or default to 'energetic'
+  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'energetic';
 
   // Get element-specific configs
   const titleConfig = getElementConfig('bar-chart', preset, 'title');
@@ -46,7 +45,6 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
   }
 
   const maxValue = Math.max(...chartData.data);
-  const titleAnim = usePresetAnimation(titleConfig, 0);
 
   // Responsive chart sizing
   const chartHeight = layout.isVertical ? '50%' : layout.isSquare ? '55%' : '60%';
@@ -64,19 +62,21 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
       {data.title && (
         <div style={{
           fontSize: layout.isVertical ? 36 : layout.isSquare ? 40 : 48,
-          fontWeight: 700,
+          fontWeight: layout.titleFontWeight,
           color: theme.colors.textPrimary,
-          opacity: titleAnim.opacity,
-          transform: buildTransform({
-            translateX: titleAnim.translateX,
-            translateY: titleAnim.translateY,
-            scale: titleAnim.scale,
-          }),
           textAlign: 'center',
           marginBottom: layout.gap * 1.5,
+          letterSpacing: layout.titleLetterSpacing,
+          textShadow: layout.titleTextShadow,
           fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
         }}>
-          {data.title}
+          <AnimatedText
+            preset={preset}
+            startDelay={titleConfig.startDelay}
+            distance={titleConfig.distance}
+          >
+            {data.title}
+          </AnimatedText>
         </div>
       )}
 

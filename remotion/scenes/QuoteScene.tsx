@@ -11,12 +11,13 @@ import {
   AnimationPreset,
   getElementConfig,
 } from '../lib/animationPresets';
+import { AnimatedText } from '../components/AnimatedText';
 
 export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
   const layout = useResponsiveLayout();
 
-  // Get animation preset from data or default to 'smooth'
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+  // Get animation preset from data or default to 'dramatic' for quotes
+  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'dramatic';
 
   // Get element-specific configs
   const quoteMarkConfig = getElementConfig('quote', preset, 'title');
@@ -26,9 +27,8 @@ export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
   // Scene fade
   const sceneFade = usePresetSceneFade(quoteMarkConfig, durationInFrames);
 
-  // Element animations
+  // Quote mark animation (still uses basic animation for the symbol)
   const quoteMarkAnim = usePresetAnimation(quoteMarkConfig, 0);
-  const quoteTextAnim = usePresetAnimation(quoteTextConfig, 1);
   const authorAnim = usePresetAnimation(authorConfig, 2);
 
   return (
@@ -60,26 +60,28 @@ export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
         {data.quote && (
           <div style={{
             fontSize: layout.quoteFontSize,
-            fontWeight: 300,
+            fontWeight: layout.bodyFontWeight,
             color: theme.colors.textPrimary,
-            opacity: quoteTextAnim.opacity,
-            transform: buildTransform({
-              translateX: quoteTextAnim.translateX,
-              translateY: quoteTextAnim.translateY,
-              scale: quoteTextAnim.scale,
-            }),
             lineHeight: 1.4,
             fontStyle: 'italic',
-            marginBottom: layout.gap * 1.5
+            marginBottom: layout.gap * 1.5,
+            letterSpacing: layout.bodyLetterSpacing,
+            textShadow: layout.bodyTextShadow,
           }}>
-            {data.quote}
+            <AnimatedText
+              preset={preset}
+              startDelay={quoteTextConfig.startDelay}
+              distance={quoteTextConfig.distance}
+            >
+              {data.quote}
+            </AnimatedText>
           </div>
         )}
 
         {data.author && (
           <div style={{
             fontSize: layout.isVertical ? 24 : layout.isSquare ? 28 : 32,
-            fontWeight: 500,
+            fontWeight: layout.subtitleFontWeight,
             color: theme.colors.textSecondary,
             opacity: authorAnim.opacity,
             transform: buildTransform({

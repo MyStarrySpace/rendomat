@@ -61,7 +61,12 @@
       "WebFetch(domain:instantdomainsearch.com)",
       "WebFetch(domain:www.godaddy.com)",
       "Bash(nslookup:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(wc:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(powershell -Command \"Stop-Process -Id 2516 -Force\")",
+      "Bash(powershell -Command \"Start-Process -FilePath ''node'' -ArgumentList ''server/render-server.mjs'' -WorkingDirectory ''C:\\\\Users\\\\quest\\\\Programming\\\\vsl-generator'' -WindowStyle Normal\")",
+      "Bash(powershell -Command \"Start-Sleep -Seconds 3; netstat -ano | Select-String '':8787''\")"
     ]
   }
 }
