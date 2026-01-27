@@ -4,13 +4,14 @@ Create a new plan document for tracking development work.
 
 ## Overview
 
-Plans are structured markdown documents with YAML frontmatter that track features, refactors, bug fixes, and other development work. They provide a single source of truth for what needs to be done, who's responsible, and current progress.
+Plans are structured markdown documents with YAML frontmatter that track features, refactors, bug fixes, and other development work. They provide a single source of truth for what needs to be done, who's responsible, and current progress. Tasks should be checked orr as we go.
 
 ## File Location and Naming
 
-**Location**: `nimbalyst-local/plans/[descriptive-name].md`
+**Location**: `.claude/plans/[descriptive-name].md`
 
 **Naming conventions**:
+
 - Use kebab-case: `user-authentication-system.md`
 - Be descriptive: The filename should clearly indicate what the plan is about
 - Keep it concise: Aim for 2-5 words
@@ -33,36 +34,36 @@ planStatus:
     - [tag2]
   created: "YYYY-MM-DD"             # Creation date (use today's date)
   updated: "YYYY-MM-DDTHH:MM:SS.sssZ"  # Last update timestamp (use current time via new Date().toISOString())
-  progress: [0-100]                  # Completion percentage
 ---
 ```
 
 **Optional frontmatter fields**:
+
 - `stakeholders`: Array of people interested in this plan
 - `dueDate`: Target completion date (YYYY-MM-DD)
 - `startDate`: When work began (YYYY-MM-DD)
 
 ## Status Values
 
-| Status | When to Use |
-|--------|-------------|
-| `draft` | Just created, gathering requirements |
-| `ready-for-development` | Planning complete, ready to start |
-| `in-development` | Actively being implemented |
-| `in-review` | Implementation done, awaiting review |
-| `completed` | All acceptance criteria met |
-| `rejected` | Decided not to pursue |
-| `blocked` | Waiting on dependencies |
+| Status                    | When to Use                          |
+| ------------------------- | ------------------------------------ |
+| `draft`                 | Just created, gathering requirements |
+| `ready-for-development` | Planning complete, ready to start    |
+| `in-development`        | Actively being implemented           |
+| `in-review`             | Implementation done, awaiting review |
+| `completed`             | All acceptance criteria met          |
+| `rejected`              | Decided not to pursue                |
+| `blocked`               | Waiting on dependencies              |
 
 ## Plan Types
 
-| Type | Example |
-|------|---------|
-| `feature` | Add dark mode, Implement user profiles |
-| `bug-fix` | Fix login timeout, Resolve memory leak |
-| `refactor` | Migrate to TypeScript, Clean up database |
-| `system-design` | Design API architecture, Database schema |
-| `research` | Evaluate frameworks, Performance analysis |
+| Type              | Example                                   |
+| ----------------- | ----------------------------------------- |
+| `feature`       | Add dark mode, Implement user profiles    |
+| `bug-fix`       | Fix login timeout, Resolve memory leak    |
+| `refactor`      | Migrate to TypeScript, Clean up database  |
+| `system-design` | Design API architecture, Database schema  |
+| `research`      | Evaluate frameworks, Performance analysis |
 
 ## Document Body Structure
 
@@ -80,7 +81,11 @@ After the frontmatter, organize the plan like this:
 Brief description of the problem or feature being addressed.
 
 ## Implementation Details
-Technical details about how this will be implemented.
+Technical details about how this will be implemented
+
+## Tasks
+- [ ] Task 1
+- [ ] Task 2
 
 ## Acceptance Criteria
 - [ ] Checklist item 1
@@ -137,6 +142,10 @@ The app currently has no authentication. We need a complete auth system with mul
 - `POST /auth/refresh` - Refresh access token
 - `GET /auth/google` - OAuth with Google
 
+## Tasks
+- [ ] Create registration route
+- [ ] Create login route
+
 ## Acceptance Criteria
 - [ ] Users can register with email/password
 - [ ] Users can log in with email/password
@@ -149,6 +158,7 @@ The app currently has no authentication. We need a complete auth system with mul
 ## CRITICAL: Timestamp Requirements
 
 When creating a plan:
+
 1. Set `created` to today's date in YYYY-MM-DD format
 2. Set `updated` to the CURRENT timestamp using new Date().toISOString() format
 3. NEVER use midnight timestamps (00:00:00.000Z) - always use the actual current time
@@ -163,7 +173,7 @@ When the user types `/plan [description]`:
 2. Choose appropriate `planType`, `priority`, and `status`
 3. Generate unique `planId` from description (kebab-case)
 4. Set `created` to today's date, `updated` to current timestamp (use new Date().toISOString())
-5. Create file in `nimbalyst-local/plans/` with proper frontmatter
+5. Create file in `.claude/plans/` with proper frontmatter
 6. Include relevant sections based on plan type
 
 ## Related Commands
