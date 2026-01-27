@@ -75,17 +75,9 @@ async function main() {
     });
   }
 
-  // Check for scene-specific rendering (start/end frames)
-  const startFrame = process.env.START_FRAME ? parseInt(process.env.START_FRAME, 10) : undefined;
-  const endFrame = process.env.END_FRAME ? parseInt(process.env.END_FRAME, 10) : undefined;
-
-  if (startFrame !== undefined && endFrame !== undefined) {
-    send({
-      type: 'log',
-      level: 'info',
-      message: `Rendering scene: frames ${startFrame} to ${endFrame}`,
-    });
-  }
+  // Note: Each scene is rendered independently from frame 0 with its own durationInFrames
+  // The composition uses calculateMetadata to set duration from inputProps.durationInFrames
+  // START_FRAME and END_FRAME env vars are no longer used for frameRange
 
   let lastPercent = -1;
   await renderMedia({
@@ -94,9 +86,6 @@ async function main() {
     codec: 'h264',
     outputLocation: outPath,
     inputProps,
-    frameRange: startFrame !== undefined && endFrame !== undefined
-      ? [startFrame, endFrame - 1]  // frameRange is inclusive, so subtract 1 from endFrame
-      : null,
     // Start conservative to avoid Windows headless GPU / resource issues.
     concurrency: 1,
     logLevel: 'error', // Only log errors to avoid console flooding

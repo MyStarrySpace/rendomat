@@ -26,120 +26,230 @@ const ASPECT_RATIO_OPTIONS = [
   { value: "9:16", label: "Vertical 9:16", platforms: "TikTok, Instagram Reels, YouTube Shorts" },
 ];
 
+// Calculate smart scene duration based on content
+// Returns duration in frames (30fps)
+function calculateSceneDuration(slide: any): number {
+  const FPS = 30;
+  const data = typeof slide.data === 'string' ? JSON.parse(slide.data) : slide.data;
+  const sceneType = slide.scene_type || 'text-only';
+  const preset = data?.animation_preset || 'smooth';
+
+  // Base reading speed: ~150 words per minute = 2.5 words per second
+  // But for video, we need more time for comprehension: ~100 words per minute = 1.67 words per second
+  const WORDS_PER_SECOND = 1.5;
+
+  // Calculate text content length
+  let totalWords = 0;
+  const title = data?.title || '';
+  const bodyText = data?.body_text || '';
+  const quote = data?.quote || '';
+  const statsText = data?.stats_text || '';
+
+  totalWords += title.split(/\s+/).filter(Boolean).length;
+  totalWords += bodyText.split(/\s+/).filter(Boolean).length;
+  totalWords += quote.split(/\s+/).filter(Boolean).length;
+  totalWords += statsText.split(/\s+/).filter(Boolean).length;
+
+  // Base duration from text (minimum 3 seconds for reading)
+  let textDuration = Math.max(3, totalWords / WORDS_PER_SECOND);
+
+  // Scene type adjustments
+  let typeDuration = 0;
+  switch (sceneType) {
+    case 'text-only':
+      typeDuration = 0; // Just text reading time
+      break;
+    case 'quote':
+      typeDuration = 2; // Extra pause for quote impact
+      break;
+    case 'single-image':
+      typeDuration = 2; // Time to appreciate the image
+      break;
+    case 'dual-images':
+      typeDuration = 3; // Time for both images
+      break;
+    case 'grid':
+    case 'grid-2x2':
+      typeDuration = 4; // Time for multiple images
+      break;
+    case 'stats':
+      // Count stat items
+      const statLines = statsText.split('\n').filter(Boolean).length;
+      typeDuration = Math.max(2, statLines * 1.5); // 1.5s per stat
+      break;
+    case 'bar-chart':
+    case 'progress-bars':
+      // Parse chart data for bar count
+      try {
+        const chartData = data?.chart_data ? JSON.parse(data.chart_data) : null;
+        const barCount = chartData?.labels?.length || chartData?.data?.length || 4;
+        typeDuration = Math.max(3, barCount * 1); // 1s per bar
+      } catch {
+        typeDuration = 4;
+      }
+      break;
+    case 'equation':
+      typeDuration = 3; // Time for equation comprehension
+      break;
+    default:
+      typeDuration = 0;
+  }
+
+  // Animation preset adjustments (lyric styles need more time for word animations)
+  let animationMultiplier = 1;
+  switch (preset) {
+    case 'lyric':
+    case 'stacking':
+    case 'cascade':
+      animationMultiplier = 1.4; // 40% more time for dramatic word animations
+      break;
+    case 'burst':
+      animationMultiplier = 1.3; // 30% more time
+      break;
+    case 'cinematic':
+      animationMultiplier = 1.3; // Slow, epic feel needs more time
+      break;
+    case 'typewriter':
+      animationMultiplier = 1.2; // Sequential reveals need more time
+      break;
+    case 'minimal':
+    case 'smooth':
+      animationMultiplier = 1;
+      break;
+    default:
+      animationMultiplier = 1;
+  }
+
+  // Calculate total duration
+  let totalSeconds = (textDuration + typeDuration) * animationMultiplier;
+
+  // Add entrance/exit animation time (1.5s total)
+  totalSeconds += 1.5;
+
+  // Clamp between min and max
+  const MIN_DURATION = 4; // Minimum 4 seconds
+  const MAX_DURATION = 25; // Maximum 25 seconds
+  totalSeconds = Math.max(MIN_DURATION, Math.min(MAX_DURATION, totalSeconds));
+
+  // Round to nearest 0.5 second and convert to frames
+  totalSeconds = Math.round(totalSeconds * 2) / 2;
+  return Math.round(totalSeconds * FPS);
+}
+
 // Test personas for quick form population
 const TEST_PERSONAS = [
   {
-    id: "saas-marketing",
-    name: "SaaS Marketing Tool",
-    icon: "📊",
+    id: "healthcare-design",
+    name: "Healthcare Design Studio",
+    icon: "🏥",
     formData: {
-      title: "SocialFlow Pro Launch",
-      theme_id: "tech-dark",
-      aspect_ratio: "16:9",
-    },
-    aiDescription: "Create a compelling VSL for SocialFlow Pro, an AI-powered social media scheduling and analytics platform. Target audience is marketing managers at B2B companies with 50-500 employees who are frustrated with juggling multiple social accounts and lack actionable insights. Key benefits: AI-powered optimal posting times, unified inbox for all platforms, competitor benchmarking, and ROI attribution. We've helped 500+ companies increase engagement by 3x.",
-    companyDetails: {
-      companyName: "SocialFlow Pro",
-      industry: "SaaS / MarTech",
-      targetAudience: "Marketing managers at mid-market B2B companies (50-500 employees)",
-      painPoints: "Wasting hours managing multiple social accounts manually, no clear ROI metrics, missing optimal posting windows, can't track competitor activity",
-      valueProposition: "AI-powered social media command center that automates posting, provides actionable analytics, and proves marketing ROI",
-      metrics: "500+ companies, 3x average engagement increase, 10+ hours saved per week, 40% improvement in lead attribution",
-      cta: "Start your free 14-day trial",
-    },
-    personas: ["vsl-expert", "b2b-saas"],
-    advancedMode: true,
-    researchMode: false,
-  },
-  {
-    id: "fitness-app",
-    name: "Fitness App",
-    icon: "💪",
-    formData: {
-      title: "FitForge App Promo",
-      theme_id: "vibrant-gradient",
-      aspect_ratio: "9:16",
-    },
-    aiDescription: "Create an energetic TikTok/Reels style video for FitForge, a personalized AI fitness coaching app. Target audience is busy professionals aged 25-40 who want to get fit but struggle with consistency and don't know what exercises to do. The app creates personalized workout plans that adapt to your schedule, tracks progress with computer vision, and provides real-time form feedback.",
-    companyDetails: {
-      companyName: "FitForge",
-      industry: "Health & Fitness",
-      targetAudience: "Busy professionals aged 25-40 who want results but have limited time and gym knowledge",
-      painPoints: "No time for long workouts, confused by conflicting fitness advice, can't afford personal trainers, lose motivation without accountability",
-      valueProposition: "Your AI personal trainer that creates adaptive 20-minute workouts, corrects your form in real-time, and keeps you accountable",
-      metrics: "100K+ active users, 89% workout completion rate, average 12lbs lost in first 3 months",
-      cta: "Download free and get your first month of Premium",
-    },
-    personas: ["vsl-expert", "social-media-content"],
-    advancedMode: true,
-    researchMode: false,
-  },
-  {
-    id: "fintech",
-    name: "Financial Services",
-    icon: "💰",
-    formData: {
-      title: "WealthWise Advisory",
-      theme_id: "corporate-blue",
-      aspect_ratio: "16:9",
-    },
-    aiDescription: "Create a professional, trust-building video for WealthWise, a robo-advisory platform that combines AI portfolio management with access to human CFP advisors. Target audience is high-earning professionals ($150K+) aged 35-55 who want sophisticated wealth management but feel underserved by traditional advisors. Emphasize security, credentials, and proven performance.",
-    companyDetails: {
-      companyName: "WealthWise",
-      industry: "Financial Services / FinTech",
-      targetAudience: "High-earning professionals ($150K+ income) aged 35-55 seeking sophisticated wealth management",
-      painPoints: "High fees from traditional advisors, lack of personalized attention, confusing investment options, worry about retirement readiness",
-      valueProposition: "Institutional-grade AI portfolio management with on-demand access to certified financial planners, at a fraction of traditional advisory fees",
-      metrics: "SEC-registered RIA, $2B+ AUM, average 2.3% higher returns than benchmark, 4.9/5 client satisfaction",
-      cta: "Schedule your free portfolio analysis",
-    },
-    personas: ["vsl-expert"],
-    advancedMode: true,
-    researchMode: false,
-  },
-  {
-    id: "ecommerce",
-    name: "E-commerce Platform",
-    icon: "🛒",
-    formData: {
-      title: "ShopStream DTC Brand Video",
+      title: "GoInvo Design Showcase",
       theme_id: "minimal-mono",
-      aspect_ratio: "1:1",
+      aspect_ratio: "16:9",
     },
-    aiDescription: "Create a stylish Instagram-ready video for ShopStream, a headless commerce platform for DTC brands. Target audience is e-commerce founders and heads of digital at brands doing $1M-$50M in revenue who are frustrated with Shopify limitations. Highlight unlimited customization, better performance, and seamless integrations.",
+    aiDescription: "Create a sophisticated video showcasing GoInvo, a healthcare design studio that creates human-centered experiences for health organizations. Target audience is healthcare executives, product leaders, and innovation teams at hospitals, health tech companies, and payers. Emphasize 20+ years of expertise, open source contributions, and measurable patient outcomes.",
     companyDetails: {
-      companyName: "ShopStream",
-      industry: "E-commerce / SaaS",
-      targetAudience: "DTC brand founders and e-commerce directors at companies doing $1M-$50M annual revenue",
-      painPoints: "Shopify template limitations killing brand identity, slow page loads hurting conversions, expensive apps for basic features, difficult integrations with existing tools",
-      valueProposition: "The headless commerce platform built for premium DTC brands - unlimited design freedom, sub-second page loads, and native integrations with your entire stack",
-      metrics: "250+ brands migrated from Shopify, 40% average conversion rate increase, 65% faster page loads",
-      cta: "See ShopStream in action - book a demo",
+      companyName: "GoInvo",
+      industry: "Healthcare Design",
+      targetAudience: "Healthcare executives, Chief Digital Officers, product leaders at hospitals, health systems, and health tech companies",
+      painPoints: "Patient portals nobody uses, clinician burnout from poor software, fragmented health data experiences, compliance without usability",
+      valueProposition: "Human-centered healthcare design that improves patient outcomes, reduces clinician burden, and creates experiences people actually want to use",
+      metrics: "20+ years in healthcare, 100+ health organizations, open source health design resources, 1B+ patient lives impacted",
+      cta: "Let's redesign healthcare together - goinvo.com",
     },
-    personas: ["vsl-expert", "b2b-saas"],
+    personas: ["vsl-expert", "storyteller"],
     advancedMode: true,
-    researchMode: false,
+    researchMode: true,
   },
   {
-    id: "education",
-    name: "EdTech Platform",
-    icon: "📚",
+    id: "patient-portal",
+    name: "Patient Portal",
+    icon: "👤",
     formData: {
-      title: "CodeCraft Academy",
+      title: "Patient Experience Redesign",
       theme_id: "ocean-blue-green",
       aspect_ratio: "16:9",
     },
-    aiDescription: "Create an inspiring video for CodeCraft Academy, an online coding bootcamp that guarantees job placement or money back. Target audience is career changers aged 25-45 who want to break into tech but are intimidated by coding and worried about the investment. Focus on the structured curriculum, mentorship, and real job outcomes.",
+    aiDescription: "Create a video about redesigning the patient portal experience for a major health system. Focus on how thoughtful UX design can increase patient engagement, reduce call center volume, and improve health outcomes. Show the transformation from confusing interfaces to intuitive experiences.",
     companyDetails: {
-      companyName: "CodeCraft Academy",
-      industry: "EdTech / Online Education",
-      targetAudience: "Career changers aged 25-45 looking to transition into software development",
-      painPoints: "Overwhelmed by self-learning resources, imposter syndrome, worried bootcamp won't lead to actual job, concerned about cost without guaranteed outcome",
-      valueProposition: "The only coding bootcamp with a job guarantee - land a developer role within 6 months of graduation or get 100% of your tuition back",
-      metrics: "94% job placement rate, $75K average starting salary, 2,500+ graduates, 180+ hiring partners",
-      cta: "Apply now - next cohort starts in 2 weeks",
+      companyName: "Health System Patient Portal",
+      industry: "Healthcare / Digital Health",
+      targetAudience: "Patients managing chronic conditions, caregivers, and health system administrators",
+      painPoints: "Can't find test results, confusing appointment scheduling, medication lists that don't sync, no way to message care team effectively",
+      valueProposition: "A patient portal that patients actually want to use - intuitive navigation, proactive health insights, and seamless care team communication",
+      metrics: "3x increase in portal adoption, 40% reduction in call center volume, 25% improvement in medication adherence",
+      cta: "See the case study",
     },
     personas: ["vsl-expert", "educator"],
+    advancedMode: true,
+    researchMode: false,
+  },
+  {
+    id: "clinical-workflow",
+    name: "Clinical Workflow",
+    icon: "⚕️",
+    formData: {
+      title: "EHR Workflow Optimization",
+      theme_id: "corporate-blue",
+      aspect_ratio: "16:9",
+    },
+    aiDescription: "Create a video about optimizing clinical workflows and reducing EHR burden for physicians. Target audience is CMIOs, clinical informaticists, and healthcare IT leaders frustrated with clinician burnout and inefficient documentation. Show how thoughtful design reduces clicks, surfaces relevant information, and gives time back to patient care.",
+    companyDetails: {
+      companyName: "Clinical Workflow Design",
+      industry: "Healthcare IT / Clinical Informatics",
+      targetAudience: "CMIOs, clinical informaticists, healthcare IT leaders, and physician champions",
+      painPoints: "Physicians spending 2 hours on documentation for every 1 hour with patients, alert fatigue, information buried in endless clicks, copy-paste medicine",
+      valueProposition: "Evidence-based clinical workflow design that reduces documentation burden, surfaces critical information at the point of care, and restores the joy of practice",
+      metrics: "50% reduction in clicks per encounter, 30 minutes saved per physician per day, 20% reduction in documentation time",
+      cta: "Request a workflow assessment",
+    },
+    personas: ["vsl-expert", "b2b-saas"],
+    advancedMode: true,
+    researchMode: false,
+  },
+  {
+    id: "health-dataviz",
+    name: "Health Data Visualization",
+    icon: "📊",
+    formData: {
+      title: "Health Data Stories",
+      theme_id: "tech-dark",
+      aspect_ratio: "1:1",
+    },
+    aiDescription: "Create a video showcasing health data visualization work - turning complex health information into clear, actionable insights. Target audience is health tech product teams, public health organizations, and data-driven health companies. Emphasize making the invisible visible and data literacy for all.",
+    companyDetails: {
+      companyName: "Health Data Visualization",
+      industry: "Data Visualization / Public Health",
+      targetAudience: "Health tech product teams, public health departments, population health managers",
+      painPoints: "Drowning in data with no insights, dashboards nobody understands, can't communicate health trends to stakeholders, data silos preventing action",
+      valueProposition: "Transform health data into visual stories that drive understanding and action - from population health dashboards to personal health timelines",
+      metrics: "Visualizations used by CDC, WHO, and major health systems. Open source health icons and design systems.",
+      cta: "Explore our open source health visualizations",
+    },
+    personas: ["vsl-expert", "data-analyst"],
+    advancedMode: true,
+    researchMode: false,
+  },
+  {
+    id: "digital-therapeutics",
+    name: "Digital Therapeutics",
+    icon: "💊",
+    formData: {
+      title: "DTx Product Design",
+      theme_id: "vibrant-gradient",
+      aspect_ratio: "9:16",
+    },
+    aiDescription: "Create a video about designing digital therapeutics (DTx) products that patients actually use and that demonstrate clinical efficacy. Target audience is digital health startups, pharma digital innovation teams, and DTx companies seeking FDA clearance. Emphasize engagement design, clinical trial integration, and regulatory-ready experiences.",
+    companyDetails: {
+      companyName: "Digital Therapeutics Design",
+      industry: "Digital Therapeutics / Digital Health",
+      targetAudience: "DTx startup founders, pharma digital innovation leaders, clinical trial designers",
+      painPoints: "Low patient engagement killing efficacy data, FDA submission readiness, competition with consumer apps for attention, proving clinical value",
+      valueProposition: "Design digital therapeutics that achieve clinical engagement rates - combining behavioral science, beautiful design, and regulatory expertise",
+      metrics: "85%+ 30-day retention rates, multiple FDA-cleared products designed, proven engagement in RCTs",
+      cta: "Design your DTx for success",
+    },
+    personas: ["vsl-expert", "social-media-content"],
     advancedMode: true,
     researchMode: false,
   },
@@ -336,7 +446,10 @@ export default function ClientDetailPage() {
         slides = result.slides;
       }
 
-      const totalDuration = slides.length * 15;
+      // Calculate smart durations for each slide
+      const sceneDurations = slides.map((slide: any) => calculateSceneDuration(slide));
+      const totalFrames = sceneDurations.reduce((sum: number, frames: number) => sum + frames, 0);
+      const totalDuration = Math.ceil(totalFrames / 30); // Convert frames to seconds
 
       const videoResponse = await videoApi.create({
         client_id: clientId,
@@ -353,7 +466,10 @@ export default function ClientDetailPage() {
       });
 
       const videoId = videoResponse.id;
-      for (const slide of slides) {
+      let currentFrame = 0;
+      for (let i = 0; i < slides.length; i++) {
+        const slide = slides[i];
+        const duration = sceneDurations[i];
         await fetch(`${API_BASE}/api/videos/${videoId}/scenes`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -361,11 +477,12 @@ export default function ClientDetailPage() {
             scene_number: slide.scene_number,
             name: slide.name,
             scene_type: slide.scene_type || 'text-only',
-            start_frame: slide.scene_number * 450,
-            end_frame: (slide.scene_number + 1) * 450,
+            start_frame: currentFrame,
+            end_frame: currentFrame + duration,
             data: slide.data
           })
         });
+        currentFrame += duration;
       }
 
       if (research && (research.citations_used.length > 0 || research.case_studies_used.length > 0)) {

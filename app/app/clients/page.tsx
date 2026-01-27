@@ -84,7 +84,7 @@ export default function ClientsPage() {
 
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button onClick={() => setShowForm(!showForm)} icon={<Plus className="w-4 h-4" />}>
-              New Project
+              New Client
             </Button>
           </motion.div>
         </div>
@@ -100,7 +100,7 @@ export default function ClientsPage() {
             transition={spring.gentle}
             className="mb-12"
           >
-            <p className="caption mb-4">Projects</p>
+            <p className="caption mb-4">Clients</p>
             <h1 className="headline text-4xl md:text-5xl text-[hsl(var(--foreground))] mb-4">
               Your clients
             </h1>
@@ -120,7 +120,7 @@ export default function ClientsPage() {
               >
                 <Card variant="bordered">
                   <CardHeader>
-                    <CardTitle>Create new project</CardTitle>
+                    <CardTitle>Create new client</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-6">
@@ -178,7 +178,7 @@ export default function ClientsPage() {
                           loading={submitting}
                           icon={<Plus className="w-4 h-4" />}
                         >
-                          Create project
+                          Create client
                         </Button>
                         <Button
                           type="button"
@@ -220,14 +220,14 @@ export default function ClientsPage() {
                 <Building2 className="w-12 h-12 text-[hsl(var(--foreground-subtle))] mx-auto mb-6" />
               </motion.div>
               <h3 className="headline text-2xl text-[hsl(var(--foreground))] mb-2">
-                No projects yet
+                No clients yet
               </h3>
               <p className="text-[hsl(var(--foreground-muted))] mb-8">
-                Create your first client project to get started
+                Create your first client to get started
               </p>
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button onClick={() => setShowForm(true)} icon={<Plus className="w-4 h-4" />}>
-                  Create project
+                  Create client
                 </Button>
               </motion.div>
             </motion.div>

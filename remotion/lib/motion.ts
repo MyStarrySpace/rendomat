@@ -14,23 +14,35 @@ import { spring, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 // SPRING CONFIGURATIONS
 // =============================================================================
 
+// Professional spring configurations based on Apple/Material motion guidelines
+// Higher damping = more controlled deceleration, less overshoot
+// Lower stiffness = more natural, less mechanical
 export const springConfig = {
-  /** Gentle, smooth animation for content entrance */
-  gentle: { damping: 14, stiffness: 120, mass: 1 },
-  /** Quick, responsive animation for interactive elements */
-  snappy: { damping: 20, stiffness: 300, mass: 1 },
-  /** Bouncy animation for emphasis */
-  bouncy: { damping: 10, stiffness: 400, mass: 1 },
-  /** Very smooth, slow animation for backgrounds */
-  smooth: { damping: 20, stiffness: 100, mass: 1 },
-  /** Crisp animation for text reveals */
-  crisp: { damping: 18, stiffness: 200, mass: 1 },
-  /** Elastic animation with overshoot for playful effects */
-  elastic: { damping: 8, stiffness: 350, mass: 1 },
+  /** Professional default - controlled, natural movement */
+  gentle: { damping: 22, stiffness: 140, mass: 1 },
+  /** Quick but controlled - for interactive elements */
+  snappy: { damping: 26, stiffness: 200, mass: 1 },
+  /** Subtle bounce - use sparingly for emphasis */
+  bouncy: { damping: 18, stiffness: 180, mass: 1 },
+  /** Very smooth, slow animation for backgrounds/large elements */
+  smooth: { damping: 28, stiffness: 100, mass: 1 },
+  /** Crisp animation for text reveals - minimal overshoot */
+  crisp: { damping: 24, stiffness: 170, mass: 1 },
+  /** Controlled elastic - subtle overshoot only */
+  elastic: { damping: 16, stiffness: 200, mass: 1 },
   /** Anticipation - slower start for wind-up effects */
-  anticipate: { damping: 15, stiffness: 80, mass: 1.2 },
-  /** Follow-through - overshoots then settles */
-  followThrough: { damping: 12, stiffness: 280, mass: 0.8 },
+  anticipate: { damping: 20, stiffness: 100, mass: 1.1 },
+  /** Follow-through - subtle overshoot then settle */
+  followThrough: { damping: 18, stiffness: 180, mass: 0.9 },
+} as const;
+
+// Professional timing scale (in frames at 30fps)
+export const TIMING = {
+  instant: 3,      // ~100ms - micro-interactions
+  fast: 6,         // ~200ms - buttons, small elements
+  normal: 9,       // ~300ms - page elements
+  slow: 15,        // ~500ms - page transitions
+  dramatic: 24,    // ~800ms - hero reveals
 } as const;
 
 // =============================================================================
@@ -86,9 +98,10 @@ interface UseFadeUpOptions extends UseSpringEntranceOptions {
 /**
  * Creates a fade-up animation (opacity + Y translation)
  * Returns { opacity, translateY }
+ * Note: Professional motion uses subtle distances (12-20px max)
  */
 export function useFadeUp(options: UseFadeUpOptions = {}) {
-  const { distance = 30, ...springOptions } = options;
+  const { distance = 16, ...springOptions } = options;  // Reduced from 30
   const progress = useSpringEntrance(springOptions);
 
   return {
@@ -100,13 +113,14 @@ export function useFadeUp(options: UseFadeUpOptions = {}) {
 /**
  * Creates a scale-in animation
  * Returns { opacity, scale }
+ * Note: Professional motion uses subtle scale changes (0.95-0.98 start)
  */
 export function useScaleIn(options: UseSpringEntranceOptions = {}) {
   const progress = useSpringEntrance({ ...options, config: options.config || 'snappy' });
 
   return {
     opacity: progress,
-    scale: interpolate(progress, [0, 1], [0.85, 1]),
+    scale: interpolate(progress, [0, 1], [0.96, 1]),  // Reduced from 0.85
   };
 }
 
@@ -115,7 +129,7 @@ export function useScaleIn(options: UseSpringEntranceOptions = {}) {
  * Returns { opacity, translateX }
  */
 export function useFadeInLeft(options: UseFadeUpOptions = {}) {
-  const { distance = 40, ...springOptions } = options;
+  const { distance = 20, ...springOptions } = options;  // Reduced from 40
   const progress = useSpringEntrance(springOptions);
 
   return {
@@ -129,7 +143,7 @@ export function useFadeInLeft(options: UseFadeUpOptions = {}) {
  * Returns { opacity, translateX }
  */
 export function useFadeInRight(options: UseFadeUpOptions = {}) {
-  const { distance = 40, ...springOptions } = options;
+  const { distance = 20, ...springOptions } = options;  // Reduced from 40
   const progress = useSpringEntrance(springOptions);
 
   return {

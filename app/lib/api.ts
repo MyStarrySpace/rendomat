@@ -1,6 +1,6 @@
 // API client for Rendomat backend
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6969';
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4321';
 
 export interface Client {
   id: number;
@@ -192,6 +192,36 @@ export const sceneApi = {
     });
     if (!res.ok) throw new Error('Failed to update scene');
     return res.json();
+  },
+
+  async render(sceneId: number, forceRender = false): Promise<{
+    success: boolean;
+    cached: boolean;
+    scene_id: number;
+    cache_path: string;
+    preview_url: string;
+  }> {
+    const res = await fetch(`${API_BASE}/api/scenes/${sceneId}/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forceRender }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to render scene');
+    }
+    return res.json();
+  },
+
+  getPreviewUrl(sceneId: number): string {
+    return `${API_BASE}/api/scenes/${sceneId}/preview`;
+  },
+
+  async clearCache(sceneId: number): Promise<void> {
+    const res = await fetch(`${API_BASE}/api/scenes/${sceneId}/cache`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to clear scene cache');
   },
 };
 

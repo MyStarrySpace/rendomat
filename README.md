@@ -1,6 +1,6 @@
 # Rendomat
 
-A generative video creation platform built with Next.js, Remotion, and TypeScript. Optional AI narration via ElevenLabs.
+A generative video creation platform built with Next.js, Remotion, and TypeScript. Create professional VSL (Video Sales Letter) content with AI-powered slide generation, smart scene duration, and lyric-video style animations.
 
 ## Project Structure
 
@@ -8,58 +8,59 @@ A generative video creation platform built with Next.js, Remotion, and TypeScrip
 vsl-generator/
 ├── app/                    # Next.js application
 │   ├── app/               # Next.js App Router pages
-│   └── package.json       # Frontend dependencies
+│   ├── components/        # Shared UI components
+│   └── lib/               # API client, themes, utilities
 ├── remotion/              # Remotion video components
-│   ├── index.ts          # Remotion entry point
 │   ├── Root.tsx          # Remotion root with compositions
-│   ├── PolicyWrappedSquare.tsx
-│   ├── CivicProfileVideo.tsx
-│   ├── ClassProfileVideo.tsx
-│   └── types.ts          # TypeScript types for video props
-├── scripts/              # Render scripts
-│   └── render-policy-wrapped.mjs
-├── server/               # Remotion render server
-│   ├── render-server.mjs
-│   └── render-worker.cjs
-├── .env                  # Environment variables
-├── remotion-lambda-policy.json  # AWS IAM policy for Remotion Lambda
-└── package.json          # Root dependencies (Remotion)
+│   ├── scenes/           # Scene components (TextOnly, Quote, Stats, etc.)
+│   ├── components/       # Reusable video components
+│   └── lib/              # Animation presets, motion utilities
+├── server/               # Backend render server
+│   ├── render-server.mjs # Express API server
+│   ├── render-worker.cjs # Remotion render worker
+│   ├── database.mjs      # SQLite database
+│   ├── ai-service.mjs    # Claude AI integration
+│   └── personas.mjs      # AI persona system
+├── scripts/              # Utility scripts
+│   └── seed-database.mjs # Database seeding with GoInvo demo
+└── data/                 # SQLite database storage
 ```
 
-## ✨ Key Features
+## Key Features
 
-- **Multi-Client System**: Manage multiple clients and their videos in SQLite database
-- **Scene-Based Rendering**: Videos split into scenes for faster iteration
-- **Intelligent Caching**: Only re-render changed scenes (saves 80-90% render time!)
-- **REST API**: Full CRUD operations for clients, videos, and scenes
-- **16:9 & 1:1 Support**: Multiple aspect ratios
-- **AI Narration**: Optional ElevenLabs integration
-- **Clean Logging**: Fixed verbose console output
+- **Multi-Client System**: Manage multiple clients and their video projects
+- **AI-Powered Generation**: Claude AI generates slides from descriptions with persona customization
+- **Smart Scene Duration**: Automatic duration calculation based on content length, scene type, and animation style
+- **Animation Presets**: Professional motion design with lyric-video style options (stacking, cascade, burst)
+- **Scene-Based Rendering**: Individual scene rendering with intelligent caching
+- **Multi-Platform Export**: Render for YouTube (16:9), Instagram (1:1, 9:16), TikTok, LinkedIn
+- **Research Integration**: Web research and citation support for fact-based content
+- **Real-time Progress**: SSE-based render progress with per-scene status
 
-See [FEATURES.md](FEATURES.md) for detailed feature documentation.
+## Quick Start
 
-## Setup
-
-### 1. Install Root Dependencies
+### 1. Install Dependencies
 
 ```bash
+# Root dependencies
 npm install
+
+# App dependencies
+cd app && npm install && cd ..
 ```
 
-### 2. Install App Dependencies
-
-```bash
-cd app
-npm install
-```
-
-### 3. Ensure Browser for Remotion
+### 2. Ensure Browser for Remotion
 
 ```bash
 npm run remotion:ensure-browser
 ```
 
-This downloads Chrome Headless Shell needed for video rendering.
+### 3. Set Up Environment
+
+```bash
+cp .env.example .env
+# Edit .env with your API keys (Anthropic, Pexels, ElevenLabs)
+```
 
 ### 4. Seed the Database
 
@@ -67,144 +68,126 @@ This downloads Chrome Headless Shell needed for video rendering.
 npm run seed-db
 ```
 
-This creates the Ultrahuman client and video with all 7 scenes.
+This creates the GoInvo demo client with a showcase video demonstrating various scene types and animation presets.
 
-### 5. Set Up ElevenLabs API (Optional - for AI Voiceover)
+### 5. Start the Servers
 
-**The VSL works perfectly without this!** The on-screen text tells the full story.
-
-If you want AI-generated voiceover narration:
-
-1. Sign up at https://elevenlabs.io (free tier available - 10,000 characters/month)
-2. Get your API key from https://elevenlabs.io/app/settings/api-keys
-3. Update `.env` and replace `your_api_key_here` with your actual key
-4. Generate narration audio:
-   ```bash
-   npm run generate-narration
-   ```
-
-The script will create audio files in `public/audio/` that you can add to the video later.
-
-## Running the Project
-
-### Start the Render Server (Terminal 1)
-
+**Terminal 1 - Render Server:**
 ```bash
 npm run render-server
 ```
+Starts on http://localhost:4321
 
-This starts the Remotion render server on http://localhost:8787
-
-### Start the Next.js App (Terminal 2)
-
+**Terminal 2 - Next.js App:**
 ```bash
-cd app
-npm run dev
+cd app && npm run dev
 ```
+Starts on http://localhost:3333
 
-This starts the Next.js development server on http://localhost:3000
+## Animation Presets
 
-## Features
+### Professional Presets
+- **minimal** - Subtle, professional animations
+- **smooth** - Gentle, flowing movement
+- **elegant** - Refined, sophisticated timing
+- **cinematic** - Slow, epic atmosphere
 
-- **Next.js App**: Modern React framework with TypeScript
-- **Remotion Video Generation**: Programmatic video creation
-- **Framer Motion**: Smooth animations and transitions
-- **Lucide Icons**: Beautiful icon library
-- **Recharts & D3**: Data visualization libraries
-- **Tailwind CSS**: Utility-first CSS framework
+### Energetic Presets
+- **energetic** - Bouncy, playful feel
+- **dramatic** - Bold, impactful entrances
+- **kinetic** - Fast, dynamic motion
+- **typewriter** - Sequential text reveals
 
-## Video Generation
+### Lyric Video Style
+- **lyric** - Words fly in from alternating directions
+- **stacking** - Words fly up and stack into sentences
+- **cascade** - Words drop down from above
+- **burst** - Words burst in from center with scale
 
-The app includes multiple video compositions:
+## Scene Types
 
-1. **UltrahumanVSL** (1920x1080, 5:45): Full VSL for Ultrahuman with 7 scenes
-   - 16:9 aspect ratio (YouTube standard)
-   - Restrained, calm motion design
-   - Professional narration script included
-2. **PolicyWrappedSquare** (1080x1080, 4 seconds): Square format video with stats and policy list
-3. **CivicProfile** (1080x1080, 5 seconds): Student profile video
-4. **ClassProfile** (1080x1080, 5 seconds): Class summary video
+- **text-only** - Title and body text
+- **quote** - Testimonial with attribution
+- **stats** - Key metrics display
+- **single-image** - Image with caption
+- **dual-images** - Side-by-side images
+- **grid** - 2x2 image grid
+- **bar-chart** - Animated bar charts
+- **progress-bars** - Horizontal progress indicators
+- **equation** - Mathematical expressions
 
-### Test Video Generation
+## Smart Duration Calculation
 
-1. Make sure the render server is running (`npm run render-server`)
-2. Navigate to http://localhost:3000
-3. Click "Generate Ultrahuman VSL"
-4. Wait for the video to render (takes ~2-3 minutes for 5:45 video)
-5. Preview and download the generated video
+Scene duration is automatically calculated based on:
+- **Text length**: ~1.5 words/second for video comprehension
+- **Scene type**: Charts and stats get more time
+- **Animation preset**: Lyric styles get 30-40% more time
+- **Constraints**: 4-25 seconds per scene
 
-## Remotion Commands
+## API Endpoints
 
-### Preview Videos
+### Clients
+- `GET /api/clients` - List all clients
+- `POST /api/clients` - Create client
+- `GET /api/clients/:id` - Get client
+- `PUT /api/clients/:id` - Update client
+- `DELETE /api/clients/:id` - Delete client
 
-```bash
-npm run remotion:preview
-```
+### Videos
+- `GET /api/videos` - List videos (optional `?client_id=`)
+- `POST /api/videos` - Create video
+- `GET /api/videos/:id` - Get video
+- `PUT /api/videos/:id` - Update video
+- `POST /api/videos/:id/render-scenes` - Render full video
+- `POST /api/videos/:id/render-multi` - Multi-platform export
 
-Opens the Remotion Studio to preview and edit videos interactively.
+### Scenes
+- `GET /api/videos/:id/scenes` - List scenes for video
+- `POST /api/videos/:id/scenes` - Create scene
+- `PUT /api/scenes/:id` - Update scene
+- `POST /api/scenes/:id/render` - Render individual scene
+- `GET /api/scenes/:id/preview` - Get scene preview
+- `DELETE /api/scenes/:id/cache` - Clear scene cache
 
-### Render a Video
-
-```bash
-# Render the Ultrahuman VSL (5:45, 16:9)
-npm run remotion:render:ultrahuman
-
-# Render PolicyWrappedSquare (square format)
-npm run remotion:render:square
-```
-
-### Generate AI Narration (Optional)
-
-**Note:** The video works perfectly without narration! This is optional.
-
-```bash
-npm run generate-narration
-```
-
-If you have an ElevenLabs API key, this will:
-- Use ElevenLabs API to generate professional voiceover
-- Create individual audio files for each scene
-- Output files to `public/audio/` directory
-- Free tier gives you 10,000 characters/month
-
-If no API key is set, the script will show you setup instructions and exit gracefully.
-
-### Render with Custom Data
-
-```bash
-npm run remotion:render:payload -- --input data.json --out output.mp4
-```
-
-Where `data.json` contains the video props.
+### AI Generation
+- `POST /api/ai/generate-slides` - Generate slides from description
+- `POST /api/ai/generate-slides-with-research` - Generate with web research
 
 ## Environment Variables
 
-The `.env` file contains:
+```bash
+# Required
+ANTHROPIC_API_KEY=         # Claude AI for slide generation
 
-### Remotion Lambda (AWS)
-- **REMOTION_AWS_ACCESS_KEY_ID**: AWS access key for Remotion Lambda
-- **REMOTION_AWS_SECRET_ACCESS_KEY**: AWS secret key
-- **REMOTION_AWS_REGION**: AWS region (default: us-east-1)
-- **REMOTION_FUNCTION_NAME**: Lambda function name
-- **REMOTION_SERVE_URL**: S3 URL for the bundled Remotion project
+# Optional
+PEXELS_API_KEY=            # Stock images
+ELEVENLABS_API_KEY=        # AI narration
+ELEVENLABS_VOICE_ID=       # Voice selection
 
-### ElevenLabs (AI Narration)
-- **ELEVENLABS_API_KEY**: Your ElevenLabs API key
-- **ELEVENLABS_VOICE_ID**: Voice ID to use (defaults to Adam voice)
+# Server
+PORT=4321                  # Render server port
+NEXT_PUBLIC_API_URL=http://localhost:4321
+```
 
-## Technologies Used
+## Technologies
 
-- **Next.js 16**: React framework with App Router
-- **Remotion 4**: Video generation framework
-- **TypeScript**: Type-safe development
-- **Tailwind CSS 4**: Styling
-- **Framer Motion**: Animations
-- **Lucide React**: Icons
-- **Recharts**: Charts and data visualization
-- **D3**: Advanced data visualization
-- **Express**: Render server
-- **ElevenLabs**: AI-powered narration generation
+- **Next.js 15** - React framework
+- **Remotion 4** - Video generation
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **Framer Motion** - UI animations
+- **SQLite** - Database (better-sqlite3)
+- **Claude AI** - Content generation
+- **Express** - API server
+
+## Demo Client
+
+The seed script creates **GoInvo** as the demo client - a healthcare design studio. The demo video showcases:
+- Various scene types (text, stats, quote)
+- Different animation presets
+- Smart duration per scene
+- Professional healthcare design content
 
 ## License
 
-Private project
+Private project - GoInvo

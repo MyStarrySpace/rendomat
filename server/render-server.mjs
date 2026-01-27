@@ -23,7 +23,7 @@ import { generateAEManifest, generateSelfContainedScript } from './ae-exporter.m
 import { parseDocument, parseMarkdownContent, parseDocxBuffer, generateVideoSeed } from './document-parser.mjs';
 import archiver from 'archiver';
 
-const PORT = Number(process.env.PORT || 6969);
+const PORT = Number(process.env.PORT || 4321);
 const DEBUG = String(process.env.RENDER_DEBUG || '').toLowerCase() === 'true';
 const ALLOWED_ORIGINS = (process.env.RENDER_ALLOWED_ORIGINS || '*')
   .split(',')
@@ -156,6 +156,54 @@ function logBinary(name, args = ['-version']) {
     console.log(`[render-server] ${name} check failed: ${e instanceof Error ? e.message : 'unknown error'}`);
     return false;
   }
+}
+
+// -----------------------------
+// Video Render Progress SSE System
+// -----------------------------
+const videoRenderSubscribers = new Map(); // videoId -> Set(res)
+const videoRenderState = new Map(); // videoId -> render state
+
+function getVideoRenderState(videoId) {
+  return videoRenderState.get(videoId) ?? null;
+}
+
+function setVideoRenderState(videoId, state) {
+  videoRenderState.set(videoId, { ...state, updatedAt: new Date().toISOString() });
+  broadcastVideoRenderProgress(videoId, state);
+}
+
+function broadcastVideoRenderProgress(videoId, state) {
+  const subs = videoRenderSubscribers.get(videoId);
+  if (subs && subs.size) {
+    const data = `event: progress\ndata: ${JSON.stringify(state)}\n\n`;
+    for (const res of subs) {
+      try {
+        res.write(data);
+        res.flush?.();
+      } catch {
+        // ignore closed connections
+      }
+    }
+  }
+}
+
+function subscribeVideoRender(videoId, res) {
+  const set = videoRenderSubscribers.get(videoId) ?? new Set();
+  set.add(res);
+  videoRenderSubscribers.set(videoId, set);
+}
+
+function unsubscribeVideoRender(videoId, res) {
+  const set = videoRenderSubscribers.get(videoId);
+  if (!set) return;
+  set.delete(res);
+  if (set.size === 0) videoRenderSubscribers.delete(videoId);
+}
+
+function cleanupVideoRenderState(videoId) {
+  videoRenderState.delete(videoId);
+  videoRenderSubscribers.delete(videoId);
 }
 
 // -----------------------------
@@ -1099,116 +1147,277 @@ app.post('/api/research/verify-claim', async (req, res) => {
 // Scene-Based Rendering API
 // =============================
 
-app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
+// Render a single scene and return the video file or preview URL
+app.post('/api/scenes/:sceneId/render', async (req, res) => {
   try {
-    const video = videoDb.getById(req.params.videoId);
+    const sceneId = parseInt(req.params.sceneId, 10);
+    const scene = sceneDb.getById(sceneId);
+
+    if (!scene) {
+      return res.status(404).json({ error: 'Scene not found' });
+    }
+
+    const video = videoDb.getById(scene.video_id);
     if (!video) {
       return res.status(404).json({ error: 'Video not found' });
     }
 
-    const scenes = sceneDb.getAllForVideo(req.params.videoId);
+    const { forceRender = false } = req.body;
+
+    // Check if we have a valid cache and don't need to force render
+    if (!forceRender && scene.cache_path) {
+      try {
+        await fs.access(scene.cache_path);
+        // Return cached file info
+        return res.json({
+          success: true,
+          cached: true,
+          scene_id: sceneId,
+          cache_path: scene.cache_path,
+          preview_url: `/api/scenes/${sceneId}/preview`,
+        });
+      } catch {
+        // Cache file doesn't exist, need to render
+      }
+    }
+
+    console.log(`[scene-render] Rendering scene ${scene.scene_number}: ${scene.name}`);
+
+    const serveUrl = await getServeUrl();
+
+    // Build input props
+    const inputProps = {};
+    if (video.theme_id) {
+      inputProps.themeId = video.theme_id;
+    }
+
+    // Render the scene
+    const scenePath = await renderScene(
+      sceneId,
+      serveUrl,
+      'DynamicScene',
+      inputProps,
+      (progress) => {
+        console.log(`[scene-render] Scene ${scene.scene_number} progress: ${(progress * 100).toFixed(1)}%`);
+      }
+    );
+
+    // Update scene with cache path
+    sceneDb.updateCache(sceneId, scenePath, null);
+
+    console.log(`[scene-render] Scene ${scene.scene_number} rendered: ${scenePath}`);
+
+    res.json({
+      success: true,
+      cached: false,
+      scene_id: sceneId,
+      cache_path: scenePath,
+      preview_url: `/api/scenes/${sceneId}/preview`,
+    });
+
+  } catch (error) {
+    console.error('[scene-render] Error:', error);
+    res.status(500).json({
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Serve a rendered scene preview
+app.get('/api/scenes/:sceneId/preview', async (req, res) => {
+  try {
+    const sceneId = parseInt(req.params.sceneId, 10);
+    const scene = sceneDb.getById(sceneId);
+
+    if (!scene) {
+      return res.status(404).json({ error: 'Scene not found' });
+    }
+
+    if (!scene.cache_path) {
+      return res.status(404).json({ error: 'Scene not rendered yet' });
+    }
+
+    try {
+      await fs.access(scene.cache_path);
+    } catch {
+      return res.status(404).json({ error: 'Scene cache file not found' });
+    }
+
+    const file = await fs.readFile(scene.cache_path);
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.status(200).send(file);
+
+  } catch (error) {
+    console.error('[scene-preview] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Clear scene cache (invalidate when scene is edited)
+app.delete('/api/scenes/:sceneId/cache', async (req, res) => {
+  try {
+    const sceneId = parseInt(req.params.sceneId, 10);
+    const scene = sceneDb.getById(sceneId);
+
+    if (!scene) {
+      return res.status(404).json({ error: 'Scene not found' });
+    }
+
+    // Clear the cache path in database
+    sceneDb.updateCache(sceneId, null, null);
+
+    res.json({ success: true, message: 'Scene cache cleared' });
+
+  } catch (error) {
+    console.error('[scene-cache-clear] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
+  try {
+    const videoId = parseInt(req.params.videoId, 10);
+    const video = videoDb.getById(videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const scenes = sceneDb.getAllForVideo(videoId);
     if (scenes.length === 0) {
       return res.status(400).json({ error: 'No scenes found for this video' });
     }
 
-    // Count cached vs non-cached scenes
-    const cachedScenes = scenes.filter(s => s.cache_path).length;
-    const scenesToRender = scenes.filter(s => !s.cache_path).length;
-    const totalScenes = scenes.length;
+    // Build initial scene state with cache status
+    const sceneStates = scenes.map(scene => ({
+      id: scene.id,
+      scene_number: scene.scene_number,
+      name: scene.name,
+      status: scene.cache_path ? 'cached' : 'pending',
+      progress: scene.cache_path ? 100 : 0,
+      cache_path: scene.cache_path || null,
+    }));
 
-    // Initialize progress tracking
-    videoDb.update(video.id, {
-      status: 'rendering',
-      render_progress: JSON.stringify({
-        rendered_scenes: 0,
-        total_scenes: scenesToRender,
-        cached_scenes: cachedScenes,
-        current_scene: 0,
-        percentage: 0
-      })
-    });
+    const cachedCount = sceneStates.filter(s => s.status === 'cached').length;
+    const toRenderCount = sceneStates.filter(s => s.status === 'pending').length;
+
+    // Initialize render state and broadcast
+    const updateRenderState = (updates) => {
+      const state = {
+        status: 'rendering',
+        total_scenes: scenes.length,
+        cached_scenes: cachedCount,
+        scenes_to_render: toRenderCount,
+        completed_scenes: sceneStates.filter(s => s.status === 'completed' || s.status === 'cached').length,
+        current_scene_index: null,
+        overall_progress: 0,
+        stage: 'preparing',
+        scenes: sceneStates,
+        ...updates,
+      };
+      setVideoRenderState(videoId, state);
+      // Also update DB for polling fallback
+      videoDb.update(videoId, {
+        status: 'rendering',
+        render_progress: JSON.stringify(state)
+      });
+      return state;
+    };
+
+    updateRenderState({ stage: 'bundling' });
 
     const serveUrl = await getServeUrl();
     const scenePaths = [];
-    let renderedCount = 0;
+    let completedRenders = 0;
 
     // Render each scene (using cache when possible)
     for (let i = 0; i < scenes.length; i++) {
       const scene = scenes[i];
+      const sceneState = sceneStates[i];
 
-      // Skip progress update for cached scenes
-      if (!scene.cache_path) {
-        // Update progress: starting this scene
-        videoDb.update(video.id, {
-          render_progress: JSON.stringify({
-            rendered_scenes: renderedCount,
-            total_scenes: scenesToRender,
-            cached_scenes: cachedScenes,
-            current_scene: scene.scene_number,
-            percentage: scenesToRender > 0 ? Math.round((renderedCount / scenesToRender) * 100) : 100
-          })
+      if (sceneState.status === 'cached') {
+        // Use cached scene
+        scenePaths.push(sceneState.cache_path);
+        updateRenderState({
+          current_scene_index: i,
+          overall_progress: Math.round(((i + 1) / scenes.length) * 90),
+          stage: 'rendering',
         });
+        continue;
       }
 
-      // Build input props for rendering (video.data contains metadata, not render props)
+      // Mark scene as rendering
+      sceneState.status = 'rendering';
+      sceneState.progress = 0;
+      updateRenderState({
+        current_scene_index: i,
+        stage: 'rendering',
+      });
+
+      // Build input props
       const inputProps = {};
       if (video.theme_id) {
         inputProps.themeId = video.theme_id;
       }
-      // Use DynamicScene composition for scene-based rendering
+
+      // Render the scene with progress callback
       const scenePath = await renderScene(
         scene.id,
         serveUrl,
         'DynamicScene',
         inputProps,
         (progress) => {
-          console.log(`Scene ${scene.scene_number} progress: ${(progress * 100).toFixed(1)}%`);
-
-          // Only update progress for non-cached scenes
-          if (!scene.cache_path) {
-            const sceneProgress = renderedCount + progress;
-            videoDb.update(video.id, {
-              render_progress: JSON.stringify({
-                rendered_scenes: renderedCount,
-                total_scenes: scenesToRender,
-                cached_scenes: cachedScenes,
-                current_scene: scene.scene_number,
-                percentage: scenesToRender > 0 ? Math.round((sceneProgress / scenesToRender) * 100) : 100
-              })
-            });
-          }
+          sceneState.progress = Math.round(progress * 100);
+          const baseProgress = (i / scenes.length) * 90;
+          const sceneContribution = (progress / scenes.length) * 90;
+          updateRenderState({
+            overall_progress: Math.round(baseProgress + sceneContribution),
+          });
         }
       );
+
+      // Mark scene as completed and update cache path
+      sceneState.status = 'completed';
+      sceneState.progress = 100;
+      sceneState.cache_path = scenePath;
+      completedRenders++;
+
       scenePaths.push(scenePath);
 
-      // Increment rendered count only for non-cached scenes
-      if (!scene.cache_path) {
-        renderedCount++;
-      }
+      updateRenderState({
+        completed_scenes: cachedCount + completedRenders,
+        overall_progress: Math.round(((i + 1) / scenes.length) * 90),
+      });
     }
 
-    // Update progress: stitching
-    videoDb.update(video.id, {
-      render_progress: JSON.stringify({
-        rendered_scenes: scenesToRender,
-        total_scenes: scenesToRender,
-        cached_scenes: cachedScenes,
-        current_scene: -1,
-        percentage: 100,
-        status: 'stitching'
-      })
+    // Stitching phase
+    updateRenderState({
+      stage: 'stitching',
+      overall_progress: 92,
+      current_scene_index: null,
     });
 
     // Stitch scenes together
-    const outputPath = path.join(os.tmpdir(), `video-${video.id}-${Date.now()}.mp4`);
+    const outputPath = path.join(os.tmpdir(), `video-${videoId}-${Date.now()}.mp4`);
     await stitchScenes(scenePaths, outputPath);
 
+    // Final state: completed
+    updateRenderState({
+      status: 'completed',
+      stage: 'complete',
+      overall_progress: 100,
+    });
+
     // Update video with output path
-    videoDb.update(video.id, {
+    videoDb.update(videoId, {
       output_path: outputPath,
       status: 'completed',
       render_progress: null
     });
+
+    // Cleanup SSE state after a delay (allow clients to receive final update)
+    setTimeout(() => cleanupVideoRenderState(videoId), 5000);
 
     // Read and send the video file
     const file = await fs.readFile(outputPath);
@@ -1218,10 +1427,23 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
 
   } catch (error) {
     console.error('[render-scenes] Error:', error);
-    videoDb.update(req.params.videoId, {
+    const videoId = parseInt(req.params.videoId, 10);
+
+    // Broadcast error state
+    setVideoRenderState(videoId, {
+      status: 'error',
+      stage: 'error',
+      error: error.message,
+    });
+
+    videoDb.update(videoId, {
       status: 'error',
       render_progress: null
     });
+
+    // Cleanup SSE state after a delay
+    setTimeout(() => cleanupVideoRenderState(videoId), 5000);
+
     res.status(500).json({
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
@@ -1428,6 +1650,31 @@ app.get('/api/videos/:videoId/download/:platformId', async (req, res) => {
 // =============================
 // Video Preview API
 // =============================
+
+// SSE endpoint for real-time render progress
+app.get('/api/videos/:videoId/render-progress', (req, res) => {
+  const videoId = parseInt(req.params.videoId, 10);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
+
+  subscribeVideoRender(videoId, res);
+  res.write(`: connected\n\n`);
+
+  // Send current state if available
+  const currentState = getVideoRenderState(videoId);
+  if (currentState) {
+    res.write(`event: progress\ndata: ${JSON.stringify(currentState)}\n\n`);
+  }
+  res.flush?.();
+
+  req.on('close', () => {
+    unsubscribeVideoRender(videoId, res);
+  });
+});
 
 // Serve completed video
 app.get('/api/videos/:videoId/preview', async (req, res) => {

@@ -24,7 +24,9 @@ import {
   Sparkles,
   Users,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Eye,
+  RefreshCw
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -85,6 +87,10 @@ export default function VideoDetailPage() {
   const [exportProgress, setExportProgress] = useState<any>(null);
   const [exportOutputs, setExportOutputs] = useState<Record<string, any> | null>(null);
 
+  // Scene render/preview state
+  const [renderingSceneId, setRenderingSceneId] = useState<number | null>(null);
+  const [previewSceneId, setPreviewSceneId] = useState<number | null>(null);
+
   // Persona state
   const [showPersonaSection, setShowPersonaSection] = useState(false);
   const [effectivePersonas, setEffectivePersonas] = useState<EffectivePersonas | null>(null);
@@ -96,35 +102,48 @@ export default function VideoDetailPage() {
     loadData();
   }, [videoId]);
 
-  // Poll for progress when rendering
+  // SSE for real-time render progress
   useEffect(() => {
     if (!rendering) return;
 
-    const interval = setInterval(async () => {
+    const eventSource = new EventSource(`${API_BASE}/api/videos/${videoId}/render-progress`);
+
+    eventSource.addEventListener('progress', (event) => {
       try {
-        const videoData = await videoApi.getById(videoId);
+        const progress = JSON.parse(event.data);
+        setProgressData(progress);
 
-        if (videoData.render_progress) {
-          const progress = JSON.parse(videoData.render_progress);
-          setProgressData(progress);
-
-          if (progress.status === 'stitching') {
-            setRenderProgress('Stitching scenes together...');
+        // Update progress text based on stage
+        if (progress.stage === 'bundling') {
+          setRenderProgress('Bundling Remotion project...');
+        } else if (progress.stage === 'stitching') {
+          setRenderProgress('Stitching scenes together...');
+        } else if (progress.stage === 'complete') {
+          setRenderProgress('Render complete!');
+        } else if (progress.stage === 'error') {
+          setRenderProgress(`Render failed: ${progress.error}`);
+        } else if (progress.current_scene_index !== null && progress.scenes) {
+          const currentScene = progress.scenes[progress.current_scene_index];
+          const cacheInfo = progress.cached_scenes > 0 ? ` (${progress.cached_scenes} cached)` : '';
+          if (currentScene?.status === 'cached') {
+            setRenderProgress(`Using cached scene ${progress.current_scene_index + 1}/${progress.total_scenes}${cacheInfo}`);
           } else {
-            const cacheInfo = progress.cached_scenes > 0 ? ` (${progress.cached_scenes} cached)` : '';
-            setRenderProgress(`Rendering scene ${progress.rendered_scenes + 1} of ${progress.total_scenes}${cacheInfo}`);
+            setRenderProgress(`Rendering scene ${progress.current_scene_index + 1}/${progress.total_scenes} (${currentScene?.progress || 0}%)${cacheInfo}`);
           }
         }
-
-        if (videoData.status !== 'rendering') {
-          clearInterval(interval);
-        }
       } catch (error) {
-        console.error("Failed to poll progress:", error);
+        console.error("Failed to parse SSE progress:", error);
       }
-    }, 500);
+    });
 
-    return () => clearInterval(interval);
+    eventSource.onerror = () => {
+      // SSE connection closed or errored - fall back to polling
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, [rendering, videoId]);
 
   async function loadData() {
@@ -195,6 +214,31 @@ export default function VideoDetailPage() {
         setRenderProgress("");
         setRendering(false);
       }, 5000);
+    }
+  }
+
+  async function handleRenderScene(sceneId: number, forceRender = false) {
+    setRenderingSceneId(sceneId);
+    try {
+      const result = await sceneApi.render(sceneId, forceRender);
+      // Refresh scenes to get updated cache info
+      await loadData();
+      // Show preview
+      setPreviewSceneId(sceneId);
+    } catch (error) {
+      console.error("Failed to render scene:", error);
+      alert(error instanceof Error ? error.message : "Failed to render scene");
+    } finally {
+      setRenderingSceneId(null);
+    }
+  }
+
+  async function handleClearSceneCache(sceneId: number) {
+    try {
+      await sceneApi.clearCache(sceneId);
+      await loadData();
+    } catch (error) {
+      console.error("Failed to clear scene cache:", error);
     }
   }
 
@@ -687,18 +731,50 @@ export default function VideoDetailPage() {
               animate="show"
               className="space-y-4"
             >
-              {scenes.map((scene) => (
+              {scenes.map((scene, sceneIndex) => {
+                // Get per-scene render state if rendering
+                const sceneRenderState = progressData?.scenes?.find((s: any) => s.id === scene.id);
+                const isCurrentlyRendering = rendering && progressData?.current_scene_index === sceneIndex;
+
+                return (
                 <motion.div
                   key={scene.id}
                   variants={cardVariants}
-                  className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] overflow-hidden"
+                  className={`bg-[hsl(var(--surface))] border overflow-hidden ${
+                    isCurrentlyRendering
+                      ? 'border-[hsl(var(--accent))] ring-2 ring-[hsl(var(--accent))]/20'
+                      : 'border-[hsl(var(--border))]'
+                  }`}
                 >
+                  {/* Per-scene progress bar */}
+                  {rendering && sceneRenderState && (
+                    <div className="h-1 bg-[hsl(var(--border))]">
+                      <div
+                        className={`h-full transition-all duration-300 ${
+                          sceneRenderState.status === 'cached' ? 'bg-[hsl(var(--success))]' :
+                          sceneRenderState.status === 'completed' ? 'bg-[hsl(var(--accent))]' :
+                          sceneRenderState.status === 'rendering' ? 'bg-[hsl(var(--warning))]' :
+                          'bg-transparent'
+                        }`}
+                        style={{ width: `${sceneRenderState.progress || 0}%` }}
+                      />
+                    </div>
+                  )}
                   <div className="p-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <div className="w-10 h-10 bg-[hsl(var(--accent-muted))] flex items-center justify-center">
-                            <span className="text-[hsl(var(--accent))] font-bold font-mono">{scene.scene_number}</span>
+                          <div className={`w-10 h-10 flex items-center justify-center ${
+                            sceneRenderState?.status === 'cached' ? 'bg-[hsl(var(--success))]/20' :
+                            sceneRenderState?.status === 'completed' ? 'bg-[hsl(var(--accent-muted))]' :
+                            isCurrentlyRendering ? 'bg-[hsl(var(--warning))]/20' :
+                            'bg-[hsl(var(--accent-muted))]'
+                          }`}>
+                            <span className={`font-bold font-mono ${
+                              sceneRenderState?.status === 'cached' ? 'text-[hsl(var(--success))]' :
+                              isCurrentlyRendering ? 'text-[hsl(var(--warning))]' :
+                              'text-[hsl(var(--accent))]'
+                            }`}>{scene.scene_number}</span>
                           </div>
                           <div className="flex-1">
                             {editingSceneName === scene.id ? (
@@ -735,9 +811,35 @@ export default function VideoDetailPage() {
                                 </button>
                               </div>
                             )}
-                            <p className="text-sm text-[hsl(var(--foreground-muted))] mt-1 font-mono">
-                              {formatFrameRange(scene.start_frame, scene.end_frame)} &bull; {scene.end_frame - scene.start_frame} frames
-                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-sm text-[hsl(var(--foreground-muted))] font-mono">
+                                {formatFrameRange(scene.start_frame, scene.end_frame)} &bull; {scene.end_frame - scene.start_frame} frames
+                              </p>
+                              {/* Render status badges */}
+                              {rendering && sceneRenderState && (
+                                <Badge
+                                  size="sm"
+                                  variant={
+                                    sceneRenderState.status === 'cached' ? 'success' :
+                                    sceneRenderState.status === 'completed' ? 'default' :
+                                    sceneRenderState.status === 'rendering' ? 'warning' :
+                                    'secondary'
+                                  }
+                                >
+                                  {sceneRenderState.status === 'cached' && '✓ Cached'}
+                                  {sceneRenderState.status === 'completed' && '✓ Done'}
+                                  {sceneRenderState.status === 'rendering' && `${sceneRenderState.progress}%`}
+                                  {sceneRenderState.status === 'pending' && 'Pending'}
+                                </Badge>
+                              )}
+                              {/* Show cache indicator when not rendering */}
+                              {!rendering && scene.cache_path && (
+                                <Badge size="sm" variant="success">
+                                  <Database className="w-3 h-3 mr-1" />
+                                  Cached
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -820,6 +922,35 @@ export default function VideoDetailPage() {
                                   <option value="high">High (Active)</option>
                                 </select>
                               </div>
+                            </div>
+
+                            {/* Text Animation Preset */}
+                            <div>
+                              <Label>Text Animation Preset</Label>
+                              <select
+                                value={editData.animation_preset || 'smooth'}
+                                onChange={(e) => setEditData({ ...editData, animation_preset: e.target.value })}
+                                className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
+                              >
+                                <optgroup label="Professional">
+                                  <option value="minimal">Minimal - Subtle, professional</option>
+                                  <option value="smooth">Smooth - Gentle, flowing</option>
+                                  <option value="elegant">Elegant - Refined, sophisticated</option>
+                                  <option value="cinematic">Cinematic - Slow, epic</option>
+                                </optgroup>
+                                <optgroup label="Energetic">
+                                  <option value="energetic">Energetic - Bouncy, playful</option>
+                                  <option value="dramatic">Dramatic - Bold, impactful</option>
+                                  <option value="kinetic">Kinetic - Fast, dynamic</option>
+                                  <option value="typewriter">Typewriter - Sequential reveals</option>
+                                </optgroup>
+                                <optgroup label="Lyric Video Style">
+                                  <option value="lyric">Lyric - Words fly in from alternating directions</option>
+                                  <option value="stacking">Stacking - Words fly up and stack</option>
+                                  <option value="cascade">Cascade - Words drop from above</option>
+                                  <option value="burst">Burst - Words burst in from center</option>
+                                </optgroup>
+                              </select>
                             </div>
 
                             {/* Image Fields */}
@@ -1116,14 +1247,41 @@ export default function VideoDetailPage() {
                         )}
 
                         {editingScene !== scene.id && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => startEditScene(scene)}
-                            icon={<Edit className="w-4 h-4" />}
-                          >
-                            Edit
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            {/* Preview button - only show if cached */}
+                            {scene.cache_path && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setPreviewSceneId(scene.id)}
+                                icon={<Eye className="w-4 h-4" />}
+                              >
+                                Preview
+                              </Button>
+                            )}
+
+                            {/* Render scene button */}
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleRenderScene(scene.id, false)}
+                              disabled={renderingSceneId === scene.id}
+                              loading={renderingSceneId === scene.id}
+                              icon={<Play className="w-4 h-4" />}
+                            >
+                              {renderingSceneId === scene.id ? 'Rendering...' : scene.cache_path ? 'Re-render' : 'Render'}
+                            </Button>
+
+                            {/* Edit button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEditScene(scene)}
+                              icon={<Edit className="w-4 h-4" />}
+                            >
+                              Edit
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1135,7 +1293,8 @@ export default function VideoDetailPage() {
                     )}
                   </div>
                 </motion.div>
-              ))}
+              );
+              })}
             </motion.div>
           )}
         </div>
@@ -1297,6 +1456,65 @@ export default function VideoDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Scene Preview Modal */}
+      <AnimatePresence>
+        {previewSceneId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setPreviewSceneId(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[hsl(var(--background))] border border-[hsl(var(--border))] w-full max-w-4xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-[hsl(var(--border))] flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Eye className="w-5 h-5 text-[hsl(var(--accent))]" />
+                  <h3 className="headline text-lg">
+                    Scene Preview: {scenes.find(s => s.id === previewSceneId)?.name}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleRenderScene(previewSceneId, true)}
+                    disabled={renderingSceneId === previewSceneId}
+                    loading={renderingSceneId === previewSceneId}
+                    icon={<RefreshCw className="w-4 h-4" />}
+                  >
+                    Re-render
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPreviewSceneId(null)}
+                    icon={<X className="w-4 h-4" />}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+              <div className="aspect-video bg-black">
+                <video
+                  key={previewSceneId}
+                  src={sceneApi.getPreviewUrl(previewSceneId)}
+                  controls
+                  autoPlay
+                  className="w-full h-full"
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Stock Image Browser */}
       <StockImageBrowser

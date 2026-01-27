@@ -19,7 +19,11 @@ export type AnimationPreset =
   | 'elegant'      // Refined, sophisticated timing
   | 'kinetic'      // Fast, dynamic movement
   | 'typewriter'   // Sequential character/word reveals
-  | 'cinematic';   // Slow, epic feel
+  | 'cinematic'    // Slow, epic feel
+  | 'lyric'        // Lyric video style - words fly in from alternating directions
+  | 'stacking'     // Words fly up and stack into sentences
+  | 'cascade'      // Words cascade down from above
+  | 'burst';       // Words burst in from center
 
 export interface PresetConfig {
   /** Spring configuration key */
@@ -50,68 +54,73 @@ export interface PresetConfig {
 // GLOBAL PRESETS
 // =============================================================================
 
+// Professional animation presets following Apple/Material motion guidelines:
+// - Subtle distances (8-20px max for text)
+// - Minimal scale changes (0.95-1.0)
+// - Tight stagger timing (1-3 frames)
+// - Single primary effect per element
 export const ANIMATION_PRESETS: Record<AnimationPreset, PresetConfig> = {
   minimal: {
     spring: 'smooth',
-    startDelay: 12,
-    staggerDelay: 6,
-    distance: 15,
-    scaleFrom: 0.98,
+    startDelay: 8,
+    staggerDelay: 2,
+    distance: 8,
+    scaleFrom: 0.99,
     direction: 'up',
-    fadeInFrames: 25,
-    fadeOutFrames: 20,
+    fadeInFrames: 20,
+    fadeOutFrames: 15,
   },
 
   smooth: {
     spring: 'gentle',
-    startDelay: 10,
-    staggerDelay: 8,
-    distance: 25,
-    scaleFrom: 0.95,
+    startDelay: 6,
+    staggerDelay: 2,
+    distance: 12,
+    scaleFrom: 0.97,
     direction: 'up',
-    fadeInFrames: 22,
-    fadeOutFrames: 18,
+    fadeInFrames: 18,
+    fadeOutFrames: 14,
   },
 
   energetic: {
     spring: 'bouncy',
-    startDelay: 5,
-    staggerDelay: 5,
-    distance: 40,
-    scaleFrom: 0.8,
+    startDelay: 4,
+    staggerDelay: 2,
+    distance: 16,
+    scaleFrom: 0.95,
     direction: 'up',
-    fadeInFrames: 18,
-    fadeOutFrames: 12,
+    fadeInFrames: 15,
+    fadeOutFrames: 10,
   },
 
   dramatic: {
     spring: 'snappy',
-    startDelay: 15,
-    staggerDelay: 12,
-    distance: 60,
-    scaleFrom: 0.7,
+    startDelay: 10,
+    staggerDelay: 3,
+    distance: 20,
+    scaleFrom: 0.94,
     direction: 'up',
-    fadeInFrames: 30,
-    fadeOutFrames: 20,
+    fadeInFrames: 24,
+    fadeOutFrames: 16,
   },
 
   elegant: {
     spring: 'smooth',
-    startDelay: 18,
-    staggerDelay: 10,
-    distance: 30,
-    scaleFrom: 0.92,
+    startDelay: 12,
+    staggerDelay: 3,
+    distance: 14,
+    scaleFrom: 0.96,
     direction: 'up',
-    fadeInFrames: 35,
-    fadeOutFrames: 25,
+    fadeInFrames: 28,
+    fadeOutFrames: 20,
   },
 
   kinetic: {
     spring: 'snappy',
     startDelay: 3,
-    staggerDelay: 3,
-    distance: 50,
-    scaleFrom: 0.85,
+    staggerDelay: 1,
+    distance: 18,
+    scaleFrom: 0.96,
     direction: 'left',
     fadeInFrames: 12,
     fadeOutFrames: 8,
@@ -119,24 +128,69 @@ export const ANIMATION_PRESETS: Record<AnimationPreset, PresetConfig> = {
 
   typewriter: {
     spring: 'crisp',
-    startDelay: 8,
-    staggerDelay: 2,
-    distance: 10,
+    startDelay: 6,
+    staggerDelay: 1,
+    distance: 6,
     scaleFrom: 1,
-    direction: 'right',
-    fadeInFrames: 15,
-    fadeOutFrames: 12,
+    direction: 'up',
+    fadeInFrames: 12,
+    fadeOutFrames: 10,
   },
 
   cinematic: {
     spring: 'smooth',
-    startDelay: 25,
-    staggerDelay: 15,
-    distance: 20,
-    scaleFrom: 0.95,
+    startDelay: 18,
+    staggerDelay: 4,
+    distance: 12,
+    scaleFrom: 0.97,
     direction: 'up',
-    fadeInFrames: 45,
-    fadeOutFrames: 30,
+    fadeInFrames: 36,
+    fadeOutFrames: 24,
+  },
+
+  // Lyric video style presets - more dramatic, word-focused animations
+  lyric: {
+    spring: 'bouncy',
+    startDelay: 5,
+    staggerDelay: 4,
+    distance: 60,        // Larger distance for dramatic fly-in
+    scaleFrom: 0.9,
+    direction: 'random', // Alternating directions
+    fadeInFrames: 15,
+    fadeOutFrames: 12,
+  },
+
+  stacking: {
+    spring: 'snappy',
+    startDelay: 8,
+    staggerDelay: 5,
+    distance: 80,        // Words fly up from below
+    scaleFrom: 0.85,
+    direction: 'up',
+    fadeInFrames: 18,
+    fadeOutFrames: 15,
+  },
+
+  cascade: {
+    spring: 'gentle',
+    startDelay: 6,
+    staggerDelay: 4,
+    distance: 50,        // Words drop from above
+    scaleFrom: 0.95,
+    direction: 'down',
+    fadeInFrames: 20,
+    fadeOutFrames: 15,
+  },
+
+  burst: {
+    spring: 'elastic',
+    startDelay: 3,
+    staggerDelay: 2,
+    distance: 40,        // Words expand from center
+    scaleFrom: 0.3,      // Start small and grow
+    direction: 'center',
+    fadeInFrames: 12,
+    fadeOutFrames: 10,
   },
 };
 
@@ -212,6 +266,26 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       title: { distance: 15, fadeInFrames: 50 },
       body: { startDelay: 45, fadeInFrames: 40 },
     },
+    lyric: {
+      ...ANIMATION_PRESETS.lyric,
+      title: { distance: 80, staggerDelay: 5 },
+      body: { startDelay: 15, distance: 60, staggerDelay: 4 },
+    },
+    stacking: {
+      ...ANIMATION_PRESETS.stacking,
+      title: { distance: 100, scaleFrom: 0.8 },
+      body: { startDelay: 20, distance: 80, staggerDelay: 6 },
+    },
+    cascade: {
+      ...ANIMATION_PRESETS.cascade,
+      title: { distance: 60, direction: 'down' },
+      body: { startDelay: 18, distance: 50, staggerDelay: 4 },
+    },
+    burst: {
+      ...ANIMATION_PRESETS.burst,
+      title: { scaleFrom: 0.2, distance: 50 },
+      body: { startDelay: 12, scaleFrom: 0.3, staggerDelay: 3 },
+    },
   },
 
   'quote': {
@@ -254,6 +328,26 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       title: { fadeInFrames: 60 },
       body: { startDelay: 40 },
     },
+    lyric: {
+      ...ANIMATION_PRESETS.lyric,
+      title: { scaleFrom: 0.5, distance: 40 },
+      body: { startDelay: 20, distance: 70, staggerDelay: 5 },
+    },
+    stacking: {
+      ...ANIMATION_PRESETS.stacking,
+      title: { scaleFrom: 0.4, distance: 60 },
+      body: { startDelay: 25, distance: 80 },
+    },
+    cascade: {
+      ...ANIMATION_PRESETS.cascade,
+      title: { distance: 40 },
+      body: { startDelay: 20, distance: 55 },
+    },
+    burst: {
+      ...ANIMATION_PRESETS.burst,
+      title: { scaleFrom: 0.1 },
+      body: { startDelay: 15, scaleFrom: 0.4 },
+    },
   },
 
   'stats': {
@@ -288,6 +382,22 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     cinematic: {
       ...ANIMATION_PRESETS.cinematic,
       data: { staggerDelay: 20 },
+    },
+    lyric: {
+      ...ANIMATION_PRESETS.lyric,
+      data: { staggerDelay: 6, distance: 50 },
+    },
+    stacking: {
+      ...ANIMATION_PRESETS.stacking,
+      data: { staggerDelay: 8, distance: 70 },
+    },
+    cascade: {
+      ...ANIMATION_PRESETS.cascade,
+      data: { staggerDelay: 6, distance: 45 },
+    },
+    burst: {
+      ...ANIMATION_PRESETS.burst,
+      data: { staggerDelay: 4, scaleFrom: 0.2 },
     },
   },
 
@@ -332,6 +442,26 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       image: { scaleFrom: 1.1, fadeInFrames: 60 }, // Ken Burns zoom out
       title: { startDelay: 50 },
     },
+    lyric: {
+      ...ANIMATION_PRESETS.lyric,
+      image: { scaleFrom: 0.85, distance: 50 },
+      title: { startDelay: 25, distance: 60 },
+    },
+    stacking: {
+      ...ANIMATION_PRESETS.stacking,
+      image: { scaleFrom: 0.8, distance: 70 },
+      title: { startDelay: 30, distance: 80 },
+    },
+    cascade: {
+      ...ANIMATION_PRESETS.cascade,
+      image: { distance: 45 },
+      title: { startDelay: 25, distance: 50 },
+    },
+    burst: {
+      ...ANIMATION_PRESETS.burst,
+      image: { scaleFrom: 0.4 },
+      title: { startDelay: 20, scaleFrom: 0.3 },
+    },
   },
 
   'dual-images': {
@@ -366,6 +496,22 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     cinematic: {
       ...ANIMATION_PRESETS.cinematic,
       image: { distance: 60, fadeInFrames: 50 },
+    },
+    lyric: {
+      ...ANIMATION_PRESETS.lyric,
+      image: { distance: 80, staggerDelay: 6 },
+    },
+    stacking: {
+      ...ANIMATION_PRESETS.stacking,
+      image: { distance: 100, staggerDelay: 8 },
+    },
+    cascade: {
+      ...ANIMATION_PRESETS.cascade,
+      image: { distance: 60, staggerDelay: 5 },
+    },
+    burst: {
+      ...ANIMATION_PRESETS.burst,
+      image: { scaleFrom: 0.3, staggerDelay: 4 },
     },
   },
 
@@ -402,6 +548,22 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.cinematic,
       image: { staggerDelay: 15 },
     },
+    lyric: {
+      ...ANIMATION_PRESETS.lyric,
+      image: { staggerDelay: 5, distance: 60 },
+    },
+    stacking: {
+      ...ANIMATION_PRESETS.stacking,
+      image: { staggerDelay: 6, distance: 80 },
+    },
+    cascade: {
+      ...ANIMATION_PRESETS.cascade,
+      image: { staggerDelay: 5, distance: 50 },
+    },
+    burst: {
+      ...ANIMATION_PRESETS.burst,
+      image: { staggerDelay: 3, scaleFrom: 0.2 },
+    },
   },
 
   'bar-chart': {
@@ -436,6 +598,22 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     cinematic: {
       ...ANIMATION_PRESETS.cinematic,
       data: { staggerDelay: 18 },
+    },
+    lyric: {
+      ...ANIMATION_PRESETS.lyric,
+      data: { staggerDelay: 5, distance: 50 },
+    },
+    stacking: {
+      ...ANIMATION_PRESETS.stacking,
+      data: { staggerDelay: 6, distance: 70 },
+    },
+    cascade: {
+      ...ANIMATION_PRESETS.cascade,
+      data: { staggerDelay: 5, distance: 45, direction: 'down' },
+    },
+    burst: {
+      ...ANIMATION_PRESETS.burst,
+      data: { staggerDelay: 3, scaleFrom: 0.3 },
     },
   },
 
@@ -472,6 +650,22 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.cinematic,
       data: { staggerDelay: 20, direction: 'left' },
     },
+    lyric: {
+      ...ANIMATION_PRESETS.lyric,
+      data: { staggerDelay: 6, direction: 'left', distance: 60 },
+    },
+    stacking: {
+      ...ANIMATION_PRESETS.stacking,
+      data: { staggerDelay: 8, direction: 'up', distance: 80 },
+    },
+    cascade: {
+      ...ANIMATION_PRESETS.cascade,
+      data: { staggerDelay: 6, direction: 'down', distance: 50 },
+    },
+    burst: {
+      ...ANIMATION_PRESETS.burst,
+      data: { staggerDelay: 4, scaleFrom: 0.3 },
+    },
   },
 
   'equation': {
@@ -506,6 +700,22 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     cinematic: {
       ...ANIMATION_PRESETS.cinematic,
       data: { staggerDelay: 25 },
+    },
+    lyric: {
+      ...ANIMATION_PRESETS.lyric,
+      data: { staggerDelay: 10, distance: 60 },
+    },
+    stacking: {
+      ...ANIMATION_PRESETS.stacking,
+      data: { staggerDelay: 12, distance: 80 },
+    },
+    cascade: {
+      ...ANIMATION_PRESETS.cascade,
+      data: { staggerDelay: 10, distance: 50 },
+    },
+    burst: {
+      ...ANIMATION_PRESETS.burst,
+      data: { staggerDelay: 6, scaleFrom: 0.2 },
     },
   },
 };
@@ -589,6 +799,10 @@ export const PRESET_LABELS: Record<AnimationPreset, string> = {
   kinetic: 'Kinetic',
   typewriter: 'Typewriter',
   cinematic: 'Cinematic',
+  lyric: 'Lyric',
+  stacking: 'Stacking',
+  cascade: 'Cascade',
+  burst: 'Burst',
 };
 
 /**
@@ -603,6 +817,10 @@ export const PRESET_DESCRIPTIONS: Record<AnimationPreset, string> = {
   kinetic: 'Fast, dynamic motion',
   typewriter: 'Sequential text reveals',
   cinematic: 'Slow, epic atmosphere',
+  lyric: 'Words fly in from alternating directions',
+  stacking: 'Words fly up and stack into sentences',
+  cascade: 'Words cascade down from above',
+  burst: 'Words burst in from center with scale',
 };
 
 // =============================================================================
@@ -632,72 +850,113 @@ export interface TextAnimationPreset {
 
 /**
  * Text animation configurations for each preset
- * These define how text animates at the character/word/line level
+ * Professional guidelines:
+ * - Word-level is the default (character-level is too busy)
+ * - Single effect per element (no effect stacking)
+ * - Subtle distances (8-16px)
+ * - No squash/stretch on text
  */
 export const TEXT_ANIMATION_PRESETS: Record<AnimationPreset, TextAnimationPreset> = {
   minimal: {
     unit: 'element',
     staggerFrames: 0,
     spring: 'smooth',
-    distance: 15,
+    distance: 8,
     direction: 'up',
     effects: ['fadeUp'],
   },
   smooth: {
     unit: 'word',
-    staggerFrames: 3,
+    staggerFrames: 1,
     spring: 'gentle',
-    distance: 25,
+    distance: 12,
     direction: 'up',
-    effects: ['fadeUp', 'scaleUp'],
+    effects: ['fadeUp'],
   },
   energetic: {
     unit: 'word',
-    staggerFrames: 2,
+    staggerFrames: 1,
     spring: 'bouncy',
-    distance: 40,
+    distance: 14,
     direction: 'up',
-    effects: ['fadeUp', 'squashStretch', 'followThrough'],
+    effects: ['fadeUp'],
   },
   dramatic: {
     unit: 'word',
-    staggerFrames: 4,
+    staggerFrames: 2,
     spring: 'snappy',
-    distance: 50,
+    distance: 16,
     direction: 'up',
-    effects: ['fadeUp', 'anticipation', 'followThrough'],
+    effects: ['fadeUp'],
   },
   elegant: {
     unit: 'word',
-    staggerFrames: 5,
+    staggerFrames: 2,
     spring: 'smooth',
-    distance: 20,
+    distance: 10,
     direction: 'up',
-    effects: ['fadeUp', 'scaleUp'],
+    effects: ['fadeUp'],
   },
   kinetic: {
-    unit: 'character',
+    unit: 'word',  // Changed from character to word
     staggerFrames: 1,
     spring: 'snappy',
-    distance: 35,
+    distance: 16,
     direction: 'left',
-    effects: ['fadeLeft', 'squashStretch'],
+    effects: ['fadeLeft'],
   },
   typewriter: {
-    unit: 'character',
-    staggerFrames: 2,
+    unit: 'word',  // Changed from character to word
+    staggerFrames: 1,
     spring: 'crisp',
-    distance: 10,
+    distance: 6,
     direction: 'up',
     effects: ['fadeUp'],
   },
   cinematic: {
     unit: 'line',
-    staggerFrames: 12,
+    staggerFrames: 4,
     spring: 'smooth',
-    distance: 20,
+    distance: 12,
     direction: 'up',
-    effects: ['fadeUp', 'blur', 'anticipation'],
+    effects: ['fadeUp'],
+  },
+
+  // Lyric video style text animations - dramatic word-by-word reveals
+  lyric: {
+    unit: 'word',
+    staggerFrames: 4,
+    spring: 'bouncy',
+    distance: 60,
+    direction: 'left',   // Will alternate via special handling
+    effects: ['fadeLeft'],
+  },
+
+  stacking: {
+    unit: 'word',
+    staggerFrames: 5,
+    spring: 'snappy',
+    distance: 80,
+    direction: 'up',
+    effects: ['fadeUp'],
+  },
+
+  cascade: {
+    unit: 'word',
+    staggerFrames: 4,
+    spring: 'gentle',
+    distance: 50,
+    direction: 'down',
+    effects: ['fadeDown'],
+  },
+
+  burst: {
+    unit: 'word',
+    staggerFrames: 2,
+    spring: 'elastic',
+    distance: 40,
+    direction: 'up',     // Combined with scale for burst effect
+    effects: ['scaleUp'],
   },
 };
 

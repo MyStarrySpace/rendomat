@@ -4,11 +4,11 @@ import { PolicyWrappedSquare } from './PolicyWrappedSquare';
 import { CivicProfileVideo } from './CivicProfileVideo';
 import { ClassProfileVideo } from './ClassProfileVideo';
 import { UltrahumanVSL } from './UltrahumanVSL';
-import { DynamicSceneComposition } from './DynamicSceneComposition';
+import { DynamicSceneComposition, DynamicSceneProps } from './DynamicSceneComposition';
 import { ASPECT_RATIOS, type AspectRatioKey } from './aspect-ratios';
 import type { PolicyWrappedRenderProps, CivicProfileRenderProps, ClassProfileRenderProps } from './types';
 
-const defaultDynamicSceneProps = {
+const defaultDynamicSceneProps: DynamicSceneProps = {
   sceneType: 'text-only',
   data: {
     title: 'Sample Title',
@@ -18,6 +18,13 @@ const defaultDynamicSceneProps = {
   themeId: 'tech-dark',
   animationStyle: 'none' as const,
   animationIntensity: 'medium' as const,
+};
+
+// Calculate metadata to allow dynamic duration from inputProps
+const calculateDynamicSceneMetadata = ({ props }: { props: DynamicSceneProps }) => {
+  return {
+    durationInFrames: props.durationInFrames || 450,
+  };
 };
 
 export const RemotionRoot: React.FC = () => {
@@ -32,6 +39,7 @@ export const RemotionRoot: React.FC = () => {
         width={1920}
         height={1080}
         defaultProps={defaultDynamicSceneProps}
+        calculateMetadata={calculateDynamicSceneMetadata}
       />
 
       {/* DynamicScene-16x9 (1920x1080) - Landscape/YouTube/Website */}
@@ -43,6 +51,7 @@ export const RemotionRoot: React.FC = () => {
         width={ASPECT_RATIOS['16:9'].width}
         height={ASPECT_RATIOS['16:9'].height}
         defaultProps={defaultDynamicSceneProps}
+        calculateMetadata={calculateDynamicSceneMetadata}
       />
 
       {/* DynamicScene-1x1 (1080x1080) - Square/Instagram Feed/LinkedIn */}
@@ -54,6 +63,7 @@ export const RemotionRoot: React.FC = () => {
         width={ASPECT_RATIOS['1:1'].width}
         height={ASPECT_RATIOS['1:1'].height}
         defaultProps={defaultDynamicSceneProps}
+        calculateMetadata={calculateDynamicSceneMetadata}
       />
 
       {/* DynamicScene-9x16 (1080x1920) - Vertical/TikTok/Reels/Shorts */}
@@ -65,6 +75,7 @@ export const RemotionRoot: React.FC = () => {
         width={ASPECT_RATIOS['9:16'].width}
         height={ASPECT_RATIOS['9:16'].height}
         defaultProps={defaultDynamicSceneProps}
+        calculateMetadata={calculateDynamicSceneMetadata}
       />
       <Composition
         id="UltrahumanVSL"
