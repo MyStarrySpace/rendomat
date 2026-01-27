@@ -13,7 +13,7 @@ import {
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
 
-export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
+export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const layout = useResponsiveLayout();
 
   // Get animation preset from data or default to 'smooth'
@@ -23,8 +23,8 @@ export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, 
   const imageConfig = getElementConfig('dual-images', preset, 'image');
   const titleConfig = getElementConfig('dual-images', preset, 'title');
 
-  // Scene fade
-  const sceneFade = usePresetSceneFade(imageConfig, durationInFrames);
+  // Scene fade (skip fade-out when using external transitions)
+  const sceneFade = usePresetSceneFade(imageConfig, durationInFrames, skipFadeOut);
 
   // For dual images, override direction to slide from opposite sides
   const image1Config = { ...imageConfig, direction: 'left' as const };

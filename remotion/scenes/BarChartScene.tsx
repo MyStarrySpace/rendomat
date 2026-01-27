@@ -14,7 +14,7 @@ import {
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
 
-export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
+export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const layout = useResponsiveLayout();
 
   // Get animation preset from data or default to 'energetic'
@@ -24,8 +24,8 @@ export const BarChartScene: React.FC<SceneProps> = ({ data, durationInFrames, th
   const titleConfig = getElementConfig('bar-chart', preset, 'title');
   const dataConfig = getElementConfig('bar-chart', preset, 'data');
 
-  // Scene fade
-  const sceneFade = usePresetSceneFade(titleConfig, durationInFrames);
+  // Scene fade (skip fade-out when using external transitions)
+  const sceneFade = usePresetSceneFade(titleConfig, durationInFrames, skipFadeOut);
 
   let chartData: any = null;
   try {

@@ -13,7 +13,7 @@ import {
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
 
-export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
+export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const layout = useResponsiveLayout();
 
   // Get animation preset from data or default to 'dramatic' for quotes
@@ -24,8 +24,8 @@ export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
   const quoteTextConfig = getElementConfig('quote', preset, 'body');
   const authorConfig = { ...quoteTextConfig, startDelay: quoteTextConfig.startDelay + 15 };
 
-  // Scene fade
-  const sceneFade = usePresetSceneFade(quoteMarkConfig, durationInFrames);
+  // Scene fade (skip fade-out when using external transitions)
+  const sceneFade = usePresetSceneFade(quoteMarkConfig, durationInFrames, skipFadeOut);
 
   // Quote mark animation (still uses basic animation for the symbol)
   const quoteMarkAnim = usePresetAnimation(quoteMarkConfig, 0);

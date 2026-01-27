@@ -598,12 +598,17 @@ export function usePresetAnimation(
 
 /**
  * Scene fade with preset configuration
+ * @param config - Animation preset config
+ * @param durationInFrames - Scene duration
+ * @param skipFadeOut - If true, only fades in (for use with external transitions)
  */
-export function usePresetSceneFade(config: PresetConfig, durationInFrames: number) {
+export function usePresetSceneFade(
+  config: PresetConfig,
+  durationInFrames: number,
+  skipFadeOut: boolean = false
+) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-
-  const fadeOutStart = durationInFrames - config.fadeOutFrames;
 
   // Fade in with spring
   if (frame < config.fadeInFrames) {
@@ -615,7 +620,13 @@ export function usePresetSceneFade(config: PresetConfig, durationInFrames: numbe
     });
   }
 
+  // Skip fade out if using external transitions
+  if (skipFadeOut) {
+    return 1;
+  }
+
   // Fade out with easing
+  const fadeOutStart = durationInFrames - config.fadeOutFrames;
   if (frame > fadeOutStart) {
     const fadeOutProgress = (frame - fadeOutStart) / config.fadeOutFrames;
     return 1 - Math.pow(fadeOutProgress, 3);

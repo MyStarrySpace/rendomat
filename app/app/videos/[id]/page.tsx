@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -26,11 +26,14 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
-  RefreshCw
+  RefreshCw,
+  ArrowDownUp,
+  Plus,
+  Minus
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { videoApi, sceneApi, clientApi, platformApi, personaApi, Video, Scene, Client, EffectivePersonas, API_BASE } from "@/lib/api";
+import { videoApi, sceneApi, clientApi, platformApi, personaApi, transitionApi, Video, Scene, Client, EffectivePersonas, Transition, TransitionType, API_BASE } from "@/lib/api";
 import { THEMES } from "@/lib/themes";
 import StockImageBrowser from "../../components/StockImageBrowser";
 import PersonaSelector from "@/components/PersonaSelector";
@@ -98,6 +101,12 @@ export default function VideoDetailPage() {
   const [editPersonas, setEditPersonas] = useState<string[]>([]);
   const [editBehaviorOverrides, setEditBehaviorOverrides] = useState<Record<string, string | string[]>>({});
 
+  // Transition state
+  const [transitions, setTransitions] = useState<Transition[]>([]);
+  const [transitionTypes, setTransitionTypes] = useState<TransitionType[]>([]);
+  const [editingTransitionId, setEditingTransitionId] = useState<number | null>(null);
+  const [showTransitions, setShowTransitions] = useState(true);
+
   useEffect(() => {
     loadData();
   }, [videoId]);
@@ -148,12 +157,16 @@ export default function VideoDetailPage() {
 
   async function loadData() {
     try {
-      const [videoData, scenesData] = await Promise.all([
+      const [videoData, scenesData, transitionsData, transitionTypesData] = await Promise.all([
         videoApi.getById(videoId),
         sceneApi.getAllForVideo(videoId),
+        transitionApi.getAllForVideo(videoId),
+        transitionApi.getTypes(),
       ]);
       setVideo(videoData);
       setScenes(scenesData);
+      setTransitions(transitionsData);
+      setTransitionTypes(transitionTypesData);
 
       if (videoData.client_id) {
         const clientData = await clientApi.getById(videoData.client_id);
@@ -311,6 +324,62 @@ export default function VideoDetailPage() {
       setEditBehaviorOverrides(effectivePersonas.behaviorOverrides);
     }
     setEditingPersonas(false);
+  }
+
+  // Transition functions
+  async function handleCreateDefaultTransitions() {
+    try {
+      await transitionApi.createDefaults(videoId);
+      await loadData();
+    } catch (error) {
+      console.error("Failed to create default transitions:", error);
+      alert("Failed to create default transitions");
+    }
+  }
+
+  async function handleUpdateTransition(transitionId: number, data: { transition_type?: string; duration_frames?: number }) {
+    try {
+      await transitionApi.update(transitionId, data);
+      await loadData();
+      setEditingTransitionId(null);
+    } catch (error) {
+      console.error("Failed to update transition:", error);
+      alert("Failed to update transition");
+    }
+  }
+
+  async function handleDeleteTransition(transitionId: number) {
+    try {
+      await transitionApi.delete(transitionId);
+      await loadData();
+    } catch (error) {
+      console.error("Failed to delete transition:", error);
+      alert("Failed to delete transition");
+    }
+  }
+
+  async function handleCreateTransition(fromSceneNumber: number, toSceneNumber: number) {
+    try {
+      await transitionApi.create(videoId, {
+        from_scene_number: fromSceneNumber,
+        to_scene_number: toSceneNumber,
+        transition_type: 'crossfade',
+        duration_frames: 20,
+      });
+      await loadData();
+    } catch (error) {
+      console.error("Failed to create transition:", error);
+      alert("Failed to create transition");
+    }
+  }
+
+  function getTransitionBetweenScenes(fromSceneNumber: number, toSceneNumber: number): Transition | undefined {
+    return transitions.find(t => t.from_scene_number === fromSceneNumber && t.to_scene_number === toSceneNumber);
+  }
+
+  function getTransitionTypeLabel(typeId: string): string {
+    const type = transitionTypes.find(t => t.id === typeId);
+    return type?.label || typeId;
   }
 
   function startEditScene(scene: Scene) {
@@ -694,14 +763,37 @@ export default function VideoDetailPage() {
             style={{ transformOrigin: "left" }}
             className="divider mb-8"
           />
-          <motion.p
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, ...spring.gentle }}
-            className="caption mb-6"
+            className="flex items-center justify-between mb-6"
           >
-            Scenes
-          </motion.p>
+            <p className="caption">Scenes</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowTransitions(!showTransitions)}
+                className={`flex items-center gap-2 text-sm px-3 py-1.5 transition-colors ${
+                  showTransitions
+                    ? 'bg-[hsl(var(--accent-muted))] text-[hsl(var(--accent))]'
+                    : 'bg-[hsl(var(--surface))] text-[hsl(var(--foreground-muted))] hover:bg-[hsl(var(--surface-hover))]'
+                }`}
+              >
+                <ArrowDownUp className="w-4 h-4" />
+                Transitions {showTransitions ? 'On' : 'Off'}
+              </button>
+              {showTransitions && transitions.length === 0 && scenes.length > 1 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleCreateDefaultTransitions}
+                  icon={<Plus className="w-4 h-4" />}
+                >
+                  Add Transitions
+                </Button>
+              )}
+            </div>
+          </motion.div>
 
           {scenes.length === 0 ? (
             <motion.div
@@ -735,10 +827,13 @@ export default function VideoDetailPage() {
                 // Get per-scene render state if rendering
                 const sceneRenderState = progressData?.scenes?.find((s: any) => s.id === scene.id);
                 const isCurrentlyRendering = rendering && progressData?.current_scene_index === sceneIndex;
+                // Get transition to next scene
+                const nextScene = scenes[sceneIndex + 1];
+                const transition = nextScene ? getTransitionBetweenScenes(scene.scene_number, nextScene.scene_number) : undefined;
 
                 return (
+                <React.Fragment key={scene.id}>
                 <motion.div
-                  key={scene.id}
                   variants={cardVariants}
                   className={`bg-[hsl(var(--surface))] border overflow-hidden ${
                     isCurrentlyRendering
@@ -1293,6 +1388,73 @@ export default function VideoDetailPage() {
                     )}
                   </div>
                 </motion.div>
+
+                {/* Transition to next scene */}
+                {showTransitions && nextScene && (
+                  <div className="flex items-center gap-3 py-2 px-4">
+                    <div className="flex-1 h-px bg-[hsl(var(--border))]" />
+                    {transition ? (
+                      <div className="flex items-center gap-2">
+                        {editingTransitionId === transition.id ? (
+                          <div className="flex items-center gap-2 bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-2">
+                            <select
+                              value={transition.transition_type}
+                              onChange={(e) => handleUpdateTransition(transition.id, { transition_type: e.target.value })}
+                              className="bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-2 py-1 text-sm text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
+                            >
+                              {transitionTypes.map((type) => (
+                                <option key={type.id} value={type.id}>
+                                  {type.label}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="number"
+                              value={transition.duration_frames}
+                              onChange={(e) => handleUpdateTransition(transition.id, { duration_frames: parseInt(e.target.value) || 20 })}
+                              min={5}
+                              max={60}
+                              className="w-16 bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-2 py-1 text-sm text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
+                            />
+                            <span className="text-xs text-[hsl(var(--foreground-muted))]">frames</span>
+                            <button
+                              onClick={() => setEditingTransitionId(null)}
+                              className="p-1 text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))]"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setEditingTransitionId(transition.id)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-[hsl(var(--surface))] border border-[hsl(var(--border))] text-sm text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--surface-hover))] transition-colors"
+                          >
+                            <ArrowDownUp className="w-4 h-4" />
+                            <span>{getTransitionTypeLabel(transition.transition_type)}</span>
+                            <span className="text-xs opacity-60">{transition.duration_frames}f</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteTransition(transition.id)}
+                          className="p-1.5 text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--error))] transition-colors"
+                          title="Remove transition"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleCreateTransition(scene.scene_number, nextScene.scene_number)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-[hsl(var(--surface))] border border-dashed border-[hsl(var(--border))] text-sm text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] hover:border-[hsl(var(--accent))] transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Transition
+                      </button>
+                    )}
+                    <div className="flex-1 h-px bg-[hsl(var(--border))]" />
+                  </div>
+                )}
+                </React.Fragment>
               );
               })}
             </motion.div>

@@ -94,7 +94,7 @@ function renderLatex(latex: string): RenderedEquation {
   }
 }
 
-export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
+export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const layout = useResponsiveLayout();
 
   // Get animation preset from data or default to 'dramatic' for equations
@@ -105,8 +105,8 @@ export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, th
   const bodyConfig = getElementConfig('equation', preset, 'body');
   const dataConfig = getElementConfig('equation', preset, 'data');
 
-  // Scene fade
-  const sceneFade = usePresetSceneFade(titleConfig, durationInFrames);
+  // Scene fade (skip fade-out when using external transitions)
+  const sceneFade = usePresetSceneFade(titleConfig, durationInFrames, skipFadeOut);
 
   // Parse equations - support both single equation and array of equations
   const equations = useMemo(() => {

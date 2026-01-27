@@ -27,4 +27,6 @@ export interface SceneProps {
   data: SceneData;
   durationInFrames: number;
   theme: Theme;
+  /** Skip fade-out effect (when using external transitions) */
+  skipFadeOut?: boolean;
 }

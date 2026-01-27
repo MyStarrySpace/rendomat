@@ -14,7 +14,7 @@ import {
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
 
-export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
+export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const layout = useResponsiveLayout();
 
   // Get animation preset from data or default to 'smooth'
@@ -24,8 +24,8 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme 
   const imageConfig = getElementConfig('grid', preset, 'image');
   const titleConfig = getElementConfig('grid', preset, 'title');
 
-  // Scene fade
-  const sceneFade = usePresetSceneFade(imageConfig, durationInFrames);
+  // Scene fade (skip fade-out when using external transitions)
+  const sceneFade = usePresetSceneFade(imageConfig, durationInFrames, skipFadeOut);
 
   const images = [data.image_url, data.image_url_2, data.image_url_3, data.image_url_4].filter(Boolean);
 

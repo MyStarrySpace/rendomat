@@ -9,7 +9,7 @@ import {
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
 
-export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
+export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const layout = useResponsiveLayout();
 
   // Get animation preset from data or default to 'energetic' (user preference)
@@ -19,8 +19,8 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, th
   const titleConfig = getElementConfig('text-only', preset, 'title');
   const bodyConfig = getElementConfig('text-only', preset, 'body');
 
-  // Scene fade
-  const sceneFade = usePresetSceneFade(titleConfig, durationInFrames);
+  // Scene fade (skip fade-out when using external transitions)
+  const sceneFade = usePresetSceneFade(titleConfig, durationInFrames, skipFadeOut);
 
   return (
     <AbsoluteFill style={{

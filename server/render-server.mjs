@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { fork } from 'node:child_process';
 
 import { bundle } from '@remotion/bundler';
-import { clientDb, videoDb, sceneDb } from './database.mjs';
+import { clientDb, videoDb, sceneDb, transitionDb } from './database.mjs';
 import { renderScene, stitchScenes, cleanCache } from './scene-renderer.mjs';
 import { getAllTemplates, getTemplate, createScenesFromTemplate } from './templates.mjs';
 import { generateSlidesFromDescription, generateChartData, generateEquation, improveSceneContent, searchTopicData } from './ai-service.mjs';
@@ -1274,6 +1274,147 @@ app.delete('/api/scenes/:sceneId/cache', async (req, res) => {
     console.error('[scene-cache-clear] Error:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// =============================================================================
+// TRANSITION API
+// =============================================================================
+
+// Get all transitions for a video
+app.get('/api/videos/:videoId/transitions', (req, res) => {
+  try {
+    const videoId = parseInt(req.params.videoId, 10);
+    const video = videoDb.getById(videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+    const transitions = transitionDb.getAllForVideo(videoId);
+    res.json(transitions);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create or update a transition between two scenes
+app.post('/api/videos/:videoId/transitions', (req, res) => {
+  try {
+    const videoId = parseInt(req.params.videoId, 10);
+    const video = videoDb.getById(videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const { from_scene_number, to_scene_number, transition_type, duration_frames, config } = req.body;
+
+    if (from_scene_number === undefined || to_scene_number === undefined) {
+      return res.status(400).json({ error: 'from_scene_number and to_scene_number are required' });
+    }
+
+    // Check if transition already exists
+    const existing = transitionDb.getByScenes(videoId, from_scene_number, to_scene_number);
+    if (existing) {
+      // Update existing transition
+      const updated = transitionDb.update(existing.id, {
+        transition_type,
+        duration_frames,
+        config,
+      });
+      return res.json(updated);
+    }
+
+    // Create new transition
+    const id = transitionDb.create({
+      video_id: videoId,
+      from_scene_number,
+      to_scene_number,
+      transition_type: transition_type || 'crossfade',
+      duration_frames: duration_frames || 20,
+      config,
+    });
+    res.json(transitionDb.getById(id));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update a specific transition
+app.put('/api/transitions/:transitionId', (req, res) => {
+  try {
+    const transitionId = parseInt(req.params.transitionId, 10);
+    const transition = transitionDb.getById(transitionId);
+    if (!transition) {
+      return res.status(404).json({ error: 'Transition not found' });
+    }
+
+    const updated = transitionDb.update(transitionId, req.body);
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a transition
+app.delete('/api/transitions/:transitionId', (req, res) => {
+  try {
+    const transitionId = parseInt(req.params.transitionId, 10);
+    const transition = transitionDb.getById(transitionId);
+    if (!transition) {
+      return res.status(404).json({ error: 'Transition not found' });
+    }
+
+    transitionDb.delete(transitionId);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create default transitions for all scene gaps in a video
+app.post('/api/videos/:videoId/transitions/defaults', (req, res) => {
+  try {
+    const videoId = parseInt(req.params.videoId, 10);
+    const video = videoDb.getById(videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const { type = 'crossfade', duration_frames = 20 } = req.body;
+    const created = transitionDb.createDefaultsForVideo(videoId, type, duration_frames);
+    const transitions = transitionDb.getAllForVideo(videoId);
+
+    res.json({
+      created_count: created.length,
+      transitions,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get available transition types
+app.get('/api/transitions/types', (req, res) => {
+  res.json({
+    types: [
+      { id: 'none', label: 'Cut', description: 'Instant cut with no transition effect', category: 'Basic' },
+      { id: 'crossfade', label: 'Crossfade', description: 'Smooth dissolve between scenes', category: 'Basic' },
+      { id: 'fade-black', label: 'Fade to Black', description: 'Fade out to black, then fade in', category: 'Basic' },
+      { id: 'fade-white', label: 'Fade to White', description: 'Fade out to white, then fade in', category: 'Basic' },
+      { id: 'slide-left', label: 'Slide Left', description: 'New scene slides in from the right', category: 'Slide' },
+      { id: 'slide-right', label: 'Slide Right', description: 'New scene slides in from the left', category: 'Slide' },
+      { id: 'slide-up', label: 'Slide Up', description: 'New scene slides in from the bottom', category: 'Slide' },
+      { id: 'slide-down', label: 'Slide Down', description: 'New scene slides in from the top', category: 'Slide' },
+      { id: 'wipe-left', label: 'Wipe Left', description: 'Reveal new scene with a left-moving wipe', category: 'Wipe' },
+      { id: 'wipe-right', label: 'Wipe Right', description: 'Reveal new scene with a right-moving wipe', category: 'Wipe' },
+      { id: 'wipe-up', label: 'Wipe Up', description: 'Reveal new scene with an upward wipe', category: 'Wipe' },
+      { id: 'wipe-down', label: 'Wipe Down', description: 'Reveal new scene with a downward wipe', category: 'Wipe' },
+      { id: 'zoom-in', label: 'Zoom In', description: 'Zoom into current scene, reveal new scene', category: 'Cinematic' },
+      { id: 'zoom-out', label: 'Zoom Out', description: 'New scene zooms out into view', category: 'Cinematic' },
+      { id: 'blur', label: 'Blur', description: 'Blur transition between scenes', category: 'Cinematic' },
+      { id: 'glitch', label: 'Glitch', description: 'Digital glitch effect', category: 'Cinematic' },
+      { id: 'morph', label: 'Morph', description: 'Organic shape morphing', category: 'Cinematic' },
+    ],
+    categories: ['Basic', 'Slide', 'Wipe', 'Cinematic'],
+  });
 });
 
 app.post('/api/videos/:videoId/render-scenes', async (req, res) => {

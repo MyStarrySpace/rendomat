@@ -50,6 +50,28 @@ export interface Scene {
   updated_at: string;
 }
 
+export interface Transition {
+  id: number;
+  video_id: number;
+  from_scene_number: number;
+  to_scene_number: number;
+  transition_type: string;
+  duration_frames: number;
+  config: string | null;
+  cache_path: string | null;
+  cache_hash: string | null;
+  cached_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TransitionType {
+  id: string;
+  label: string;
+  category: string;
+  description: string;
+}
+
 export interface Template {
   id: string;
   name: string;
@@ -222,6 +244,98 @@ export const sceneApi = {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to clear scene cache');
+  },
+};
+
+// Transition API
+export const transitionApi = {
+  async getAllForVideo(videoId: number): Promise<Transition[]> {
+    const res = await fetch(`${API_BASE}/api/videos/${videoId}/transitions`);
+    if (!res.ok) throw new Error('Failed to fetch transitions');
+    return res.json();
+  },
+
+  async getTypes(): Promise<TransitionType[]> {
+    const res = await fetch(`${API_BASE}/api/transitions/types`);
+    if (!res.ok) throw new Error('Failed to fetch transition types');
+    const data = await res.json();
+    return data.types;
+  },
+
+  async create(
+    videoId: number,
+    data: {
+      from_scene_number: number;
+      to_scene_number: number;
+      transition_type?: string;
+      duration_frames?: number;
+      config?: Record<string, any>;
+    }
+  ): Promise<Transition> {
+    const res = await fetch(`${API_BASE}/api/videos/${videoId}/transitions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to create transition');
+    return res.json();
+  },
+
+  async update(
+    transitionId: number,
+    data: {
+      transition_type?: string;
+      duration_frames?: number;
+      config?: Record<string, any>;
+    }
+  ): Promise<Transition> {
+    const res = await fetch(`${API_BASE}/api/transitions/${transitionId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update transition');
+    return res.json();
+  },
+
+  async delete(transitionId: number): Promise<void> {
+    const res = await fetch(`${API_BASE}/api/transitions/${transitionId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete transition');
+  },
+
+  async createDefaults(videoId: number, transitionType?: string): Promise<Transition[]> {
+    const res = await fetch(`${API_BASE}/api/videos/${videoId}/transitions/defaults`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transition_type: transitionType }),
+    });
+    if (!res.ok) throw new Error('Failed to create default transitions');
+    return res.json();
+  },
+
+  async render(transitionId: number, forceRender = false): Promise<{
+    success: boolean;
+    cached: boolean;
+    transition_id: number;
+    cache_path: string;
+    preview_url: string;
+  }> {
+    const res = await fetch(`${API_BASE}/api/transitions/${transitionId}/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forceRender }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to render transition');
+    }
+    return res.json();
+  },
+
+  getPreviewUrl(transitionId: number): string {
+    return `${API_BASE}/api/transitions/${transitionId}/preview`;
   },
 };
 

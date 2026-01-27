@@ -13,7 +13,7 @@ import {
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
 
-export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
+export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const layout = useResponsiveLayout();
 
   // Get animation preset from data or default to 'energetic'
@@ -23,8 +23,8 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
   const titleConfig = getElementConfig('progress-bars', preset, 'title');
   const dataConfig = getElementConfig('progress-bars', preset, 'data');
 
-  // Scene fade
-  const sceneFade = usePresetSceneFade(titleConfig, durationInFrames);
+  // Scene fade (skip fade-out when using external transitions)
+  const sceneFade = usePresetSceneFade(titleConfig, durationInFrames, skipFadeOut);
 
   // Parse from stats_text format: "75 | Label"
   const bars = data.stats_text

@@ -13,7 +13,7 @@ import {
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
 
-export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames, theme }) => {
+export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const layout = useResponsiveLayout();
 
   // Get animation preset from data or default to 'smooth'
@@ -23,8 +23,8 @@ export const SingleImageScene: React.FC<SceneProps> = ({ data, durationInFrames,
   const imageConfig = getElementConfig('single-image', preset, 'image');
   const titleConfig = getElementConfig('single-image', preset, 'title');
 
-  // Scene fade
-  const sceneFade = usePresetSceneFade(imageConfig, durationInFrames);
+  // Scene fade (skip fade-out when using external transitions)
+  const sceneFade = usePresetSceneFade(imageConfig, durationInFrames, skipFadeOut);
 
   // Element animations
   const imageAnim = usePresetAnimation(imageConfig, 0);

@@ -73,9 +73,27 @@ function initializeDatabase() {
       FOREIGN KEY (scene_id) REFERENCES scenes(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS transitions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      video_id INTEGER NOT NULL,
+      from_scene_number INTEGER NOT NULL,
+      to_scene_number INTEGER NOT NULL,
+      transition_type TEXT DEFAULT 'crossfade',
+      duration_frames INTEGER DEFAULT 20,
+      config TEXT,
+      cache_path TEXT,
+      cache_hash TEXT,
+      cached_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE,
+      UNIQUE(video_id, from_scene_number, to_scene_number)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_videos_client ON videos(client_id);
     CREATE INDEX IF NOT EXISTS idx_scenes_video ON scenes(video_id);
     CREATE INDEX IF NOT EXISTS idx_render_jobs_status ON render_jobs(status);
+    CREATE INDEX IF NOT EXISTS idx_transitions_video ON transitions(video_id);
   `);
 
   // Run migrations
@@ -446,6 +464,115 @@ export const renderJobDb = {
 
   getByJobId(jobId) {
     return db.prepare('SELECT * FROM render_jobs WHERE job_id = ?').get(jobId);
+  }
+};
+
+// Transition operations
+export const transitionDb = {
+  getAllForVideo(videoId) {
+    return db.prepare('SELECT * FROM transitions WHERE video_id = ? ORDER BY from_scene_number').all(videoId);
+  },
+
+  getById(id) {
+    return db.prepare('SELECT * FROM transitions WHERE id = ?').get(id);
+  },
+
+  getByScenes(videoId, fromSceneNumber, toSceneNumber) {
+    return db.prepare(
+      'SELECT * FROM transitions WHERE video_id = ? AND from_scene_number = ? AND to_scene_number = ?'
+    ).get(videoId, fromSceneNumber, toSceneNumber);
+  },
+
+  create(data) {
+    const stmt = db.prepare(`
+      INSERT INTO transitions (video_id, from_scene_number, to_scene_number, transition_type, duration_frames, config)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const result = stmt.run(
+      data.video_id,
+      data.from_scene_number,
+      data.to_scene_number,
+      data.transition_type || 'crossfade',
+      data.duration_frames || 20,
+      data.config ? JSON.stringify(data.config) : null
+    );
+    return result.lastInsertRowid;
+  },
+
+  update(id, data) {
+    const updates = [];
+    const values = [];
+
+    if (data.transition_type !== undefined) {
+      updates.push('transition_type = ?');
+      values.push(data.transition_type);
+    }
+    if (data.duration_frames !== undefined) {
+      updates.push('duration_frames = ?');
+      values.push(data.duration_frames);
+    }
+    if (data.config !== undefined) {
+      updates.push('config = ?');
+      values.push(data.config ? JSON.stringify(data.config) : null);
+    }
+
+    if (updates.length === 0) {
+      return this.getById(id);
+    }
+
+    // Invalidate cache when transition is updated
+    updates.push('cache_path = NULL');
+    updates.push('cache_hash = NULL');
+    updates.push('cached_at = NULL');
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
+
+    const stmt = db.prepare(`UPDATE transitions SET ${updates.join(', ')} WHERE id = ?`);
+    stmt.run(...values);
+    return this.getById(id);
+  },
+
+  updateCache(id, cachePath, cacheHash) {
+    const stmt = db.prepare(`
+      UPDATE transitions
+      SET cache_path = ?, cache_hash = ?, cached_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    stmt.run(cachePath, cacheHash, id);
+    return this.getById(id);
+  },
+
+  delete(id) {
+    db.prepare('DELETE FROM transitions WHERE id = ?').run(id);
+  },
+
+  deleteAllForVideo(videoId) {
+    db.prepare('DELETE FROM transitions WHERE video_id = ?').run(videoId);
+  },
+
+  // Create default transitions for a video (between all consecutive scenes)
+  createDefaultsForVideo(videoId, defaultType = 'crossfade', defaultDuration = 20) {
+    const scenes = db.prepare('SELECT scene_number FROM scenes WHERE video_id = ? ORDER BY scene_number').all(videoId);
+
+    const created = [];
+    for (let i = 0; i < scenes.length - 1; i++) {
+      const fromScene = scenes[i].scene_number;
+      const toScene = scenes[i + 1].scene_number;
+
+      // Check if transition already exists
+      const existing = this.getByScenes(videoId, fromScene, toScene);
+      if (!existing) {
+        const id = this.create({
+          video_id: videoId,
+          from_scene_number: fromScene,
+          to_scene_number: toScene,
+          transition_type: defaultType,
+          duration_frames: defaultDuration,
+        });
+        created.push(id);
+      }
+    }
+    return created;
   }
 };
 
