@@ -75,7 +75,9 @@
       "Bash(cmd //c \"taskkill /PID 51352 /F\")",
       "Bash(cmd //c \"taskkill /PID 53616 /F\")",
       "Bash(cmd //c \"taskkill /PID 67156 /F\")",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npx next build)",
+      "Bash(npm run:*)"
     ]
   }
 }

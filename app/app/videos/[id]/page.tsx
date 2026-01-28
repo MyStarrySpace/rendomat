@@ -34,6 +34,8 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { videoApi, sceneApi, clientApi, platformApi, personaApi, transitionApi, Video, Scene, Client, EffectivePersonas, Transition, TransitionType, API_BASE } from "@/lib/api";
+import { calculateSceneDuration } from "@/lib/scene-duration";
+import { TimelineEditor } from "@/components/timeline";
 import { THEMES } from "@/lib/themes";
 import StockImageBrowser from "../../components/StockImageBrowser";
 import PersonaSelector from "@/components/PersonaSelector";
@@ -373,6 +375,83 @@ export default function VideoDetailPage() {
     }
   }
 
+  async function handleRegenerateFromPrompt() {
+    if (!video) return;
+
+    // Get the video's stored data (which may contain the original prompt)
+    const videoData = video.data ? JSON.parse(video.data) : {};
+    const description = videoData.description || videoData.prompt || video.title;
+
+    if (!description) {
+      alert("No prompt found for this video. Please provide a description.");
+      return;
+    }
+
+    try {
+      setRendering(true);
+      setRenderProgress("Regenerating scenes from prompt...");
+
+      // Generate new slides from AI
+      const response = await fetch(`${API_BASE}/api/ai/generate-slides`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description,
+          sceneCount: scenes.length || null, // Keep similar scene count
+          personas: video.personas,
+          behaviorOverrides: video.behavior_overrides,
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to generate slides');
+      const { slides } = await response.json();
+
+      // Delete existing scenes
+      for (const scene of scenes) {
+        await fetch(`${API_BASE}/api/scenes/${scene.id}`, { method: 'DELETE' });
+      }
+
+      // Create new scenes with smart durations
+      let currentFrame = 0;
+      for (let i = 0; i < slides.length; i++) {
+        const slide = slides[i];
+        const duration = calculateSceneDuration({
+          scene_type: slide.scene_type,
+          data: slide.data
+        });
+
+        await fetch(`${API_BASE}/api/videos/${videoId}/scenes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scene_number: i,
+            name: slide.name,
+            scene_type: slide.scene_type || 'text-only',
+            start_frame: currentFrame,
+            end_frame: currentFrame + duration,
+            data: typeof slide.data === 'string' ? slide.data : JSON.stringify(slide.data)
+          })
+        });
+        currentFrame += duration;
+      }
+
+      // Update video duration
+      await videoApi.update(videoId, {
+        duration_seconds: Math.ceil(currentFrame / 30)
+      });
+
+      await loadData();
+      setRenderProgress("");
+      alert(`Regenerated ${slides.length} scenes with smart durations!`);
+    } catch (error) {
+      console.error("Failed to regenerate from prompt:", error);
+      alert("Failed to regenerate scenes from prompt");
+    } finally {
+      setRendering(false);
+      setRenderProgress("");
+    }
+  }
+
   function getTransitionBetweenScenes(fromSceneNumber: number, toSceneNumber: number): Transition | undefined {
     return transitions.find(t => t.from_scene_number === fromSceneNumber && t.to_scene_number === toSceneNumber);
   }
@@ -440,7 +519,7 @@ export default function VideoDetailPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('${API_BASE}/api/upload', {
+      const response = await fetch(`${API_BASE}/api/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -755,7 +834,7 @@ export default function VideoDetailPage() {
             </div>
           )}
 
-          {/* Scenes */}
+          {/* Timeline Editor */}
           <motion.div
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
@@ -769,20 +848,9 @@ export default function VideoDetailPage() {
             transition={{ delay: 0.3, ...spring.gentle }}
             className="flex items-center justify-between mb-6"
           >
-            <p className="caption">Scenes</p>
+            <p className="caption">Timeline</p>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowTransitions(!showTransitions)}
-                className={`flex items-center gap-2 text-sm px-3 py-1.5 transition-colors ${
-                  showTransitions
-                    ? 'bg-[hsl(var(--accent-muted))] text-[hsl(var(--accent))]'
-                    : 'bg-[hsl(var(--surface))] text-[hsl(var(--foreground-muted))] hover:bg-[hsl(var(--surface-hover))]'
-                }`}
-              >
-                <ArrowDownUp className="w-4 h-4" />
-                Transitions {showTransitions ? 'On' : 'Off'}
-              </button>
-              {showTransitions && transitions.length === 0 && scenes.length > 1 && (
+              {transitions.length === 0 && scenes.length > 1 && (
                 <Button
                   variant="secondary"
                   size="sm"
@@ -795,28 +863,26 @@ export default function VideoDetailPage() {
             </div>
           </motion.div>
 
-          {scenes.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={spring.gentle}
-              className="text-center py-24 border border-[hsl(var(--border))]"
-            >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.1, ...spring.bouncy }}
-              >
-                <Film className="w-12 h-12 text-[hsl(var(--foreground-subtle))] mx-auto mb-6" />
-              </motion.div>
-              <h3 className="headline text-2xl text-[hsl(var(--foreground))] mb-2">
-                No scenes yet
-              </h3>
-              <p className="text-[hsl(var(--foreground-muted))]">
-                Scenes will appear here once the video is set up
-              </p>
-            </motion.div>
-          ) : (
+          <TimelineEditor
+            video={video}
+            scenes={scenes}
+            transitions={transitions}
+            transitionTypes={transitionTypes}
+            onScenesChange={loadData}
+            onTransitionsChange={loadData}
+            onOpenStockBrowser={(fieldName) => {
+              setCurrentImageField(fieldName);
+              setShowStockBrowser(true);
+            }}
+            onRenderVideo={handleRender}
+            onRegenerateFromPrompt={handleRegenerateFromPrompt}
+          />
+
+          {/* Legacy scene cards for detailed editing - collapsible */}
+          <details className="mt-8">
+            <summary className="cursor-pointer text-sm text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] mb-4">
+              Show detailed scene cards
+            </summary>
             <motion.div
               variants={staggerContainer}
               initial="hidden"
@@ -1190,7 +1256,7 @@ export default function VideoDetailPage() {
                                     const description = prompt('Describe the data you want to visualize:');
                                     if (!description) return;
                                     try {
-                                      const response = await fetch('${API_BASE}/api/ai/generate-chart-data', {
+                                      const response = await fetch(`${API_BASE}/api/ai/generate-chart-data`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ description, chartType: scene.scene_type })
@@ -1243,7 +1309,7 @@ export default function VideoDetailPage() {
                                     const description = prompt('Describe the equation or concept:');
                                     if (!description) return;
                                     try {
-                                      const response = await fetch('${API_BASE}/api/ai/generate-equation', {
+                                      const response = await fetch(`${API_BASE}/api/ai/generate-equation`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ description })
@@ -1458,7 +1524,7 @@ export default function VideoDetailPage() {
               );
               })}
             </motion.div>
-          )}
+          </details>
         </div>
       </div>
 

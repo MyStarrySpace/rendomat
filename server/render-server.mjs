@@ -860,6 +860,19 @@ app.put('/api/scenes/:id', (req, res) => {
   }
 });
 
+app.delete('/api/scenes/:id', (req, res) => {
+  try {
+    const scene = sceneDb.getById(req.params.id);
+    if (!scene) {
+      return res.status(404).json({ error: 'Scene not found' });
+    }
+    sceneDb.delete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // =============================
 // File Upload API
 // =============================
