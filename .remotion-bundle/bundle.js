@@ -2,7 +2,7 @@
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 8391:
+/***/ 1086:
 /***/ ((__unused_webpack_module, __unused_webpack___webpack_exports__, __webpack_require__) => {
 
 
@@ -2754,6 +2754,38 @@ const TEXT_ANIMATION_CONFIGS = {
     distance: 20,
     direction: "up",
     effects: ["fadeUp", "blur", "anticipation"]
+  },
+  lyric: {
+    unit: "word",
+    staggerFrames: 4,
+    spring: "bouncy",
+    distance: 60,
+    direction: "left",
+    effects: ["fadeLeft"]
+  },
+  stacking: {
+    unit: "word",
+    staggerFrames: 5,
+    spring: "snappy",
+    distance: 80,
+    direction: "up",
+    effects: ["fadeUp"]
+  },
+  cascade: {
+    unit: "word",
+    staggerFrames: 4,
+    spring: "gentle",
+    distance: 50,
+    direction: "down",
+    effects: ["fadeDown"]
+  },
+  burst: {
+    unit: "word",
+    staggerFrames: 2,
+    spring: "elastic",
+    distance: 40,
+    direction: "up",
+    effects: ["scaleUp"]
   }
 };
 const AnimatedText = ({
@@ -2772,7 +2804,7 @@ const AnimatedText = ({
 }) => {
   const text = children ?? "";
   const config = (0,react.useMemo)(() => {
-    const baseConfig = TEXT_ANIMATION_CONFIGS[preset];
+    const baseConfig = TEXT_ANIMATION_CONFIGS[preset] ?? TEXT_ANIMATION_CONFIGS.smooth;
     return {
       unit: unitOverride ?? baseConfig.unit,
       staggerFrames: staggerOverride ?? baseConfig.staggerFrames,
@@ -23108,6 +23140,18 @@ function getTheme(themeId) {
 
 
 ;// ./animations/types.ts
+const DEFAULT_ANIMATION_PARAMS = {
+  speed: 1,
+  colorOverride: "",
+  blur: 1,
+  opacity: 1,
+  scale: 1,
+  density: 1,
+  entranceDuration: 20
+};
+function resolveParams(params) {
+  return { ...DEFAULT_ANIMATION_PARAMS, ...params };
+}
 const ANIMATION_STYLES = {
   "none": {
     id: "none",
@@ -23177,29 +23221,73 @@ function getAllAnimationStyles() {
   return Object.values(ANIMATION_STYLES);
 }
 
+;// ./animations/random.ts
+function mulberry32(seed) {
+  let s = seed | 0;
+  return () => {
+    s = s + 1831565813 | 0;
+    let t = Math.imul(s ^ s >>> 15, 1 | s);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function createRng(baseSeed) {
+  return mulberry32(baseSeed);
+}
+function rngFloat(rng, min, max) {
+  return min + rng() * (max - min);
+}
+function rngInt(rng, min, max) {
+  return Math.floor(min + rng() * (max - min + 1));
+}
+function rngPick(rng, arr) {
+  return arr[Math.floor(rng() * arr.length)];
+}
+
 ;// ./animations/ParticlesAnimation.tsx
 
 
+
+
+const TIER_SIZES = {
+  sparkle: [1, 2],
+  dot: [3, 5],
+  orb: [6, 10]
+};
 const ParticlesAnimation = ({
   durationInFrames,
   theme,
-  intensity = "medium"
+  intensity = "medium",
+  params: rawParams
 }) => {
   const frame = (0,esm.useCurrentFrame)();
   const { width, height } = (0,esm.useVideoConfig)();
-  const particleCount = intensity === "low" ? 20 : intensity === "medium" ? 40 : 60;
+  const p = resolveParams(rawParams);
+  const baseCount = intensity === "low" ? 20 : intensity === "medium" ? 40 : 60;
+  const particleCount = Math.round(baseCount * p.density);
   const particles = (0,react.useMemo)(() => {
-    return Array.from({ length: particleCount }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      startY: 100 + Math.random() * 20,
-      size: 2 + Math.random() * 4,
-      speed: 0.3 + Math.random() * 0.5,
-      opacity: 0.2 + Math.random() * 0.4,
-      delay: Math.random() * 60
-    }));
+    const rng = createRng(1e3);
+    const tiers = ["sparkle", "sparkle", "dot", "dot", "dot", "orb"];
+    return Array.from({ length: particleCount }, (_, i) => {
+      const tier = tiers[rngInt(rng, 0, tiers.length - 1)];
+      const [minSize, maxSize] = TIER_SIZES[tier];
+      return {
+        id: i,
+        x: rngFloat(rng, 0, 100),
+        startY: rngFloat(rng, 100, 120),
+        size: rngFloat(rng, minSize, maxSize),
+        speed: rngFloat(rng, 0.3, 0.8),
+        opacity: rngFloat(rng, 0.15, 0.35),
+        delay: rngFloat(rng, 0, 60),
+        tier
+      };
+    });
   }, [particleCount]);
-  const accentColor = theme.colors.accent || "#8B5CF6";
+  const accentColor = p.colorOverride || theme.colors.accent || "#8B5CF6";
+  const entrance = (0,esm.interpolate)(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  }) * p.opacity;
   return /* @__PURE__ */ react.createElement(
     "svg",
     {
@@ -23213,10 +23301,10 @@ const ParticlesAnimation = ({
       },
       viewBox: `0 0 ${width} ${height}`
     },
-    /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("radialGradient", { id: "particleGradient" }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: accentColor, stopOpacity: "1" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: accentColor, stopOpacity: "0" }))),
-    particles.map((particle) => {
+    /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("filter", { id: "particleGlow" }, /* @__PURE__ */ react.createElement("feGaussianBlur", { stdDeviation: 3 * p.blur, result: "blur" }), /* @__PURE__ */ react.createElement("feMerge", null, /* @__PURE__ */ react.createElement("feMergeNode", { in: "blur" }), /* @__PURE__ */ react.createElement("feMergeNode", { in: "SourceGraphic" }))), /* @__PURE__ */ react.createElement("symbol", { id: "particle-sparkle", viewBox: "0 0 4 4" }, /* @__PURE__ */ react.createElement("circle", { cx: "2", cy: "2", r: "2" })), /* @__PURE__ */ react.createElement("symbol", { id: "particle-dot", viewBox: "0 0 10 10" }, /* @__PURE__ */ react.createElement("circle", { cx: "5", cy: "5", r: "5" })), /* @__PURE__ */ react.createElement("symbol", { id: "particle-orb", viewBox: "0 0 20 20" }, /* @__PURE__ */ react.createElement("circle", { cx: "10", cy: "10", r: "10" }), /* @__PURE__ */ react.createElement("circle", { cx: "10", cy: "10", r: "6", opacity: "0.5" })), /* @__PURE__ */ react.createElement("radialGradient", { id: "particleGradient" }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: accentColor, stopOpacity: "1" }), /* @__PURE__ */ react.createElement("stop", { offset: "70%", stopColor: accentColor, stopOpacity: "0.4" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: accentColor, stopOpacity: "0" }))),
+    /* @__PURE__ */ react.createElement("g", { opacity: entrance }, particles.map((particle) => {
       const effectiveFrame = Math.max(0, frame - particle.delay);
-      const progress = effectiveFrame * particle.speed % 120;
+      const progress = effectiveFrame * particle.speed * p.speed % 120;
       const y = particle.startY - progress;
       const particleOpacity = (0,esm.interpolate)(
         y,
@@ -23231,44 +23319,55 @@ const ParticlesAnimation = ({
           key: particle.id,
           cx: `${particle.x + drift}%`,
           cy: `${y}%`,
-          r: particle.size,
+          r: particle.size * p.scale,
           fill: "url(#particleGradient)",
-          opacity: particleOpacity
+          opacity: particleOpacity,
+          filter: "url(#particleGlow)"
         }
       );
-    })
+    }))
   );
 };
 
 ;// ./animations/FloatingShapesAnimation.tsx
 
 
+
+
 const FloatingShapesAnimation = ({
   durationInFrames,
   theme,
-  intensity = "medium"
+  intensity = "medium",
+  params: rawParams
 }) => {
   const frame = (0,esm.useCurrentFrame)();
   const { width, height } = (0,esm.useVideoConfig)();
-  const shapeCount = intensity === "low" ? 8 : intensity === "medium" ? 15 : 25;
+  const p = resolveParams(rawParams);
+  const baseCount = intensity === "low" ? 8 : intensity === "medium" ? 15 : 25;
+  const shapeCount = Math.round(baseCount * p.density);
   const shapes = (0,react.useMemo)(() => {
-    const types = ["circle", "square", "triangle", "hexagon"];
+    const rng = createRng(2e3);
+    const types = ["circle", "square", "triangle", "hexagon", "diamond"];
     return Array.from({ length: shapeCount }, (_, i) => ({
       id: i,
-      type: types[Math.floor(Math.random() * types.length)],
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: 30 + Math.random() * 60,
-      rotation: Math.random() * 360,
-      rotationSpeed: (Math.random() - 0.5) * 2,
-      floatSpeed: 0.02 + Math.random() * 0.03,
-      floatRange: 10 + Math.random() * 20,
-      opacity: 0.03 + Math.random() * 0.07,
-      delay: Math.random() * 30
+      type: rngPick(rng, types),
+      x: rngFloat(rng, 0, 100),
+      y: rngFloat(rng, 0, 100),
+      size: rngFloat(rng, 30, 90),
+      rotation: rngFloat(rng, 0, 360),
+      rotationSpeed: rngFloat(rng, -1, 1),
+      floatSpeed: rngFloat(rng, 0.02, 0.05),
+      floatRange: rngFloat(rng, 10, 30),
+      opacity: rngFloat(rng, 0.06, 0.12),
+      delay: rngFloat(rng, 0, 30)
     }));
   }, [shapeCount]);
-  const accentColor = theme.colors.accent || "#8B5CF6";
-  const renderShape = (shape, currentRotation, scale) => {
+  const accentColor = p.colorOverride || theme.colors.accent || "#8B5CF6";
+  const entrance = (0,esm.interpolate)(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  }) * p.opacity;
+  const renderShape = (shape, currentRotation) => {
     const transform = `rotate(${currentRotation})`;
     switch (shape.type) {
       case "circle":
@@ -23281,11 +23380,10 @@ const FloatingShapesAnimation = ({
             y: -shape.size / 2,
             width: shape.size,
             height: shape.size,
-            transform,
-            rx: shape.size * 0.1
+            transform
           }
         );
-      case "triangle":
+      case "triangle": {
         const h = shape.size * Math.sqrt(3) / 2;
         return /* @__PURE__ */ react.createElement(
           "polygon",
@@ -23294,13 +23392,25 @@ const FloatingShapesAnimation = ({
             transform
           }
         );
-      case "hexagon":
+      }
+      case "hexagon": {
         const points = Array.from({ length: 6 }, (_, i) => {
           const angle = (i * 60 - 30) * (Math.PI / 180);
           const r = shape.size / 2;
           return `${Math.cos(angle) * r},${Math.sin(angle) * r}`;
         }).join(" ");
         return /* @__PURE__ */ react.createElement("polygon", { points, transform });
+      }
+      case "diamond": {
+        const half = shape.size / 2;
+        return /* @__PURE__ */ react.createElement(
+          "polygon",
+          {
+            points: `0,${-half} ${half * 0.6},0 0,${half} ${-half * 0.6},0`,
+            transform
+          }
+        );
+      }
       default:
         return null;
     }
@@ -23318,65 +23428,124 @@ const FloatingShapesAnimation = ({
       },
       viewBox: `0 0 ${width} ${height}`
     },
-    shapes.map((shape) => {
+    /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("filter", { id: "shapeShadow" }, /* @__PURE__ */ react.createElement("feGaussianBlur", { stdDeviation: 4 * p.blur, result: "blur" }), /* @__PURE__ */ react.createElement("feMerge", null, /* @__PURE__ */ react.createElement("feMergeNode", { in: "blur" }), /* @__PURE__ */ react.createElement("feMergeNode", { in: "SourceGraphic" })))),
+    /* @__PURE__ */ react.createElement("g", { opacity: entrance }, shapes.map((shape) => {
       const effectiveFrame = Math.max(0, frame - shape.delay);
-      const currentRotation = shape.rotation + effectiveFrame * shape.rotationSpeed;
-      const floatOffset = Math.sin(effectiveFrame * shape.floatSpeed) * shape.floatRange;
+      const currentRotation = shape.rotation + effectiveFrame * shape.rotationSpeed * p.speed;
+      const floatOffset = Math.sin(effectiveFrame * shape.floatSpeed * p.speed) * shape.floatRange;
       const x = shape.x / 100 * width;
       const y = shape.y / 100 * height + floatOffset;
-      const scale = 1 + Math.sin(effectiveFrame * 0.03 + shape.id) * 0.1;
+      const shapeEntrance = (0,esm.interpolate)(
+        frame,
+        [shape.delay, shape.delay + 15],
+        [0, 1],
+        { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+      );
+      const scale = (1 + Math.sin(effectiveFrame * 0.03 + shape.id) * 0.1) * shapeEntrance * p.scale;
       return /* @__PURE__ */ react.createElement(
         "g",
         {
           key: shape.id,
           transform: `translate(${x}, ${y}) scale(${scale})`,
           fill: accentColor,
-          opacity: shape.opacity
+          opacity: shape.opacity,
+          filter: "url(#shapeShadow)"
         },
-        renderShape(shape, currentRotation, scale)
+        renderShape(shape, currentRotation)
       );
-    })
+    }))
   );
 };
 
 ;// ./animations/WavesAnimation.tsx
 
 
+
+const PHI = 1.618033988749;
+const WAVE_PRESETS = [
+  { speed: 0.012, freq: 1, amp: 30, phase: 0, yPct: 0.62 },
+  { speed: 9e-3, freq: 1.4, amp: 24, phase: PHI, yPct: 0.68 },
+  { speed: 6e-3, freq: 1.9, amp: 18, phase: PHI * 2, yPct: 0.74 },
+  { speed: 0.015, freq: 0.8, amp: 35, phase: PHI * 3, yPct: 0.58 },
+  { speed: 4e-3, freq: 2.3, amp: 14, phase: Math.PI, yPct: 0.8 },
+  { speed: 0.01, freq: 1.2, amp: 27, phase: Math.PI + PHI, yPct: 0.65 }
+];
 const WavesAnimation = ({
   durationInFrames,
   theme,
-  intensity = "medium"
+  intensity = "medium",
+  params: rawParams
 }) => {
   const frame = (0,esm.useCurrentFrame)();
   const { width, height } = (0,esm.useVideoConfig)();
-  const waveCount = intensity === "low" ? 2 : intensity === "medium" ? 3 : 4;
-  const accentColor = theme.colors.accent || "#8B5CF6";
-  const generateWavePath = (waveIndex, offsetY, amplitude, frequency, speed, phase) => {
-    const points = [];
-    const step = width / 50;
-    for (let x = 0; x <= width; x += step) {
-      const normalizedX = x / width;
-      const y = offsetY + Math.sin((normalizedX * frequency + frame * speed + phase) * Math.PI * 2) * amplitude + Math.sin((normalizedX * frequency * 0.5 + frame * speed * 0.7 + phase * 2) * Math.PI * 2) * (amplitude * 0.3);
-      if (x === 0) {
-        points.push(`M ${x} ${y}`);
-      } else {
-        points.push(`L ${x} ${y}`);
-      }
-    }
-    points.push(`L ${width} ${height}`);
-    points.push(`L 0 ${height}`);
-    points.push("Z");
-    return points.join(" ");
+  const p = resolveParams(rawParams);
+  const baseCount = intensity === "low" ? 3 : intensity === "medium" ? 4 : 6;
+  const waveCount = Math.min(Math.round(baseCount * p.density), WAVE_PRESETS.length);
+  const accentColor = p.colorOverride || theme.colors.accent || "#8B5CF6";
+  const entrance = (0,esm.interpolate)(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  }) * p.opacity;
+  const computeY = (normalizedX, preset) => {
+    const t = frame * preset.speed * p.speed;
+    const f = preset.freq;
+    const ph = preset.phase;
+    const a = preset.amp * p.scale;
+    const w1 = Math.sin((normalizedX * f + t + ph) * Math.PI * 2) * a;
+    const w2 = Math.sin((normalizedX * f * 0.53 + t * 0.73 + ph * 1.7) * Math.PI * 2) * (a * 0.4);
+    const w3 = Math.sin((normalizedX * f * 2.1 + t * 1.3 + ph * 0.6) * Math.PI * 2) * (a * 0.15);
+    const drift = Math.sin((t * 0.3 + ph * 2.3) * Math.PI * 2) * (a * 0.2);
+    return w1 + w2 + w3 + drift;
   };
-  const waves = Array.from({ length: waveCount }, (_, i) => {
-    const baseY = height * (0.65 + i * 0.12);
-    const amplitude = 20 + i * 10;
-    const frequency = 1.5 + i * 0.3;
-    const speed = 8e-3 + i * 2e-3;
-    const phase = i * 0.5;
-    const opacity = 0.08 - i * 0.015;
+  const SEGMENTS = 30;
+  const generateWavePath = (preset) => {
+    const step = width / SEGMENTS;
+    const baseY = height * preset.yPct;
+    const points = [];
+    for (let i = 0; i <= SEGMENTS; i++) {
+      const x = i * step;
+      const nx = x / width;
+      points.push([x, baseY + computeY(nx, preset)]);
+    }
+    let d = `M ${points[0][0]} ${points[0][1]}`;
+    for (let i = 1; i < points.length; i++) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      const cpx = (prev[0] + curr[0]) / 2;
+      const cpy = (prev[1] + curr[1]) / 2;
+      d += ` Q ${prev[0]} ${prev[1]}, ${cpx} ${cpy}`;
+    }
+    const last = points[points.length - 1];
+    d += ` L ${last[0]} ${last[1]}`;
+    d += ` L ${width} ${height} L 0 ${height} Z`;
+    return d;
+  };
+  const generateCrestPath = (preset) => {
+    const step = width / SEGMENTS;
+    const baseY = height * preset.yPct;
+    const points = [];
+    for (let i = 0; i <= SEGMENTS; i++) {
+      const x = i * step;
+      const nx = x / width;
+      points.push([x, baseY + computeY(nx, preset)]);
+    }
+    let d = `M ${points[0][0]} ${points[0][1]}`;
+    for (let i = 1; i < points.length; i++) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      const cpx = (prev[0] + curr[0]) / 2;
+      const cpy = (prev[1] + curr[1]) / 2;
+      d += ` Q ${prev[0]} ${prev[1]}, ${cpx} ${cpy}`;
+    }
+    return d;
+  };
+  const activePresets = WAVE_PRESETS.slice(0, waveCount).slice().sort((a, b) => a.yPct - b.yPct);
+  const waves = activePresets.map((preset, i) => {
+    const depthFactor = i / Math.max(waveCount - 1, 1);
+    const opacity = 0.06 + depthFactor * 0.1;
     return {
-      path: generateWavePath(i, baseY, amplitude, frequency, speed, phase),
+      path: generateWavePath(preset),
+      crest: generateCrestPath(preset),
       opacity
     };
   });
@@ -23394,31 +23563,44 @@ const WavesAnimation = ({
       viewBox: `0 0 ${width} ${height}`,
       preserveAspectRatio: "none"
     },
-    /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("linearGradient", { id: "waveGradient", x1: "0%", y1: "0%", x2: "0%", y2: "100%" }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: accentColor, stopOpacity: "0.8" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: accentColor, stopOpacity: "0.2" }))),
-    waves.map((wave, i) => /* @__PURE__ */ react.createElement(
+    /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("linearGradient", { id: "waveGradient", x1: "0%", y1: "0%", x2: "0%", y2: "100%" }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: accentColor, stopOpacity: "0.8" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: accentColor, stopOpacity: "0.2" })), /* @__PURE__ */ react.createElement("filter", { id: "waveGlow" }, /* @__PURE__ */ react.createElement("feGaussianBlur", { stdDeviation: 2 * p.blur, result: "blur" }), /* @__PURE__ */ react.createElement("feMerge", null, /* @__PURE__ */ react.createElement("feMergeNode", { in: "blur" }), /* @__PURE__ */ react.createElement("feMergeNode", { in: "SourceGraphic" })))),
+    /* @__PURE__ */ react.createElement("g", { opacity: entrance }, waves.map((wave, i) => /* @__PURE__ */ react.createElement("g", { key: i }, /* @__PURE__ */ react.createElement(
       "path",
       {
-        key: i,
         d: wave.path,
         fill: "url(#waveGradient)",
         opacity: wave.opacity
       }
-    ))
+    ), /* @__PURE__ */ react.createElement(
+      "path",
+      {
+        d: wave.crest,
+        fill: "none",
+        stroke: accentColor,
+        strokeWidth: 1.5,
+        opacity: wave.opacity * 0.6,
+        filter: "url(#waveGlow)"
+      }
+    ))))
   );
 };
 
 ;// ./animations/GridPulseAnimation.tsx
 
 
+
 const GridPulseAnimation = ({
   durationInFrames,
   theme,
-  intensity = "medium"
+  intensity = "medium",
+  params: rawParams
 }) => {
   const frame = (0,esm.useCurrentFrame)();
   const { width, height } = (0,esm.useVideoConfig)();
-  const gridSize = intensity === "low" ? 100 : intensity === "medium" ? 60 : 40;
-  const accentColor = theme.colors.accent || "#8B5CF6";
+  const p = resolveParams(rawParams);
+  const baseGridSize = intensity === "low" ? 100 : intensity === "medium" ? 60 : 40;
+  const gridSize = Math.round(baseGridSize / p.density);
+  const accentColor = p.colorOverride || theme.colors.accent || "#8B5CF6";
   const cols = Math.ceil(width / gridSize) + 1;
   const rows = Math.ceil(height / gridSize) + 1;
   const intersections = (0,react.useMemo)(() => {
@@ -23432,16 +23614,19 @@ const GridPulseAnimation = ({
           x: col * gridSize,
           y: row * gridSize,
           delay: distFromCenter * 2
-          // Ripple effect from center
         });
       }
     }
     return points;
   }, [cols, rows, gridSize]);
-  const pulseWave = (frame2, delay) => {
+  const entrance = (0,esm.interpolate)(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  }) * p.opacity;
+  const pulseWave = (f, delay) => {
     const cycleLength = 90;
-    const adjustedFrame = ((frame2 - delay) % cycleLength + cycleLength) % cycleLength;
-    if (adjustedFrame < 0 || adjustedFrame > 30) return 0;
+    const adjustedFrame = ((f - delay) % cycleLength + cycleLength) % cycleLength;
+    if (adjustedFrame > 30) return 0;
     return (0,esm.interpolate)(
       adjustedFrame,
       [0, 15, 30],
@@ -23449,6 +23634,8 @@ const GridPulseAnimation = ({
       { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
     );
   };
+  const scanX = frame * 3 * p.speed % (width + 200) - 100;
+  const breathe = 0.15 + Math.sin(frame * 0.03 * p.speed) * 0.05;
   return /* @__PURE__ */ react.createElement(
     "svg",
     {
@@ -23462,8 +23649,8 @@ const GridPulseAnimation = ({
       },
       viewBox: `0 0 ${width} ${height}`
     },
-    /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("linearGradient", { id: "gridLineGradientH", x1: "0%", y1: "0%", x2: "100%", y2: "0%" }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: accentColor, stopOpacity: "0" }), /* @__PURE__ */ react.createElement("stop", { offset: "50%", stopColor: accentColor, stopOpacity: "0.3" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: accentColor, stopOpacity: "0" })), /* @__PURE__ */ react.createElement("linearGradient", { id: "gridLineGradientV", x1: "0%", y1: "0%", x2: "0%", y2: "100%" }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: accentColor, stopOpacity: "0" }), /* @__PURE__ */ react.createElement("stop", { offset: "50%", stopColor: accentColor, stopOpacity: "0.3" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: accentColor, stopOpacity: "0" }))),
-    Array.from({ length: rows }, (_, i) => /* @__PURE__ */ react.createElement(
+    /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("linearGradient", { id: "gridLineGradientH", x1: "0%", y1: "0%", x2: "100%", y2: "0%" }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: accentColor, stopOpacity: "0" }), /* @__PURE__ */ react.createElement("stop", { offset: "50%", stopColor: accentColor, stopOpacity: "0.3" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: accentColor, stopOpacity: "0" })), /* @__PURE__ */ react.createElement("linearGradient", { id: "gridLineGradientV", x1: "0%", y1: "0%", x2: "0%", y2: "100%" }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: accentColor, stopOpacity: "0" }), /* @__PURE__ */ react.createElement("stop", { offset: "50%", stopColor: accentColor, stopOpacity: "0.3" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: accentColor, stopOpacity: "0" })), /* @__PURE__ */ react.createElement("filter", { id: "pulseGlow" }, /* @__PURE__ */ react.createElement("feGaussianBlur", { stdDeviation: 3 * p.blur, result: "blur" }), /* @__PURE__ */ react.createElement("feMerge", null, /* @__PURE__ */ react.createElement("feMergeNode", { in: "blur" }), /* @__PURE__ */ react.createElement("feMergeNode", { in: "SourceGraphic" }))), /* @__PURE__ */ react.createElement("linearGradient", { id: "scanGrad", x1: "0%", y1: "0%", x2: "100%", y2: "0%" }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: accentColor, stopOpacity: "0" }), /* @__PURE__ */ react.createElement("stop", { offset: "50%", stopColor: accentColor, stopOpacity: "0.3" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: accentColor, stopOpacity: "0" }))),
+    /* @__PURE__ */ react.createElement("g", { opacity: entrance }, Array.from({ length: rows }, (_, i) => /* @__PURE__ */ react.createElement(
       "line",
       {
         key: `h-${i}`,
@@ -23473,10 +23660,9 @@ const GridPulseAnimation = ({
         y2: i * gridSize,
         stroke: "url(#gridLineGradientH)",
         strokeWidth: 0.5,
-        opacity: 0.15
+        opacity: breathe
       }
-    )),
-    Array.from({ length: cols }, (_, i) => /* @__PURE__ */ react.createElement(
+    )), Array.from({ length: cols }, (_, i) => /* @__PURE__ */ react.createElement(
       "line",
       {
         key: `v-${i}`,
@@ -23486,13 +23672,24 @@ const GridPulseAnimation = ({
         y2: height,
         stroke: "url(#gridLineGradientV)",
         strokeWidth: 0.5,
+        opacity: breathe
+      }
+    )), /* @__PURE__ */ react.createElement(
+      "rect",
+      {
+        x: scanX - 50,
+        y: 0,
+        width: 100,
+        height,
+        fill: "url(#scanGrad)",
         opacity: 0.15
       }
-    )),
-    intersections.map((point, i) => {
+    ), intersections.map((point, i) => {
       const pulseIntensity = pulseWave(frame, point.delay);
-      const size = 2 + pulseIntensity * 4;
-      const opacity = 0.1 + pulseIntensity * 0.5;
+      const distToScan = Math.abs(point.x - scanX);
+      const scanBoost = distToScan < 60 ? (1 - distToScan / 60) * 0.3 : 0;
+      const size = (2 + (pulseIntensity + scanBoost) * 4) * p.scale;
+      const opacity = 0.1 + (pulseIntensity + scanBoost) * 0.5;
       return /* @__PURE__ */ react.createElement(
         "circle",
         {
@@ -23501,37 +23698,45 @@ const GridPulseAnimation = ({
           cy: point.y,
           r: size,
           fill: accentColor,
-          opacity
+          opacity,
+          filter: pulseIntensity > 0.3 || scanBoost > 0.1 ? "url(#pulseGlow)" : void 0
         }
       );
-    })
+    }))
   );
 };
 
 ;// ./animations/BokehAnimation.tsx
 
 
+
+
 const BokehAnimation = ({
   durationInFrames,
   theme,
-  intensity = "medium"
+  intensity = "medium",
+  params: rawParams
 }) => {
   const frame = (0,esm.useCurrentFrame)();
   const { width, height } = (0,esm.useVideoConfig)();
-  const circleCount = intensity === "low" ? 10 : intensity === "medium" ? 20 : 35;
-  const accentColor = theme.colors.accent || "#8B5CF6";
+  const p = resolveParams(rawParams);
+  const baseCount = intensity === "low" ? 10 : intensity === "medium" ? 20 : 35;
+  const circleCount = Math.round(baseCount * p.density);
+  const accentColor = p.colorOverride || theme.colors.accent || "#8B5CF6";
   const circles = (0,react.useMemo)(() => {
+    const rng = createRng(3e3);
     return Array.from({ length: circleCount }, (_, i) => ({
       id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: 30 + Math.random() * 100,
-      opacity: 0.03 + Math.random() * 0.08,
-      pulseSpeed: 0.02 + Math.random() * 0.03,
-      pulsePhase: Math.random() * Math.PI * 2,
-      driftX: (Math.random() - 0.5) * 0.1,
-      driftY: (Math.random() - 0.5) * 0.1,
-      driftSpeed: 0.5 + Math.random() * 0.5
+      x: rngFloat(rng, 0, 100),
+      y: rngFloat(rng, 0, 100),
+      size: rngFloat(rng, 30, 100),
+      opacity: rngFloat(rng, 0.06, 0.15),
+      pulseSpeed: rngFloat(rng, 0.02, 0.05),
+      pulsePhase: rngFloat(rng, 0, Math.PI * 2),
+      driftX: rngFloat(rng, -0.5, 0.5) * 0.2,
+      driftY: rngFloat(rng, -0.5, 0.5) * 0.2,
+      driftSpeed: rngFloat(rng, 0.5, 1),
+      colorShift: i % 3 * 20 - 20
     }));
   }, [circleCount]);
   const parseColor = (hex) => {
@@ -23543,6 +23748,10 @@ const BokehAnimation = ({
     } : { r: 139, g: 92, b: 246 };
   };
   const baseColor = parseColor(accentColor);
+  const entrance = (0,esm.interpolate)(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  }) * p.opacity;
   return /* @__PURE__ */ react.createElement(
     "svg",
     {
@@ -23556,167 +23765,214 @@ const BokehAnimation = ({
       },
       viewBox: `0 0 ${width} ${height}`
     },
-    /* @__PURE__ */ react.createElement("defs", null, circles.map((circle) => {
-      const colorShift = circle.id % 3 * 20 - 20;
-      const r = Math.min(255, Math.max(0, baseColor.r + colorShift));
-      const g = Math.min(255, Math.max(0, baseColor.g + colorShift * 0.5));
-      const b = Math.min(255, Math.max(0, baseColor.b - colorShift * 0.3));
-      return /* @__PURE__ */ react.createElement("radialGradient", { key: `grad-${circle.id}`, id: `bokehGradient-${circle.id}` }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: `rgb(${r},${g},${b})`, stopOpacity: "0.6" }), /* @__PURE__ */ react.createElement("stop", { offset: "50%", stopColor: `rgb(${r},${g},${b})`, stopOpacity: "0.2" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: `rgb(${r},${g},${b})`, stopOpacity: "0" }));
+    /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("filter", { id: "bokehBlur" }, /* @__PURE__ */ react.createElement("feGaussianBlur", { stdDeviation: 6 * p.blur, result: "blur" }), /* @__PURE__ */ react.createElement("feMerge", null, /* @__PURE__ */ react.createElement("feMergeNode", { in: "blur" }), /* @__PURE__ */ react.createElement("feMergeNode", { in: "SourceGraphic" }))), circles.map((circle) => {
+      const r = Math.min(255, Math.max(0, baseColor.r + circle.colorShift));
+      const g = Math.min(255, Math.max(0, baseColor.g + circle.colorShift * 0.5));
+      const b = Math.min(255, Math.max(0, baseColor.b - circle.colorShift * 0.3));
+      return /* @__PURE__ */ react.createElement("radialGradient", { key: `grad-${circle.id}`, id: `bokehGrad-${circle.id}` }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: `rgb(${r},${g},${b})`, stopOpacity: "0.7" }), /* @__PURE__ */ react.createElement("stop", { offset: "40%", stopColor: `rgb(${r},${g},${b})`, stopOpacity: "0.3" }), /* @__PURE__ */ react.createElement("stop", { offset: "70%", stopColor: `rgb(${r},${g},${b})`, stopOpacity: "0.1" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: `rgb(${r},${g},${b})`, stopOpacity: "0" }));
     })),
-    circles.map((circle) => {
-      const driftProgress = frame * circle.driftSpeed;
+    /* @__PURE__ */ react.createElement("g", { opacity: entrance }, circles.map((circle) => {
+      const driftProgress = frame * circle.driftSpeed * p.speed;
       const currentX = circle.x / 100 * width + Math.sin(driftProgress * 0.01 + circle.id) * circle.driftX * width;
       const currentY = circle.y / 100 * height + Math.cos(driftProgress * 0.01 + circle.id * 0.5) * circle.driftY * height;
-      const pulse = Math.sin(frame * circle.pulseSpeed + circle.pulsePhase);
-      const currentSize = circle.size * (1 + pulse * 0.2);
+      const pulse = Math.sin(frame * circle.pulseSpeed * p.speed + circle.pulsePhase);
+      const currentSize = circle.size * (1 + pulse * 0.2) * p.scale;
       const currentOpacity = circle.opacity * (1 + pulse * 0.3);
-      return /* @__PURE__ */ react.createElement(
+      return /* @__PURE__ */ react.createElement("g", { key: circle.id, filter: "url(#bokehBlur)" }, /* @__PURE__ */ react.createElement(
         "circle",
         {
-          key: circle.id,
           cx: currentX,
           cy: currentY,
-          r: currentSize,
-          fill: `url(#bokehGradient-${circle.id})`,
-          opacity: currentOpacity
-        }
-      );
-    })
-  );
-};
-
-;// ./animations/GeometricAnimation.tsx
-
-
-const GeometricAnimation = ({
-  durationInFrames,
-  theme,
-  intensity = "medium"
-}) => {
-  const frame = (0,esm.useCurrentFrame)();
-  const { width, height } = (0,esm.useVideoConfig)();
-  const lineCount = intensity === "low" ? 8 : intensity === "medium" ? 15 : 25;
-  const accentColor = theme.colors.accent || "#8B5CF6";
-  const lines = (0,react.useMemo)(() => {
-    return Array.from({ length: lineCount }, (_, i) => ({
-      id: i,
-      x1: Math.random() * width,
-      y1: Math.random() * height,
-      angle: Math.random() * 360,
-      length: 50 + Math.random() * 150,
-      delay: Math.random() * 60,
-      speed: 0.5 + Math.random() * 1
-    }));
-  }, [lineCount, width, height]);
-  const connectionPoints = (0,react.useMemo)(() => {
-    const points = [];
-    const count = intensity === "low" ? 4 : intensity === "medium" ? 6 : 8;
-    for (let i = 0; i < count; i++) {
-      points.push({
-        x: width * 0.2 + Math.random() * width * 0.6,
-        y: height * 0.2 + Math.random() * height * 0.6
-      });
-    }
-    return points;
-  }, [intensity, width, height]);
-  return /* @__PURE__ */ react.createElement(
-    "svg",
-    {
-      style: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        pointerEvents: "none"
-      },
-      viewBox: `0 0 ${width} ${height}`
-    },
-    /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("linearGradient", { id: "geoLineGradient", x1: "0%", y1: "0%", x2: "100%", y2: "0%" }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: accentColor, stopOpacity: "0" }), /* @__PURE__ */ react.createElement("stop", { offset: "50%", stopColor: accentColor, stopOpacity: "0.5" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: accentColor, stopOpacity: "0" }))),
-    lines.map((line) => {
-      const effectiveFrame = Math.max(0, frame - line.delay);
-      const rotation = line.angle + effectiveFrame * line.speed;
-      const angleRad = rotation * Math.PI / 180;
-      const x2 = line.x1 + Math.cos(angleRad) * line.length;
-      const y2 = line.y1 + Math.sin(angleRad) * line.length;
-      const pulse = Math.sin(effectiveFrame * 0.05 + line.id) * 0.5 + 0.5;
-      const opacity = 0.05 + pulse * 0.1;
-      return /* @__PURE__ */ react.createElement(
-        "line",
-        {
-          key: line.id,
-          x1: line.x1,
-          y1: line.y1,
-          x2,
-          y2,
-          stroke: accentColor,
-          strokeWidth: 1,
-          opacity
-        }
-      );
-    }),
-    connectionPoints.map((point, i) => {
-      const nextPoint = connectionPoints[(i + 1) % connectionPoints.length];
-      const breathe = Math.sin(frame * 0.02 + i * 0.5) * 10;
-      const currentX = point.x + breathe * Math.cos(i);
-      const currentY = point.y + breathe * Math.sin(i);
-      const nextX = nextPoint.x + breathe * Math.cos(i + 1);
-      const nextY = nextPoint.y + breathe * Math.sin(i + 1);
-      return /* @__PURE__ */ react.createElement(react.Fragment, { key: `conn-${i}` }, /* @__PURE__ */ react.createElement(
-        "line",
-        {
-          x1: currentX,
-          y1: currentY,
-          x2: nextX,
-          y2: nextY,
-          stroke: accentColor,
-          strokeWidth: 0.5,
-          opacity: 0.15
+          r: currentSize * 1.2,
+          fill: "none",
+          stroke: `url(#bokehGrad-${circle.id})`,
+          strokeWidth: 2,
+          opacity: currentOpacity * 0.4
         }
       ), /* @__PURE__ */ react.createElement(
         "circle",
         {
           cx: currentX,
           cy: currentY,
-          r: 3,
-          fill: accentColor,
-          opacity: 0.2
+          r: currentSize,
+          fill: `url(#bokehGrad-${circle.id})`,
+          opacity: currentOpacity
         }
       ));
-    })
+    }))
   );
 };
 
-;// ./animations/MatrixAnimation.tsx
+;// ./animations/GeometricAnimation.tsx
 
 
-const MatrixAnimation = ({
+
+
+const CUBE = (() => {
+  const v = [];
+  for (let z = -1; z <= 1; z += 2)
+    for (let y = -1; y <= 1; y += 2)
+      for (let x = -1; x <= 1; x += 2)
+        v.push([x, y, z]);
+  const s = 1 / Math.sqrt(3);
+  const verts = v.map(([x, y, z]) => [x * s, y * s, z * s]);
+  return {
+    verts,
+    edges: [
+      [0, 1],
+      [2, 3],
+      [4, 5],
+      [6, 7],
+      // x-edges
+      [0, 2],
+      [1, 3],
+      [4, 6],
+      [5, 7],
+      // y-edges
+      [0, 4],
+      [1, 5],
+      [2, 6],
+      [3, 7]
+      // z-edges
+    ],
+    faces: [
+      [0, 1, 3, 2],
+      [4, 5, 7, 6],
+      // front/back
+      [0, 1, 5, 4],
+      [2, 3, 7, 6],
+      // bottom/top
+      [0, 2, 6, 4],
+      [1, 3, 7, 5]
+      // left/right
+    ]
+  };
+})();
+const OCTAHEDRON = {
+  verts: [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]],
+  edges: [
+    [0, 2],
+    [0, 3],
+    [0, 4],
+    [0, 5],
+    [1, 2],
+    [1, 3],
+    [1, 4],
+    [1, 5],
+    [2, 4],
+    [2, 5],
+    [3, 4],
+    [3, 5]
+  ],
+  faces: [
+    [0, 2, 4],
+    [0, 4, 3],
+    [0, 3, 5],
+    [0, 5, 2],
+    [1, 2, 4],
+    [1, 4, 3],
+    [1, 3, 5],
+    [1, 5, 2]
+  ]
+};
+const ICOSAHEDRON = (() => {
+  const t = (1 + Math.sqrt(5)) / 2;
+  const raw = [
+    [-1, t, 0],
+    [1, t, 0],
+    [-1, -t, 0],
+    [1, -t, 0],
+    [0, -1, t],
+    [0, 1, t],
+    [0, -1, -t],
+    [0, 1, -t],
+    [t, 0, -1],
+    [t, 0, 1],
+    [-t, 0, -1],
+    [-t, 0, 1]
+  ];
+  const len = Math.sqrt(1 + t * t);
+  const verts = raw.map(([x, y, z]) => [x / len, y / len, z / len]);
+  const faces = [
+    [0, 11, 5],
+    [0, 5, 1],
+    [0, 1, 7],
+    [0, 7, 10],
+    [0, 10, 11],
+    [1, 5, 9],
+    [5, 11, 4],
+    [11, 10, 2],
+    [10, 7, 6],
+    [7, 1, 8],
+    [3, 9, 4],
+    [3, 4, 2],
+    [3, 2, 6],
+    [3, 6, 8],
+    [3, 8, 9],
+    [4, 9, 5],
+    [2, 4, 11],
+    [6, 2, 10],
+    [8, 6, 7],
+    [9, 8, 1]
+  ];
+  const edgeSet = /* @__PURE__ */ new Set();
+  const edges = [];
+  for (const f of faces) {
+    for (let i = 0; i < f.length; i++) {
+      const a = f[i], b = f[(i + 1) % f.length];
+      const key = `${Math.min(a, b)}-${Math.max(a, b)}`;
+      if (!edgeSet.has(key)) {
+        edgeSet.add(key);
+        edges.push([a, b]);
+      }
+    }
+  }
+  return { verts, edges, faces };
+})();
+const SHAPES = [CUBE, OCTAHEDRON, ICOSAHEDRON];
+function rotateY(v, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  return [v[0] * c + v[2] * s, v[1], -v[0] * s + v[2] * c];
+}
+function rotateX(v, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  return [v[0], v[1] * c - v[2] * s, v[1] * s + v[2] * c];
+}
+function rotateZ(v, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  return [v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]];
+}
+const GeometricAnimation = ({
   durationInFrames,
   theme,
-  intensity = "medium"
+  intensity = "medium",
+  params: rawParams
 }) => {
   const frame = (0,esm.useCurrentFrame)();
   const { width, height } = (0,esm.useVideoConfig)();
-  const columnCount = intensity === "low" ? 15 : intensity === "medium" ? 25 : 40;
-  const accentColor = theme.colors.accent || "#8B5CF6";
-  const charSize = 14;
-  const charSet = "0123456789ABCDEF+=-*/><[]{}|\\".split("");
-  const columns = (0,react.useMemo)(() => {
-    return Array.from({ length: columnCount }, (_, i) => {
-      const length = 5 + Math.floor(Math.random() * 15);
-      return {
-        id: i,
-        x: i / columnCount * width + Math.random() * 20 - 10,
-        speed: 1 + Math.random() * 2,
-        length,
-        delay: Math.random() * 120,
-        chars: Array.from(
-          { length },
-          () => charSet[Math.floor(Math.random() * charSet.length)]
-        )
-      };
-    });
-  }, [columnCount, width, charSet.length]);
+  const p = resolveParams(rawParams);
+  const baseCount = intensity === "low" ? 3 : intensity === "medium" ? 5 : 8;
+  const polyCount = Math.round(baseCount * p.density);
+  const accentColor = p.colorOverride || theme.colors.accent || "#8B5CF6";
+  const instances = (0,react.useMemo)(() => {
+    const rng = createRng(6e3);
+    return Array.from({ length: polyCount }, (_, i) => ({
+      id: i,
+      cx: rngFloat(rng, width * 0.1, width * 0.9),
+      cy: rngFloat(rng, height * 0.1, height * 0.9),
+      radius: rngFloat(rng, 35, 90),
+      shapeIdx: rngInt(rng, 0, SHAPES.length - 1),
+      rotSpeedY: rngFloat(rng, 0.4, 1),
+      rotSpeedX: rngFloat(rng, 0.15, 0.45),
+      rotSpeedZ: rngFloat(rng, 0.05, 0.25),
+      delay: rngFloat(rng, 0, 40),
+      opacity: rngFloat(rng, 0.15, 0.35)
+    }));
+  }, [polyCount, width, height]);
+  const entrance = (0,esm.interpolate)(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  }) * p.opacity;
   return /* @__PURE__ */ react.createElement(
     "svg",
     {
@@ -23730,52 +23986,191 @@ const MatrixAnimation = ({
       },
       viewBox: `0 0 ${width} ${height}`
     },
-    /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("linearGradient", { id: "matrixFade", x1: "0%", y1: "0%", x2: "0%", y2: "100%" }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: accentColor, stopOpacity: "0.8" }), /* @__PURE__ */ react.createElement("stop", { offset: "50%", stopColor: accentColor, stopOpacity: "0.4" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: accentColor, stopOpacity: "0" }))),
-    columns.map((column) => {
+    /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("filter", { id: "vertexGlow" }, /* @__PURE__ */ react.createElement("feGaussianBlur", { stdDeviation: 3 * p.blur, result: "blur" }), /* @__PURE__ */ react.createElement("feMerge", null, /* @__PURE__ */ react.createElement("feMergeNode", { in: "blur" }), /* @__PURE__ */ react.createElement("feMergeNode", { in: "SourceGraphic" })))),
+    /* @__PURE__ */ react.createElement("g", { opacity: entrance }, instances.map((inst) => {
+      const shape = SHAPES[inst.shapeIdx];
+      const t = Math.max(0, frame - inst.delay) * 0.02 * p.speed;
+      const polyEntrance = (0,esm.interpolate)(
+        frame,
+        [inst.delay, inst.delay + 25],
+        [0, 1],
+        { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+      );
+      const breathe = 1 + Math.sin(t * 1.5 + inst.id * 2.3) * 0.06;
+      const r = inst.radius * p.scale * breathe;
+      const aY = t * inst.rotSpeedY;
+      const aX = t * inst.rotSpeedX;
+      const aZ = t * inst.rotSpeedZ;
+      const projected = shape.verts.map((v) => {
+        let rv = rotateY(v, aY);
+        rv = rotateX(rv, aX);
+        rv = rotateZ(rv, aZ);
+        return [inst.cx + rv[0] * r, inst.cy + rv[1] * r, rv[2]];
+      });
+      const sortedFaces = shape.faces.map((f, fi) => {
+        const avgZ = f.reduce((s, vi) => s + projected[vi][2], 0) / f.length;
+        return { fi, avgZ };
+      }).sort((a, b) => a.avgZ - b.avgZ);
+      return /* @__PURE__ */ react.createElement("g", { key: inst.id, opacity: inst.opacity * polyEntrance }, sortedFaces.map(({ fi }) => {
+        const face = shape.faces[fi];
+        const d = face.map((vi, j) => {
+          const [x, y] = projected[vi];
+          return `${j === 0 ? "M" : "L"} ${x} ${y}`;
+        }).join(" ") + " Z";
+        const avgZ = face.reduce((s, vi) => s + projected[vi][2], 0) / face.length;
+        const faceBrightness = 0.04 + Math.max(0, avgZ) * 0.12;
+        return /* @__PURE__ */ react.createElement(
+          "path",
+          {
+            key: `f-${fi}`,
+            d,
+            fill: accentColor,
+            opacity: faceBrightness
+          }
+        );
+      }), shape.edges.map(([a, b], ei) => /* @__PURE__ */ react.createElement(
+        "line",
+        {
+          key: `e-${ei}`,
+          x1: projected[a][0],
+          y1: projected[a][1],
+          x2: projected[b][0],
+          y2: projected[b][1],
+          stroke: accentColor,
+          strokeWidth: 1.5,
+          opacity: 0.6
+        }
+      )), projected.map(([x, y], vi) => /* @__PURE__ */ react.createElement(
+        "circle",
+        {
+          key: `v-${vi}`,
+          cx: x,
+          cy: y,
+          r: 2.5,
+          fill: accentColor,
+          opacity: 0.8,
+          filter: "url(#vertexGlow)"
+        }
+      )));
+    }))
+  );
+};
+
+;// ./animations/MatrixAnimation.tsx
+
+
+
+
+const CHAR_SET = "0123456789ABCDEF+=-*/><[]{}|\\".split("");
+const MatrixAnimation = ({
+  durationInFrames,
+  theme,
+  intensity = "medium",
+  params: rawParams
+}) => {
+  const frame = (0,esm.useCurrentFrame)();
+  const { width, height } = (0,esm.useVideoConfig)();
+  const p = resolveParams(rawParams);
+  const baseCount = intensity === "low" ? 15 : intensity === "medium" ? 25 : 40;
+  const columnCount = Math.round(baseCount * p.density);
+  const accentColor = p.colorOverride || theme.colors.accent || "#8B5CF6";
+  const charSize = 14 * p.scale;
+  const columns = (0,react.useMemo)(() => {
+    const rng = createRng(5e3);
+    return Array.from({ length: columnCount }, (_, i) => {
+      const length = rngInt(rng, 5, 20);
+      return {
+        id: i,
+        x: i / columnCount * width + rngFloat(rng, -10, 10),
+        speed: rngFloat(rng, 1, 3),
+        length,
+        delay: rngFloat(rng, 0, 120),
+        chars: Array.from({ length }, () => rngPick(rng, CHAR_SET)),
+        entranceDelay: rngFloat(rng, 0, 30)
+      };
+    });
+  }, [columnCount, width]);
+  const getCharAtFrame = (baseChar, colId, charIdx, f) => {
+    const mutationSeed = colId * 100 + charIdx;
+    const cycle = Math.floor(f / 8);
+    const hash = (mutationSeed + cycle) * 2654435761 >>> 0;
+    if (hash % 5 === 0) {
+      return CHAR_SET[hash % CHAR_SET.length];
+    }
+    return baseChar;
+  };
+  const entrance = (0,esm.interpolate)(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  }) * p.opacity;
+  return /* @__PURE__ */ react.createElement(
+    "svg",
+    {
+      style: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none"
+      },
+      viewBox: `0 0 ${width} ${height}`
+    },
+    /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("linearGradient", { id: "matrixFade", x1: "0%", y1: "0%", x2: "0%", y2: "100%" }, /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: accentColor, stopOpacity: "0.8" }), /* @__PURE__ */ react.createElement("stop", { offset: "50%", stopColor: accentColor, stopOpacity: "0.4" }), /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: accentColor, stopOpacity: "0" })), /* @__PURE__ */ react.createElement("filter", { id: "headGlow" }, /* @__PURE__ */ react.createElement("feGaussianBlur", { stdDeviation: 4 * p.blur, result: "blur" }), /* @__PURE__ */ react.createElement("feMerge", null, /* @__PURE__ */ react.createElement("feMergeNode", { in: "blur" }), /* @__PURE__ */ react.createElement("feMergeNode", { in: "SourceGraphic" })))),
+    /* @__PURE__ */ react.createElement("g", { opacity: entrance }, columns.map((column) => {
+      const colEntrance = (0,esm.interpolate)(
+        frame,
+        [column.entranceDelay, column.entranceDelay + 15],
+        [0, 1],
+        { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+      );
       const effectiveFrame = Math.max(0, frame - column.delay);
       const cycleLength = height / column.speed + column.length * charSize;
-      const yOffset = effectiveFrame * column.speed % cycleLength;
-      return /* @__PURE__ */ react.createElement("g", { key: column.id }, column.chars.map((char, charIndex) => {
+      const yOffset = effectiveFrame * column.speed * p.speed % cycleLength;
+      return /* @__PURE__ */ react.createElement("g", { key: column.id, opacity: colEntrance }, column.chars.map((char, charIndex) => {
         const baseY = yOffset - charIndex * charSize;
-        const y = baseY;
-        const wrappedY = (y % (height + column.length * charSize) + height + column.length * charSize) % (height + column.length * charSize) - column.length * charSize / 2;
+        const wrappedY = (baseY % (height + column.length * charSize) + height + column.length * charSize) % (height + column.length * charSize) - column.length * charSize / 2;
         if (wrappedY < -charSize || wrappedY > height + charSize) return null;
-        const isBright = charIndex === 0;
+        const isHead = charIndex === 0;
         const fadeProgress = charIndex / column.length;
-        const opacity = isBright ? 0.3 : Math.max(0, 0.15 * (1 - fadeProgress));
-        const frameOffset = Math.floor(effectiveFrame / 10) + column.id + charIndex;
-        const displayChar = frameOffset % 20 === 0 ? charSet[Math.floor(Math.random() * charSet.length)] : char;
+        const opacity = isHead ? 0.5 : Math.max(0, 0.25 * (1 - fadeProgress));
+        const displayChar = getCharAtFrame(char, column.id, charIndex, effectiveFrame);
         return /* @__PURE__ */ react.createElement(
           "text",
           {
             key: `${column.id}-${charIndex}`,
             x: column.x,
             y: wrappedY,
-            fill: isBright ? "#fff" : accentColor,
+            fill: isHead ? "#fff" : accentColor,
             fontSize: charSize,
             fontFamily: "monospace",
             opacity,
-            textAnchor: "middle"
+            textAnchor: "middle",
+            filter: isHead ? "url(#headGlow)" : void 0
           },
           displayChar
         );
       }));
-    })
+    }))
   );
 };
 
 ;// ./animations/AuroraAnimation.tsx
 
 
+
 const AuroraAnimation = ({
   durationInFrames,
   theme,
-  intensity = "medium"
+  intensity = "medium",
+  params: rawParams
 }) => {
   const frame = (0,esm.useCurrentFrame)();
   const { width, height } = (0,esm.useVideoConfig)();
-  const waveCount = intensity === "low" ? 2 : intensity === "medium" ? 3 : 4;
-  const accentColor = theme.colors.accent || "#8B5CF6";
+  const p = resolveParams(rawParams);
+  const baseCount = intensity === "low" ? 2 : intensity === "medium" ? 3 : 4;
+  const waveCount = Math.round(baseCount * p.density);
+  const accentColor = p.colorOverride || theme.colors.accent || "#8B5CF6";
   const parseColor = (hex) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -23785,40 +24180,53 @@ const AuroraAnimation = ({
     } : { r: 139, g: 92, b: 246 };
   };
   const baseColor = parseColor(accentColor);
-  const generateAuroraPath = (waveIndex, baseY, amplitude, frequency, phase) => {
+  const entrance = (0,esm.interpolate)(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  }) * p.opacity;
+  const generateAuroraPath = (baseY, amplitude, frequency, phase) => {
+    const segments = 20;
+    const step = width / segments;
     const points = [];
-    const step = width / 100;
-    for (let x = 0; x <= width; x += step) {
+    for (let i = 0; i <= segments; i++) {
+      const x = i * step;
       const normalizedX = x / width;
-      const wave1 = Math.sin((normalizedX * frequency + frame * 5e-3 + phase) * Math.PI * 2) * amplitude;
-      const wave2 = Math.sin((normalizedX * frequency * 2 + frame * 8e-3 + phase * 1.5) * Math.PI * 2) * (amplitude * 0.3);
-      const wave3 = Math.sin((normalizedX * frequency * 0.5 + frame * 3e-3 + phase * 0.7) * Math.PI * 2) * (amplitude * 0.5);
+      const wave1 = Math.sin((normalizedX * frequency + frame * 5e-3 * p.speed + phase) * Math.PI * 2) * amplitude * p.scale;
+      const wave2 = Math.sin((normalizedX * frequency * 2 + frame * 8e-3 * p.speed + phase * 1.5) * Math.PI * 2) * (amplitude * 0.3 * p.scale);
+      const wave3 = Math.sin((normalizedX * frequency * 0.5 + frame * 3e-3 * p.speed + phase * 0.7) * Math.PI * 2) * (amplitude * 0.5 * p.scale);
       const y = baseY + wave1 + wave2 + wave3;
-      if (x === 0) {
-        points.push(`M ${x} ${y}`);
-      } else {
-        points.push(`L ${x} ${y}`);
-      }
+      points.push([x, y]);
     }
-    points.push(`L ${width} 0`);
-    points.push(`L 0 0`);
-    points.push("Z");
-    return points.join(" ");
+    let d = `M ${points[0][0]} ${points[0][1]}`;
+    for (let i = 1; i < points.length - 1; i++) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      const next = points[i + 1];
+      const cp1x = prev[0] + (curr[0] - prev[0]) * 0.5;
+      const cp1y = curr[1];
+      const cp2x = curr[0] + (next[0] - curr[0]) * 0.5;
+      const cp2y = curr[1];
+      d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${next[0]} ${next[1]}`;
+    }
+    d += ` L ${width} 0 L 0 0 Z`;
+    return d;
   };
   const auroraWaves = Array.from({ length: waveCount }, (_, i) => {
     const hueShift = i * 30;
     const r = Math.min(255, Math.max(0, baseColor.r - hueShift * 0.5));
     const g = Math.min(255, Math.max(0, baseColor.g + hueShift * 0.3));
     const b = Math.min(255, Math.max(0, baseColor.b + hueShift * 0.2));
+    const gradShift = Math.sin(frame * 0.01 + i) * 10;
     const baseY = height * (0.3 + i * 0.15);
     const amplitude = 30 + i * 15;
     const frequency = 1 + i * 0.3;
     const phase = i * 0.8;
-    const opacity = 0.06 - i * 0.01;
+    const opacity = 0.08 + i * 0.02;
     return {
-      path: generateAuroraPath(i, baseY, amplitude, frequency, phase),
+      path: generateAuroraPath(baseY, amplitude, frequency, phase),
       color: `rgb(${r},${g},${b})`,
-      opacity
+      opacity: Math.min(opacity, 0.15),
+      gradShift
     };
   });
   return /* @__PURE__ */ react.createElement(
@@ -23845,11 +24253,11 @@ const AuroraAnimation = ({
         x2: "0%",
         y2: "0%"
       },
-      /* @__PURE__ */ react.createElement("stop", { offset: "0%", stopColor: wave.color, stopOpacity: "0.8" }),
-      /* @__PURE__ */ react.createElement("stop", { offset: "50%", stopColor: wave.color, stopOpacity: "0.3" }),
+      /* @__PURE__ */ react.createElement("stop", { offset: `${Math.max(0, wave.gradShift)}%`, stopColor: wave.color, stopOpacity: "0.8" }),
+      /* @__PURE__ */ react.createElement("stop", { offset: `${50 + wave.gradShift * 0.5}%`, stopColor: wave.color, stopOpacity: "0.3" }),
       /* @__PURE__ */ react.createElement("stop", { offset: "100%", stopColor: wave.color, stopOpacity: "0" })
-    )), /* @__PURE__ */ react.createElement("filter", { id: "auroraBlur" }, /* @__PURE__ */ react.createElement("feGaussianBlur", { stdDeviation: "20" }))),
-    /* @__PURE__ */ react.createElement("g", { filter: "url(#auroraBlur)" }, auroraWaves.map((wave, i) => /* @__PURE__ */ react.createElement(
+    )), /* @__PURE__ */ react.createElement("filter", { id: "auroraBlur" }, /* @__PURE__ */ react.createElement("feGaussianBlur", { stdDeviation: 40 * p.blur }))),
+    /* @__PURE__ */ react.createElement("g", { filter: "url(#auroraBlur)", opacity: entrance }, auroraWaves.map((wave, i) => /* @__PURE__ */ react.createElement(
       "path",
       {
         key: i,
@@ -23864,48 +24272,61 @@ const AuroraAnimation = ({
 ;// ./animations/ConfettiAnimation.tsx
 
 
+
+
+const COLOR_PALETTE = [
+  "#FF6B6B",
+  "#FFE66D",
+  "#4ECDC4",
+  "#45B7D1",
+  "#96CEB4",
+  "#FFEAA7",
+  "#DDA0DD",
+  "#FF8C94",
+  "#A8E6CF",
+  "#FFD93D"
+];
 const ConfettiAnimation = ({
   durationInFrames,
   theme,
-  intensity = "medium"
+  intensity = "medium",
+  params: rawParams
 }) => {
   const frame = (0,esm.useCurrentFrame)();
   const { width, height } = (0,esm.useVideoConfig)();
-  const pieceCount = intensity === "low" ? 20 : intensity === "medium" ? 40 : 70;
-  const accentColor = theme.colors.accent || "#8B5CF6";
-  const parseColor = (hex) => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : { r: 139, g: 92, b: 246 };
-  };
-  const baseColor = parseColor(accentColor);
+  const p = resolveParams(rawParams);
+  const baseCount = intensity === "low" ? 20 : intensity === "medium" ? 40 : 70;
+  const pieceCount = Math.round(baseCount * p.density);
+  const accentColor = p.colorOverride || theme.colors.accent || "#8B5CF6";
   const pieces = (0,react.useMemo)(() => {
-    const shapes = ["rect", "circle", "triangle"];
-    return Array.from({ length: pieceCount }, (_, i) => {
-      const hueShift = (Math.random() - 0.5) * 60;
-      const r = Math.min(255, Math.max(0, baseColor.r + hueShift));
-      const g = Math.min(255, Math.max(0, baseColor.g + hueShift * 0.5));
-      const b = Math.min(255, Math.max(0, baseColor.b - hueShift * 0.3));
-      return {
-        id: i,
-        x: Math.random() * 100,
-        startY: -10 - Math.random() * 20,
-        size: 4 + Math.random() * 8,
-        rotation: Math.random() * 360,
-        rotationSpeed: (Math.random() - 0.5) * 8,
-        fallSpeed: 0.3 + Math.random() * 0.4,
-        swayAmplitude: 2 + Math.random() * 4,
-        swayFrequency: 0.02 + Math.random() * 0.03,
-        color: `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`,
-        shape: shapes[Math.floor(Math.random() * shapes.length)],
-        delay: Math.random() * 90
-      };
-    });
-  }, [pieceCount, baseColor.r, baseColor.g, baseColor.b]);
-  const renderShape = (piece, rotation) => {
+    const rng = createRng(7e3);
+    const shapes = ["rect", "circle", "triangle", "star", "ribbon"];
+    const colors = [accentColor, ...COLOR_PALETTE];
+    return Array.from({ length: pieceCount }, (_, i) => ({
+      id: i,
+      x: rngFloat(rng, 0, 100),
+      startY: rngFloat(rng, -20, -5),
+      size: rngFloat(rng, 4, 10),
+      rotation: rngFloat(rng, 0, 360),
+      rotationSpeed: rngFloat(rng, -8, 8),
+      fallSpeed: rngFloat(rng, 0.2, 0.5),
+      swayAmplitude: rngFloat(rng, 2, 5),
+      swayFrequency: rngFloat(rng, 0.02, 0.04),
+      color: rngPick(rng, colors),
+      shape: rngPick(rng, shapes),
+      delay: rngFloat(rng, 0, 60),
+      tumbleSpeed: rngFloat(rng, 0.08, 0.15)
+    }));
+  }, [pieceCount, accentColor]);
+  const entrance = (0,esm.interpolate)(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  }) * p.opacity;
+  const burstMultiplier = (0,esm.interpolate)(frame, [0, 30, 60], [2, 1.2, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  });
+  const renderShape = (piece, rotation, tumbleScaleX) => {
     switch (piece.shape) {
       case "rect":
         return /* @__PURE__ */ react.createElement(
@@ -23915,19 +24336,57 @@ const ConfettiAnimation = ({
             y: -piece.size / 4,
             width: piece.size,
             height: piece.size / 2,
-            rx: 1,
-            transform: `rotate(${rotation})`
+            transform: `rotate(${rotation}) scale(${tumbleScaleX}, 1)`
           }
         );
       case "circle":
-        return /* @__PURE__ */ react.createElement("circle", { cx: 0, cy: 0, r: piece.size / 2 });
-      case "triangle":
+        return /* @__PURE__ */ react.createElement(
+          "ellipse",
+          {
+            cx: 0,
+            cy: 0,
+            rx: piece.size / 2 * tumbleScaleX,
+            ry: piece.size / 2
+          }
+        );
+      case "triangle": {
         const h = piece.size * 0.866;
         return /* @__PURE__ */ react.createElement(
           "polygon",
           {
             points: `0,${-h / 2} ${-piece.size / 2},${h / 2} ${piece.size / 2},${h / 2}`,
-            transform: `rotate(${rotation})`
+            transform: `rotate(${rotation}) scale(${tumbleScaleX}, 1)`
+          }
+        );
+      }
+      case "star": {
+        const r = piece.size / 2;
+        const ir = r * 0.4;
+        const pts = [];
+        for (let i = 0; i < 5; i++) {
+          const outerAngle = (i * 72 - 90) * (Math.PI / 180);
+          const innerAngle = (i * 72 + 36 - 90) * (Math.PI / 180);
+          pts.push(`${Math.cos(outerAngle) * r},${Math.sin(outerAngle) * r}`);
+          pts.push(`${Math.cos(innerAngle) * ir},${Math.sin(innerAngle) * ir}`);
+        }
+        return /* @__PURE__ */ react.createElement(
+          "polygon",
+          {
+            points: pts.join(" "),
+            transform: `rotate(${rotation}) scale(${tumbleScaleX}, 1)`
+          }
+        );
+      }
+      case "ribbon":
+        return /* @__PURE__ */ react.createElement(
+          "rect",
+          {
+            x: -piece.size / 2,
+            y: -piece.size / 8,
+            width: piece.size,
+            height: piece.size / 4,
+            rx: piece.size / 8,
+            transform: `rotate(${rotation}) scale(${tumbleScaleX}, 1)`
           }
         );
       default:
@@ -23947,17 +24406,18 @@ const ConfettiAnimation = ({
       },
       viewBox: `0 0 ${width} ${height}`
     },
-    pieces.map((piece) => {
+    /* @__PURE__ */ react.createElement("g", { opacity: entrance }, pieces.map((piece) => {
       const effectiveFrame = Math.max(0, frame - piece.delay);
-      const progress = effectiveFrame * piece.fallSpeed % 130;
+      const progress = effectiveFrame * piece.fallSpeed * burstMultiplier * p.speed % 130;
       const y = piece.startY + progress;
       const sway = Math.sin(effectiveFrame * piece.swayFrequency + piece.id) * piece.swayAmplitude;
       const x = piece.x + sway;
       const currentRotation = piece.rotation + effectiveFrame * piece.rotationSpeed;
+      const tumbleScaleX = 0.3 + Math.abs(Math.cos(effectiveFrame * piece.tumbleSpeed)) * 0.7;
       const opacity = (0,esm.interpolate)(
         y,
-        [80, 100, 110],
-        [0.4, 0.2, 0],
+        [piece.startY, piece.startY + 10, 80, 100, 110],
+        [0, 0.5, 0.4, 0.2, 0],
         { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
       );
       if (opacity <= 0) return null;
@@ -23965,13 +24425,13 @@ const ConfettiAnimation = ({
         "g",
         {
           key: piece.id,
-          transform: `translate(${x / 100 * width}, ${y / 100 * height})`,
+          transform: `translate(${x / 100 * width}, ${y / 100 * height}) scale(${p.scale})`,
           fill: piece.color,
           opacity
         },
-        renderShape(piece, currentRotation)
+        renderShape(piece, currentRotation, tumbleScaleX)
       );
-    })
+    }))
   );
 };
 
@@ -24001,7 +24461,8 @@ const AnimationLayer = ({
   animationStyle,
   durationInFrames,
   theme,
-  intensity = "medium"
+  intensity = "medium",
+  params
 }) => {
   if (animationStyle === "none") {
     return null;
@@ -24016,7 +24477,8 @@ const AnimationLayer = ({
     {
       durationInFrames,
       theme,
-      intensity
+      intensity,
+      params
     }
   );
 };
@@ -24072,11 +24534,13 @@ const DynamicSceneComposition = ({
   durationInFrames,
   themeId,
   animationStyle,
-  animationIntensity
+  animationIntensity,
+  animationParams
 }) => {
   const theme = getTheme(themeId);
   const effectiveAnimationStyle = animationStyle || (data == null ? void 0 : data.animation_style) || "none";
   const effectiveAnimationIntensity = animationIntensity || (data == null ? void 0 : data.animation_intensity) || "medium";
+  const effectiveAnimationParams = animationParams || (data == null ? void 0 : data.animation_params);
   const renderScene = () => {
     switch (sceneType) {
       case "text-only":
@@ -24123,7 +24587,8 @@ const DynamicSceneComposition = ({
       animationStyle: effectiveAnimationStyle,
       durationInFrames,
       theme,
-      intensity: effectiveAnimationIntensity
+      intensity: effectiveAnimationIntensity,
+      params: effectiveAnimationParams
     }
   ), renderScene());
 };
@@ -24618,7 +25083,66 @@ const TransitionPreviewComposition = ({
   ));
 };
 
+;// ./AnimationPreviewComposition.tsx
+
+
+
+
+const AnimationPreviewComposition = ({
+  animationStyle,
+  animationIntensity = "medium",
+  animationParams,
+  themeId = "tech-dark",
+  durationFrames = 90
+}) => {
+  const theme = getTheme(themeId);
+  return /* @__PURE__ */ react.createElement(
+    esm.AbsoluteFill,
+    {
+      style: {
+        backgroundColor: theme.colors.background || "#0a0a0a"
+      }
+    },
+    /* @__PURE__ */ react.createElement(
+      AnimationLayer,
+      {
+        animationStyle,
+        durationInFrames: durationFrames,
+        theme,
+        intensity: animationIntensity,
+        params: animationParams
+      }
+    ),
+    /* @__PURE__ */ react.createElement(
+      esm.AbsoluteFill,
+      {
+        style: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none"
+        }
+      },
+      /* @__PURE__ */ react.createElement(
+        "span",
+        {
+          style: {
+            color: "rgba(255,255,255,0.6)",
+            fontFamily: "sans-serif",
+            fontSize: 24,
+            fontWeight: 600,
+            letterSpacing: "0.05em",
+            textTransform: "uppercase"
+          }
+        },
+        animationStyle
+      )
+    )
+  );
+};
+
 ;// ./Root.tsx
+
 
 
 
@@ -24783,6 +25307,25 @@ const RemotionRoot = () => {
       defaultProps: { transitionType: "crossfade", durationFrames: 20 },
       calculateMetadata: ({ props }) => ({
         durationInFrames: props.durationFrames || 30
+      })
+    }
+  ), /* @__PURE__ */ react.createElement(
+    esm.Composition,
+    {
+      id: "AnimationPreview",
+      component: AnimationPreviewComposition,
+      durationInFrames: 90,
+      fps: 30,
+      width: 640,
+      height: 360,
+      defaultProps: {
+        animationStyle: "particles",
+        animationIntensity: "medium",
+        themeId: "tech-dark",
+        durationFrames: 90
+      },
+      calculateMetadata: ({ props }) => ({
+        durationInFrames: props.durationFrames || 90
       })
     }
   ));
@@ -51998,7 +52541,7 @@ var NoReactInternals = {
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module is referenced by other modules so it can't be inlined
 /******/ 	__webpack_require__(4255);
-/******/ 	__webpack_require__(8391);
+/******/ 	__webpack_require__(1086);
 /******/ 	__webpack_require__(3902);
 /******/ 	var __webpack_exports__ = __webpack_require__(1640);
 /******/ 	

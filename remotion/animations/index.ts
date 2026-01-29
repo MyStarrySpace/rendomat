@@ -1,4 +1,4 @@
-// Animation types and styles
+// Animation types, styles, and params
 export * from './types';
 
 // Animation components

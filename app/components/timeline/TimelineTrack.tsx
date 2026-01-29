@@ -32,6 +32,7 @@ interface TimelineTrackProps {
   getTransitionLabel: (typeId: string) => string;
   snapEnabled: boolean;
   changedSceneIds?: Set<number>;
+  sceneRenderProgress?: Map<number, number>;
 }
 
 export function TimelineTrack({
@@ -55,6 +56,7 @@ export function TimelineTrack({
   getTransitionLabel,
   snapEnabled,
   changedSceneIds = new Set(),
+  sceneRenderProgress,
 }: TimelineTrackProps) {
   const totalFrames = calculateTotalFrames(scenes);
   const trackWidth = frameToPixel(totalFrames, zoom) + 200;
@@ -182,6 +184,7 @@ export function TimelineTrack({
                     inTransitionFrames={inFrames}
                     outTransitionFrames={outFrames}
                     containerOffset={TRACK_LABEL_WIDTH}
+                    renderProgress={sceneRenderProgress?.get(scene.id)}
                   />
                 );
               })}

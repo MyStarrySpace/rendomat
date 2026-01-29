@@ -4,9 +4,9 @@
  */
 
 const FPS = 30;
-const WORDS_PER_SECOND = 1.5; // Reading speed optimized for video comprehension
-const MIN_DURATION = 4; // Minimum 4 seconds
-const MAX_DURATION = 25; // Maximum 25 seconds
+const WORDS_PER_SECOND = 2.5; // ~150 WPM — standard presentation speaking rate
+const MIN_DURATION = 3; // Minimum 3 seconds
+const MAX_DURATION = 20; // Maximum 20 seconds
 
 export interface SlideData {
   scene_type?: string;
@@ -30,8 +30,8 @@ export function calculateSceneDuration(slide: SlideData): number {
   totalWords += quote.split(/\s+/).filter(Boolean).length;
   totalWords += statsText.split(/\s+/).filter(Boolean).length;
 
-  // Base duration from text (minimum 3 seconds for reading)
-  let textDuration = Math.max(3, totalWords / WORDS_PER_SECOND);
+  // Base duration from text (minimum 2 seconds for reading)
+  let textDuration = Math.max(2, totalWords / WORDS_PER_SECOND);
 
   // Scene type adjustments
   let typeDuration = 0;
@@ -40,34 +40,34 @@ export function calculateSceneDuration(slide: SlideData): number {
       typeDuration = 0;
       break;
     case 'quote':
-      typeDuration = 2;
+      typeDuration = 1;
       break;
     case 'single-image':
-      typeDuration = 2;
+      typeDuration = 1;
       break;
     case 'dual-images':
-      typeDuration = 3;
+      typeDuration = 1.5;
       break;
     case 'grid':
     case 'grid-2x2':
-      typeDuration = 4;
+      typeDuration = 2;
       break;
     case 'stats':
       const statLines = statsText.split('\n').filter(Boolean).length;
-      typeDuration = Math.max(2, statLines * 1.5);
+      typeDuration = Math.max(1, statLines * 1);
       break;
     case 'bar-chart':
     case 'progress-bars':
       try {
         const chartData = data?.chart_data ? JSON.parse(data.chart_data) : null;
         const barCount = chartData?.labels?.length || chartData?.data?.length || 4;
-        typeDuration = Math.max(3, barCount * 1);
+        typeDuration = Math.max(2, barCount * 0.7);
       } catch {
-        typeDuration = 4;
+        typeDuration = 3;
       }
       break;
     case 'equation':
-      typeDuration = 3;
+      typeDuration = 2;
       break;
     default:
       typeDuration = 0;
@@ -100,7 +100,7 @@ export function calculateSceneDuration(slide: SlideData): number {
   let totalSeconds = (textDuration + typeDuration) * animationMultiplier;
 
   // Add entrance/exit animation time
-  totalSeconds += 1.5;
+  totalSeconds += 1;
 
   // Clamp between min and max
   totalSeconds = Math.max(MIN_DURATION, Math.min(MAX_DURATION, totalSeconds));

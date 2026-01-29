@@ -5,7 +5,7 @@ import { Scene, API_BASE } from '@/lib/api';
 import { Button } from '@/components/ui';
 import { Input, Textarea, Label } from '@/components/ui/input';
 import {
-  Play,
+  Zap,
   X,
   Upload,
   Trash2,
@@ -13,8 +13,8 @@ import {
   Sparkles,
   Loader2,
   AlertCircle,
-  Film,
 } from 'lucide-react';
+import { AnimationPicker } from '@/components/ui/AnimationPicker';
 import { formatDuration, getSceneDuration } from './lib/timeline-utils';
 
 interface SceneEditorProps {
@@ -111,64 +111,14 @@ export function SceneEditor({
         </div>
       </div>
 
-      {/* Preview placeholder for unrendered */}
-      {isUnrendered && (
-        <div className="bg-[hsl(var(--background))] border-2 border-dashed border-[hsl(var(--border))] p-6 text-center">
-          <Film className="w-8 h-8 text-[hsl(var(--foreground-subtle))] mx-auto mb-2" />
-          <p className="text-sm text-[hsl(var(--foreground-muted))] mb-3">
-            This scene hasn't been rendered yet
-          </p>
-          <Button
-            onClick={handleSaveAndRender}
-            loading={rendering}
-            icon={<Play className="w-4 h-4" />}
-            size="sm"
-          >
-            Render Scene
-          </Button>
-        </div>
-      )}
-
-      {/* Preview for rendered scene */}
-      {scene.cache_path && (
-        <div className="bg-[hsl(var(--background))]">
-          <video
-            src={`${API_BASE}/api/scenes/${scene.id}/preview`}
-            controls
-            className="w-full"
-            style={{ maxHeight: 200 }}
-          />
-        </div>
-      )}
-
       {/* Animation Style */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Background Animation</Label>
-          <select
+          <AnimationPicker
             value={editData.animation_style || 'none'}
-            onChange={(e) => setEditData({ ...editData, animation_style: e.target.value })}
-            className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-3 py-2 text-sm text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
-          >
-            <option value="none">None</option>
-            <optgroup label="Subtle">
-              <option value="particles">Particles</option>
-              <option value="floating-shapes">Floating Shapes</option>
-              <option value="waves">Waves</option>
-              <option value="bokeh">Bokeh</option>
-              <option value="aurora">Aurora</option>
-            </optgroup>
-            <optgroup label="Tech">
-              <option value="grid-pulse">Grid Pulse</option>
-              <option value="matrix">Matrix</option>
-            </optgroup>
-            <optgroup label="Dynamic">
-              <option value="geometric">Geometric</option>
-            </optgroup>
-            <optgroup label="Playful">
-              <option value="confetti">Confetti</option>
-            </optgroup>
-          </select>
+            onChange={(v) => setEditData({ ...editData, animation_style: v })}
+          />
         </div>
         <div>
           <Label>Intensity</Label>
@@ -441,7 +391,7 @@ export function SceneEditor({
         <Button
           onClick={handleSaveAndRender}
           loading={rendering}
-          icon={<Play className="w-4 h-4" />}
+          icon={<Zap className="w-4 h-4" />}
           className="flex-1"
         >
           {isUnrendered || hasChanges ? 'Save & Render' : 'Re-render'}

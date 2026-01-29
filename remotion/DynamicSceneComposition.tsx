@@ -17,6 +17,7 @@ import {
 } from './scenes';
 import { getTheme, Theme } from './themes';
 import { AnimationLayer, AnimationStyleId } from './animations';
+import type { AnimationParams } from './animations/types';
 
 export interface DynamicSceneProps {
   sceneType: string;
@@ -25,6 +26,7 @@ export interface DynamicSceneProps {
   themeId?: string;
   animationStyle?: AnimationStyleId;
   animationIntensity?: 'low' | 'medium' | 'high';
+  animationParams?: AnimationParams;
 }
 
 export const DynamicSceneComposition: React.FC<DynamicSceneProps> = ({
@@ -34,6 +36,7 @@ export const DynamicSceneComposition: React.FC<DynamicSceneProps> = ({
   themeId,
   animationStyle,
   animationIntensity,
+  animationParams,
 }) => {
   const theme = getTheme(themeId);
 
@@ -42,6 +45,8 @@ export const DynamicSceneComposition: React.FC<DynamicSceneProps> = ({
     animationStyle || data?.animation_style || 'none';
   const effectiveAnimationIntensity: 'low' | 'medium' | 'high' =
     animationIntensity || data?.animation_intensity || 'medium';
+  const effectiveAnimationParams: AnimationParams | undefined =
+    animationParams || data?.animation_params;
 
   // Render scene content based on type
   const renderScene = () => {
@@ -111,6 +116,7 @@ export const DynamicSceneComposition: React.FC<DynamicSceneProps> = ({
           durationInFrames={durationInFrames}
           theme={theme}
           intensity={effectiveAnimationIntensity}
+          params={effectiveAnimationParams}
         />
       )}
       {/* Scene content */}

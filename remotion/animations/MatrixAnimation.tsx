@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
-import { AnimationProps } from './types';
+import { AnimationProps, resolveParams } from './types';
+import { createRng, rngFloat, rngInt, rngPick } from './random';
 
 interface MatrixColumn {
   id: number;
@@ -9,38 +10,59 @@ interface MatrixColumn {
   length: number;
   delay: number;
   chars: string[];
+  entranceDelay: number;
 }
+
+const CHAR_SET = '0123456789ABCDEF+=-*/><[]{}|\\'.split('');
 
 export const MatrixAnimation: React.FC<AnimationProps> = ({
   durationInFrames,
   theme,
   intensity = 'medium',
+  params: rawParams,
 }) => {
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
+  const p = resolveParams(rawParams);
 
-  const columnCount = intensity === 'low' ? 15 : intensity === 'medium' ? 25 : 40;
-  const accentColor = theme.colors.accent || '#8B5CF6';
-  const charSize = 14;
-
-  // Characters to use (mix of numbers, symbols, and katakana-like chars)
-  const charSet = '0123456789ABCDEF+=-*/><[]{}|\\'.split('');
+  const baseCount = intensity === 'low' ? 15 : intensity === 'medium' ? 25 : 40;
+  const columnCount = Math.round(baseCount * p.density);
+  const accentColor = p.colorOverride || theme.colors.accent || '#8B5CF6';
+  const charSize = 14 * p.scale;
 
   const columns = useMemo<MatrixColumn[]>(() => {
+    const rng = createRng(5000);
     return Array.from({ length: columnCount }, (_, i) => {
-      const length = 5 + Math.floor(Math.random() * 15);
+      const length = rngInt(rng, 5, 20);
       return {
         id: i,
-        x: (i / columnCount) * width + Math.random() * 20 - 10,
-        speed: 1 + Math.random() * 2,
+        x: (i / columnCount) * width + rngFloat(rng, -10, 10),
+        speed: rngFloat(rng, 1, 3),
         length,
-        delay: Math.random() * 120,
-        chars: Array.from({ length }, () =>
-          charSet[Math.floor(Math.random() * charSet.length)]
-        ),
+        delay: rngFloat(rng, 0, 120),
+        chars: Array.from({ length }, () => rngPick(rng, CHAR_SET)),
+        entranceDelay: rngFloat(rng, 0, 30),
       };
     });
-  }, [columnCount, width, charSet.length]);
+  }, [columnCount, width]);
+
+  // Seeded character mutation (deterministic per frame)
+  const getCharAtFrame = (baseChar: string, colId: number, charIdx: number, f: number): string => {
+    const mutationSeed = colId * 100 + charIdx;
+    const cycle = Math.floor(f / 8);
+    // Use a simple hash to pick character deterministically
+    const hash = ((mutationSeed + cycle) * 2654435761) >>> 0;
+    if (hash % 5 === 0) {
+      return CHAR_SET[hash % CHAR_SET.length];
+    }
+    return baseChar;
+  };
+
+  // Global entrance fade
+  const entrance = interpolate(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  }) * p.opacity;
 
   return (
     <svg
@@ -60,53 +82,63 @@ export const MatrixAnimation: React.FC<AnimationProps> = ({
           <stop offset="50%" stopColor={accentColor} stopOpacity="0.4" />
           <stop offset="100%" stopColor={accentColor} stopOpacity="0" />
         </linearGradient>
+        <filter id="headGlow">
+          <feGaussianBlur stdDeviation={4 * p.blur} result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
 
-      {columns.map((column) => {
-        const effectiveFrame = Math.max(0, frame - column.delay);
-        const cycleLength = height / column.speed + column.length * charSize;
-        const yOffset = (effectiveFrame * column.speed) % cycleLength;
+      <g opacity={entrance}>
+        {columns.map((column) => {
+          // Column stagger entrance
+          const colEntrance = interpolate(
+            frame,
+            [column.entranceDelay, column.entranceDelay + 15],
+            [0, 1],
+            { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+          );
 
-        return (
-          <g key={column.id}>
-            {column.chars.map((char, charIndex) => {
-              const baseY = yOffset - charIndex * charSize;
-              const y = baseY;
+          const effectiveFrame = Math.max(0, frame - column.delay);
+          const cycleLength = height / column.speed + column.length * charSize;
+          const yOffset = (effectiveFrame * column.speed * p.speed) % cycleLength;
 
-              // Wrap around
-              const wrappedY = ((y % (height + column.length * charSize)) + height + column.length * charSize) % (height + column.length * charSize) - column.length * charSize / 2;
+          return (
+            <g key={column.id} opacity={colEntrance}>
+              {column.chars.map((char, charIndex) => {
+                const baseY = yOffset - charIndex * charSize;
+                const wrappedY = ((baseY % (height + column.length * charSize)) + height + column.length * charSize) % (height + column.length * charSize) - column.length * charSize / 2;
 
-              if (wrappedY < -charSize || wrappedY > height + charSize) return null;
+                if (wrappedY < -charSize || wrappedY > height + charSize) return null;
 
-              // First character is brighter
-              const isBright = charIndex === 0;
-              const fadeProgress = charIndex / column.length;
-              const opacity = isBright ? 0.3 : Math.max(0, 0.15 * (1 - fadeProgress));
+                const isHead = charIndex === 0;
+                const fadeProgress = charIndex / column.length;
+                const opacity = isHead ? 0.5 : Math.max(0, 0.25 * (1 - fadeProgress));
 
-              // Randomly change character occasionally
-              const frameOffset = Math.floor(effectiveFrame / 10) + column.id + charIndex;
-              const displayChar = frameOffset % 20 === 0
-                ? charSet[Math.floor(Math.random() * charSet.length)]
-                : char;
+                const displayChar = getCharAtFrame(char, column.id, charIndex, effectiveFrame);
 
-              return (
-                <text
-                  key={`${column.id}-${charIndex}`}
-                  x={column.x}
-                  y={wrappedY}
-                  fill={isBright ? '#fff' : accentColor}
-                  fontSize={charSize}
-                  fontFamily="monospace"
-                  opacity={opacity}
-                  textAnchor="middle"
-                >
-                  {displayChar}
-                </text>
-              );
-            })}
-          </g>
-        );
-      })}
+                return (
+                  <text
+                    key={`${column.id}-${charIndex}`}
+                    x={column.x}
+                    y={wrappedY}
+                    fill={isHead ? '#fff' : accentColor}
+                    fontSize={charSize}
+                    fontFamily="monospace"
+                    opacity={opacity}
+                    textAnchor="middle"
+                    filter={isHead ? 'url(#headGlow)' : undefined}
+                  >
+                    {displayChar}
+                  </text>
+                );
+              })}
+            </g>
+          );
+        })}
+      </g>
     </svg>
   );
 };

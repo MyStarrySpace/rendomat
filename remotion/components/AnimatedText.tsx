@@ -109,6 +109,38 @@ export const TEXT_ANIMATION_CONFIGS: Record<AnimationPreset, TextAnimationConfig
     direction: 'up',
     effects: ['fadeUp', 'blur', 'anticipation'],
   },
+  lyric: {
+    unit: 'word',
+    staggerFrames: 4,
+    spring: 'bouncy',
+    distance: 60,
+    direction: 'left',
+    effects: ['fadeLeft'],
+  },
+  stacking: {
+    unit: 'word',
+    staggerFrames: 5,
+    spring: 'snappy',
+    distance: 80,
+    direction: 'up',
+    effects: ['fadeUp'],
+  },
+  cascade: {
+    unit: 'word',
+    staggerFrames: 4,
+    spring: 'gentle',
+    distance: 50,
+    direction: 'down',
+    effects: ['fadeDown'],
+  },
+  burst: {
+    unit: 'word',
+    staggerFrames: 2,
+    spring: 'elastic',
+    distance: 40,
+    direction: 'up',
+    effects: ['scaleUp'],
+  },
 };
 
 // =============================================================================
@@ -161,7 +193,7 @@ export const AnimatedText: React.FC<AnimatedTextProps> = ({
 
   // Get preset configuration with overrides
   const config = useMemo(() => {
-    const baseConfig = TEXT_ANIMATION_CONFIGS[preset];
+    const baseConfig = TEXT_ANIMATION_CONFIGS[preset] ?? TEXT_ANIMATION_CONFIGS.smooth;
     return {
       unit: unitOverride ?? baseConfig.unit,
       staggerFrames: staggerOverride ?? baseConfig.staggerFrames,

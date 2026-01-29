@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -10,7 +10,6 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  Play,
   Edit,
   Save,
   X,
@@ -37,6 +36,7 @@ import { videoApi, sceneApi, clientApi, platformApi, personaApi, transitionApi, 
 import { calculateSceneDuration } from "@/lib/scene-duration";
 import { TimelineEditor } from "@/components/timeline";
 import { THEMES } from "@/lib/themes";
+import { AnimationPicker } from "@/components/ui/AnimationPicker";
 import StockImageBrowser from "../../components/StockImageBrowser";
 import PersonaSelector from "@/components/PersonaSelector";
 import { Button } from "@/components/ui";
@@ -108,6 +108,23 @@ export default function VideoDetailPage() {
   const [transitionTypes, setTransitionTypes] = useState<TransitionType[]>([]);
   const [editingTransitionId, setEditingTransitionId] = useState<number | null>(null);
   const [showTransitions, setShowTransitions] = useState(true);
+
+  const mainVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Build per-scene render progress map from SSE progress data
+  const sceneRenderProgress = useMemo(() => {
+    if (!progressData?.scenes) return undefined;
+    const map = new Map<number, number>();
+    for (const s of progressData.scenes) {
+      if (s.status === 'cached' || s.status === 'completed') {
+        map.set(s.id, 100);
+      } else if (s.status === 'rendering') {
+        map.set(s.id, s.progress || 0);
+      }
+      // 'pending' scenes are not in the map (no fill)
+    }
+    return map;
+  }, [progressData]);
 
   useEffect(() => {
     loadData();
@@ -236,8 +253,8 @@ export default function VideoDetailPage() {
     setRenderingSceneId(sceneId);
     try {
       const result = await sceneApi.render(sceneId, forceRender);
-      // Refresh scenes to get updated cache info
-      await loadData();
+      // Update the single scene's cache fields from the response
+      setScenes(prev => prev.map(s => s.id === sceneId ? { ...s, cache_path: result.cache_path ?? s.cache_path, cached_at: new Date().toISOString() } : s));
       // Show preview
       setPreviewSceneId(sceneId);
     } catch (error) {
@@ -251,7 +268,7 @@ export default function VideoDetailPage() {
   async function handleClearSceneCache(sceneId: number) {
     try {
       await sceneApi.clearCache(sceneId);
-      await loadData();
+      setScenes(prev => prev.map(s => s.id === sceneId ? { ...s, cache_path: null, cache_hash: null, cached_at: null } : s));
     } catch (error) {
       console.error("Failed to clear scene cache:", error);
     }
@@ -313,7 +330,15 @@ export default function VideoDetailPage() {
         behavior_overrides: editBehaviorOverrides,
       });
       setEditingPersonas(false);
-      loadData();
+      // Refresh only personas
+      try {
+        const personas = await personaApi.getEffectiveForVideo(videoId);
+        setEffectivePersonas(personas);
+        setEditPersonas(personas.personaIds);
+        setEditBehaviorOverrides(personas.behaviorOverrides);
+      } catch (error) {
+        console.error("Failed to reload personas:", error);
+      }
     } catch (error) {
       console.error('Failed to save persona changes:', error);
       alert('Failed to save persona changes');
@@ -332,7 +357,8 @@ export default function VideoDetailPage() {
   async function handleCreateDefaultTransitions() {
     try {
       await transitionApi.createDefaults(videoId);
-      await loadData();
+      const t = await transitionApi.getAllForVideo(videoId);
+      setTransitions(t);
     } catch (error) {
       console.error("Failed to create default transitions:", error);
       alert("Failed to create default transitions");
@@ -342,7 +368,7 @@ export default function VideoDetailPage() {
   async function handleUpdateTransition(transitionId: number, data: { transition_type?: string; duration_frames?: number }) {
     try {
       await transitionApi.update(transitionId, data);
-      await loadData();
+      setTransitions(prev => prev.map(t => t.id === transitionId ? { ...t, ...data } : t));
       setEditingTransitionId(null);
     } catch (error) {
       console.error("Failed to update transition:", error);
@@ -353,7 +379,7 @@ export default function VideoDetailPage() {
   async function handleDeleteTransition(transitionId: number) {
     try {
       await transitionApi.delete(transitionId);
-      await loadData();
+      setTransitions(prev => prev.filter(t => t.id !== transitionId));
     } catch (error) {
       console.error("Failed to delete transition:", error);
       alert("Failed to delete transition");
@@ -362,13 +388,13 @@ export default function VideoDetailPage() {
 
   async function handleCreateTransition(fromSceneNumber: number, toSceneNumber: number) {
     try {
-      await transitionApi.create(videoId, {
+      const newTransition = await transitionApi.create(videoId, {
         from_scene_number: fromSceneNumber,
         to_scene_number: toSceneNumber,
         transition_type: 'crossfade',
         duration_frames: 20,
       });
-      await loadData();
+      setTransitions(prev => [...prev, newTransition]);
     } catch (error) {
       console.error("Failed to create transition:", error);
       alert("Failed to create transition");
@@ -481,7 +507,7 @@ export default function VideoDetailPage() {
       });
       setEditingScene(null);
       setEditData({});
-      loadData();
+      setScenes(prev => prev.map(s => s.id === sceneId ? { ...s, data: JSON.stringify(editData), cache_path: null, cache_hash: null, cached_at: null } : s));
     } catch (error) {
       console.error("Failed to update scene:", error);
       alert("Failed to update scene");
@@ -497,8 +523,8 @@ export default function VideoDetailPage() {
     try {
       await sceneApi.update(sceneId, { name: editedName });
       setEditingSceneName(null);
+      setScenes(prev => prev.map(s => s.id === sceneId ? { ...s, name: editedName } : s));
       setEditedName("");
-      loadData();
     } catch (error) {
       console.error("Failed to update scene name:", error);
       alert("Failed to update scene name");
@@ -620,7 +646,7 @@ export default function VideoDetailPage() {
                 onClick={handleRender}
                 disabled={rendering}
                 loading={rendering}
-                icon={<Play className="w-4 h-4" />}
+                icon={<Zap className="w-4 h-4" />}
               >
                 {rendering ? "Rendering..." : "Render Video"}
               </Button>
@@ -822,7 +848,7 @@ export default function VideoDetailPage() {
               <div className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-4">
                 <div className="max-w-4xl mx-auto">
                   <video
-                    controls
+                    ref={mainVideoRef}
                     className="w-full"
                     style={{ aspectRatio: video.aspect_ratio || '16/9' }}
                     src={`${API_BASE}/api/videos/${videoId}/preview`}
@@ -868,14 +894,16 @@ export default function VideoDetailPage() {
             scenes={scenes}
             transitions={transitions}
             transitionTypes={transitionTypes}
-            onScenesChange={loadData}
-            onTransitionsChange={loadData}
+            onScenesChange={async () => { const s = await sceneApi.getAllForVideo(videoId); setScenes(s); }}
+            onTransitionsChange={async () => { const t = await transitionApi.getAllForVideo(videoId); setTransitions(t); }}
             onOpenStockBrowser={(fieldName) => {
               setCurrentImageField(fieldName);
               setShowStockBrowser(true);
             }}
             onRenderVideo={handleRender}
             onRegenerateFromPrompt={handleRegenerateFromPrompt}
+            videoRef={mainVideoRef}
+            sceneRenderProgress={sceneRenderProgress}
           />
 
           {/* Legacy scene cards for detailed editing - collapsible */}
@@ -1012,8 +1040,9 @@ export default function VideoDetailPage() {
                               <select
                                 value={scene.scene_type || 'text-only'}
                                 onChange={(e) => {
-                                  sceneApi.update(scene.id, { scene_type: e.target.value });
-                                  loadData();
+                                  const newType = e.target.value;
+                                  sceneApi.update(scene.id, { scene_type: newType });
+                                  setScenes(prev => prev.map(s => s.id === scene.id ? { ...s, scene_type: newType } : s));
                                 }}
                                 className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
                               >
@@ -1045,30 +1074,10 @@ export default function VideoDetailPage() {
                             <div className="grid grid-cols-2 gap-4">
                               <div>
                                 <Label>Background Animation</Label>
-                                <select
+                                <AnimationPicker
                                   value={editData.animation_style || 'none'}
-                                  onChange={(e) => setEditData({ ...editData, animation_style: e.target.value })}
-                                  className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
-                                >
-                                  <option value="none">None</option>
-                                  <optgroup label="Subtle">
-                                    <option value="particles">Particles</option>
-                                    <option value="floating-shapes">Floating Shapes</option>
-                                    <option value="waves">Waves</option>
-                                    <option value="bokeh">Bokeh</option>
-                                    <option value="aurora">Aurora</option>
-                                  </optgroup>
-                                  <optgroup label="Tech">
-                                    <option value="grid-pulse">Grid Pulse</option>
-                                    <option value="matrix">Matrix</option>
-                                  </optgroup>
-                                  <optgroup label="Dynamic">
-                                    <option value="geometric">Geometric</option>
-                                  </optgroup>
-                                  <optgroup label="Playful">
-                                    <option value="confetti">Confetti</option>
-                                  </optgroup>
-                                </select>
+                                  onChange={(v) => setEditData({ ...editData, animation_style: v })}
+                                />
                               </div>
                               <div>
                                 <Label>Animation Intensity</Label>
@@ -1428,7 +1437,7 @@ export default function VideoDetailPage() {
                               onClick={() => handleRenderScene(scene.id, false)}
                               disabled={renderingSceneId === scene.id}
                               loading={renderingSceneId === scene.id}
-                              icon={<Play className="w-4 h-4" />}
+                              icon={<Zap className="w-4 h-4" />}
                             >
                               {renderingSceneId === scene.id ? 'Rendering...' : scene.cache_path ? 'Re-render' : 'Render'}
                             </Button>

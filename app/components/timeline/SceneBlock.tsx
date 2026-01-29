@@ -12,7 +12,7 @@ import {
   getSnapGridSize,
   snapToGrid,
 } from './lib/timeline-utils';
-import { GripVertical, Database, AlertCircle, Play } from 'lucide-react';
+import { GripVertical, Database, AlertCircle, Zap } from 'lucide-react';
 
 interface SceneBlockProps {
   scene: Scene;
@@ -35,6 +35,7 @@ interface SceneBlockProps {
   inTransitionFrames?: number;
   outTransitionFrames?: number;
   containerOffset?: number;
+  renderProgress?: number;
 }
 
 export function SceneBlock({
@@ -58,6 +59,7 @@ export function SceneBlock({
   inTransitionFrames = 0,
   outTransitionFrames = 0,
   containerOffset = 80,
+  renderProgress,
 }: SceneBlockProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isPendingDrag, setIsPendingDrag] = useState(false);
@@ -221,6 +223,14 @@ export function SceneBlock({
           ...(isDragging ? { boxShadow: '0 8px 25px rgba(0,0,0,0.3)' } : {}),
         }}
       >
+        {/* Render progress fill (bottom to top) */}
+        {renderProgress != null && renderProgress >= 0 && (
+          <div
+            className="absolute inset-x-0 bottom-0 bg-white/30 pointer-events-none transition-all duration-300"
+            style={{ height: `${renderProgress}%` }}
+          />
+        )}
+
         {/* In-transition indicator */}
         {inTransitionFrames > 0 && (
           <div
@@ -273,7 +283,7 @@ export function SceneBlock({
             className="flex-shrink-0 p-1 mr-1 bg-white/20 hover:bg-white/30 transition-colors z-10"
             title="Render this scene"
           >
-            <Play className="w-3 h-3 text-white" />
+            <Zap className="w-3 h-3 text-white" />
           </button>
         )}
 

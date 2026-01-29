@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
-import { AnimationProps } from './types';
+import { AnimationProps, resolveParams } from './types';
+import { createRng, rngFloat } from './random';
 
 interface BokehCircle {
   id: number;
@@ -13,35 +14,40 @@ interface BokehCircle {
   driftX: number;
   driftY: number;
   driftSpeed: number;
+  colorShift: number;
 }
 
 export const BokehAnimation: React.FC<AnimationProps> = ({
   durationInFrames,
   theme,
   intensity = 'medium',
+  params: rawParams,
 }) => {
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
+  const p = resolveParams(rawParams);
 
-  const circleCount = intensity === 'low' ? 10 : intensity === 'medium' ? 20 : 35;
-  const accentColor = theme.colors.accent || '#8B5CF6';
+  const baseCount = intensity === 'low' ? 10 : intensity === 'medium' ? 20 : 35;
+  const circleCount = Math.round(baseCount * p.density);
+  const accentColor = p.colorOverride || theme.colors.accent || '#8B5CF6';
 
   const circles = useMemo<BokehCircle[]>(() => {
+    const rng = createRng(3000);
     return Array.from({ length: circleCount }, (_, i) => ({
       id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: 30 + Math.random() * 100,
-      opacity: 0.03 + Math.random() * 0.08,
-      pulseSpeed: 0.02 + Math.random() * 0.03,
-      pulsePhase: Math.random() * Math.PI * 2,
-      driftX: (Math.random() - 0.5) * 0.1,
-      driftY: (Math.random() - 0.5) * 0.1,
-      driftSpeed: 0.5 + Math.random() * 0.5,
+      x: rngFloat(rng, 0, 100),
+      y: rngFloat(rng, 0, 100),
+      size: rngFloat(rng, 30, 100),
+      opacity: rngFloat(rng, 0.06, 0.15),
+      pulseSpeed: rngFloat(rng, 0.02, 0.05),
+      pulsePhase: rngFloat(rng, 0, Math.PI * 2),
+      driftX: rngFloat(rng, -0.5, 0.5) * 0.2,
+      driftY: rngFloat(rng, -0.5, 0.5) * 0.2,
+      driftSpeed: rngFloat(rng, 0.5, 1),
+      colorShift: (i % 3) * 20 - 20,
     }));
   }, [circleCount]);
 
-  // Parse accent color to create variations
   const parseColor = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result
@@ -54,6 +60,12 @@ export const BokehAnimation: React.FC<AnimationProps> = ({
   };
 
   const baseColor = parseColor(accentColor);
+
+  // Global entrance fade
+  const entrance = interpolate(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  }) * p.opacity;
 
   return (
     <svg
@@ -68,49 +80,67 @@ export const BokehAnimation: React.FC<AnimationProps> = ({
       viewBox={`0 0 ${width} ${height}`}
     >
       <defs>
+        <filter id="bokehBlur">
+          <feGaussianBlur stdDeviation={6 * p.blur} result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
         {circles.map((circle) => {
-          // Slight color variation for each circle
-          const colorShift = (circle.id % 3) * 20 - 20;
-          const r = Math.min(255, Math.max(0, baseColor.r + colorShift));
-          const g = Math.min(255, Math.max(0, baseColor.g + colorShift * 0.5));
-          const b = Math.min(255, Math.max(0, baseColor.b - colorShift * 0.3));
+          const r = Math.min(255, Math.max(0, baseColor.r + circle.colorShift));
+          const g = Math.min(255, Math.max(0, baseColor.g + circle.colorShift * 0.5));
+          const b = Math.min(255, Math.max(0, baseColor.b - circle.colorShift * 0.3));
 
           return (
-            <radialGradient key={`grad-${circle.id}`} id={`bokehGradient-${circle.id}`}>
-              <stop offset="0%" stopColor={`rgb(${r},${g},${b})`} stopOpacity="0.6" />
-              <stop offset="50%" stopColor={`rgb(${r},${g},${b})`} stopOpacity="0.2" />
+            <radialGradient key={`grad-${circle.id}`} id={`bokehGrad-${circle.id}`}>
+              <stop offset="0%" stopColor={`rgb(${r},${g},${b})`} stopOpacity="0.7" />
+              <stop offset="40%" stopColor={`rgb(${r},${g},${b})`} stopOpacity="0.3" />
+              <stop offset="70%" stopColor={`rgb(${r},${g},${b})`} stopOpacity="0.1" />
               <stop offset="100%" stopColor={`rgb(${r},${g},${b})`} stopOpacity="0" />
             </radialGradient>
           );
         })}
       </defs>
 
-      {circles.map((circle) => {
-        // Calculate current position with drift
-        const driftProgress = frame * circle.driftSpeed;
-        const currentX =
-          (circle.x / 100) * width +
-          Math.sin(driftProgress * 0.01 + circle.id) * circle.driftX * width;
-        const currentY =
-          (circle.y / 100) * height +
-          Math.cos(driftProgress * 0.01 + circle.id * 0.5) * circle.driftY * height;
+      <g opacity={entrance}>
+        {circles.map((circle) => {
+          const driftProgress = frame * circle.driftSpeed * p.speed;
+          const currentX =
+            (circle.x / 100) * width +
+            Math.sin(driftProgress * 0.01 + circle.id) * circle.driftX * width;
+          const currentY =
+            (circle.y / 100) * height +
+            Math.cos(driftProgress * 0.01 + circle.id * 0.5) * circle.driftY * height;
 
-        // Pulsing size and opacity
-        const pulse = Math.sin(frame * circle.pulseSpeed + circle.pulsePhase);
-        const currentSize = circle.size * (1 + pulse * 0.2);
-        const currentOpacity = circle.opacity * (1 + pulse * 0.3);
+          const pulse = Math.sin(frame * circle.pulseSpeed * p.speed + circle.pulsePhase);
+          const currentSize = circle.size * (1 + pulse * 0.2) * p.scale;
+          const currentOpacity = circle.opacity * (1 + pulse * 0.3);
 
-        return (
-          <circle
-            key={circle.id}
-            cx={currentX}
-            cy={currentY}
-            r={currentSize}
-            fill={`url(#bokehGradient-${circle.id})`}
-            opacity={currentOpacity}
-          />
-        );
-      })}
+          return (
+            <g key={circle.id} filter="url(#bokehBlur)">
+              {/* Outer glow ring */}
+              <circle
+                cx={currentX}
+                cy={currentY}
+                r={currentSize * 1.2}
+                fill="none"
+                stroke={`url(#bokehGrad-${circle.id})`}
+                strokeWidth={2}
+                opacity={currentOpacity * 0.4}
+              />
+              {/* Inner bright ring */}
+              <circle
+                cx={currentX}
+                cy={currentY}
+                r={currentSize}
+                fill={`url(#bokehGrad-${circle.id})`}
+                opacity={currentOpacity}
+              />
+            </g>
+          );
+        })}
+      </g>
     </svg>
   );
 };

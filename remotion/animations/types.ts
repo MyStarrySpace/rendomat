@@ -1,5 +1,29 @@
 import { Theme } from '../themes';
 
+export interface AnimationParams {
+  speed?: number;        // Multiplier (default 1.0). Affects all motion speeds.
+  colorOverride?: string; // Hex color to use instead of theme accent
+  blur?: number;         // Glow/blur stdDeviation multiplier (default 1.0)
+  opacity?: number;      // Master opacity multiplier (default 1.0)
+  scale?: number;        // Element size multiplier (default 1.0)
+  density?: number;      // Element count multiplier (default 1.0)
+  entranceDuration?: number; // Fade-in frames (default 20)
+}
+
+export const DEFAULT_ANIMATION_PARAMS: Required<AnimationParams> = {
+  speed: 1,
+  colorOverride: '',
+  blur: 1,
+  opacity: 1,
+  scale: 1,
+  density: 1,
+  entranceDuration: 20,
+};
+
+export function resolveParams(params?: AnimationParams): Required<AnimationParams> {
+  return { ...DEFAULT_ANIMATION_PARAMS, ...params };
+}
+
 export type AnimationStyleId =
   | 'none'
   | 'particles'
@@ -23,6 +47,7 @@ export interface AnimationProps {
   durationInFrames: number;
   theme: Theme;
   intensity?: 'low' | 'medium' | 'high';
+  params?: AnimationParams;
 }
 
 export const ANIMATION_STYLES: Record<AnimationStyleId, AnimationStyle> = {

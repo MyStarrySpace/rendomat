@@ -3,9 +3,10 @@
  */
 
 export const FPS = 30;
-export const DEFAULT_ZOOM = 16; // pixels per second
-export const MIN_ZOOM = 2;   // Allow much more zoom out
-export const MAX_ZOOM = 120; // Allow much more zoom in for frame-level editing
+export const ZOOM_SCALE = 0.2; // Maps UI zoom values to physical pixels-per-second
+export const DEFAULT_ZOOM = 80; // 100% in UI (80 * 0.2 = 16 physical px/s)
+export const MIN_ZOOM = 10;    // ~12% in UI
+export const MAX_ZOOM = 600;   // 750% in UI
 export const SNAP_GRID_FRAMES = 15; // 0.5 second snap (default)
 
 // Track types for multi-track timeline
@@ -27,14 +28,14 @@ export const TRACKS: Track[] = [
  * Convert frame number to pixel position
  */
 export function frameToPixel(frame: number, zoom: number): number {
-  return (frame / FPS) * zoom;
+  return (frame / FPS) * zoom * ZOOM_SCALE;
 }
 
 /**
  * Convert pixel position to frame number
  */
 export function pixelToFrame(pixel: number, zoom: number): number {
-  return Math.round((pixel / zoom) * FPS);
+  return Math.round((pixel / (zoom * ZOOM_SCALE)) * FPS);
 }
 
 /**
@@ -79,10 +80,10 @@ export function frameToSeconds(frame: number): number {
 export function getSnapGridSize(zoom: number, snapEnabled: boolean): number {
   if (!snapEnabled) return 1; // Snap to individual frames
 
-  if (zoom >= 80) return 1;       // Frame-level at very high zoom
-  if (zoom >= 40) return 5;       // 5 frames
-  if (zoom >= 20) return 15;      // 0.5 seconds
-  if (zoom >= 10) return 30;      // 1 second
+  if (zoom >= 400) return 1;      // Frame-level at very high zoom
+  if (zoom >= 200) return 5;      // 5 frames
+  if (zoom >= 100) return 15;     // 0.5 seconds
+  if (zoom >= 50) return 30;      // 1 second
   return 60;                       // 2 seconds at low zoom
 }
 

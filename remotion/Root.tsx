@@ -7,6 +7,7 @@ import { UltrahumanVSL } from './UltrahumanVSL';
 import { DynamicSceneComposition, DynamicSceneProps } from './DynamicSceneComposition';
 import { ASPECT_RATIOS, type AspectRatioKey } from './aspect-ratios';
 import { TransitionPreviewComposition, TransitionPreviewProps } from './TransitionPreviewComposition';
+import { AnimationPreviewComposition, AnimationPreviewProps } from './AnimationPreviewComposition';
 import type { PolicyWrappedRenderProps, CivicProfileRenderProps, ClassProfileRenderProps } from './types';
 
 const defaultDynamicSceneProps: DynamicSceneProps = {
@@ -158,6 +159,23 @@ export const RemotionRoot: React.FC = () => {
         defaultProps={{ transitionType: 'crossfade' as const, durationFrames: 20 }}
         calculateMetadata={({ props }: { props: TransitionPreviewProps }) => ({
           durationInFrames: props.durationFrames || 30,
+        })}
+      />
+      <Composition
+        id="AnimationPreview"
+        component={AnimationPreviewComposition}
+        durationInFrames={90}
+        fps={30}
+        width={640}
+        height={360}
+        defaultProps={{
+          animationStyle: 'particles' as const,
+          animationIntensity: 'medium' as const,
+          themeId: 'tech-dark',
+          durationFrames: 90,
+        }}
+        calculateMetadata={({ props }: { props: AnimationPreviewProps }) => ({
+          durationInFrames: props.durationFrames || 90,
         })}
       />
     </>

@@ -1,19 +1,21 @@
 import React from 'react';
 import { useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
-import { AnimationProps } from './types';
+import { AnimationProps, resolveParams } from './types';
 
 export const AuroraAnimation: React.FC<AnimationProps> = ({
   durationInFrames,
   theme,
   intensity = 'medium',
+  params: rawParams,
 }) => {
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
+  const p = resolveParams(rawParams);
 
-  const waveCount = intensity === 'low' ? 2 : intensity === 'medium' ? 3 : 4;
-  const accentColor = theme.colors.accent || '#8B5CF6';
+  const baseCount = intensity === 'low' ? 2 : intensity === 'medium' ? 3 : 4;
+  const waveCount = Math.round(baseCount * p.density);
+  const accentColor = p.colorOverride || theme.colors.accent || '#8B5CF6';
 
-  // Parse accent color to create variations
   const parseColor = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result
@@ -27,59 +29,72 @@ export const AuroraAnimation: React.FC<AnimationProps> = ({
 
   const baseColor = parseColor(accentColor);
 
-  // Generate aurora wave path
+  // Global entrance fade
+  const entrance = interpolate(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  }) * p.opacity;
+
+  // Generate aurora wave path using cubic bezier curves
   const generateAuroraPath = (
-    waveIndex: number,
     baseY: number,
     amplitude: number,
     frequency: number,
     phase: number
   ) => {
-    const points: string[] = [];
-    const step = width / 100;
+    const segments = 20;
+    const step = width / segments;
+    const points: [number, number][] = [];
 
-    for (let x = 0; x <= width; x += step) {
+    for (let i = 0; i <= segments; i++) {
+      const x = i * step;
       const normalizedX = x / width;
 
-      // Complex wave with multiple harmonics
-      const wave1 = Math.sin((normalizedX * frequency + frame * 0.005 + phase) * Math.PI * 2) * amplitude;
-      const wave2 = Math.sin((normalizedX * frequency * 2 + frame * 0.008 + phase * 1.5) * Math.PI * 2) * (amplitude * 0.3);
-      const wave3 = Math.sin((normalizedX * frequency * 0.5 + frame * 0.003 + phase * 0.7) * Math.PI * 2) * (amplitude * 0.5);
+      const wave1 = Math.sin((normalizedX * frequency + frame * 0.005 * p.speed + phase) * Math.PI * 2) * amplitude * p.scale;
+      const wave2 = Math.sin((normalizedX * frequency * 2 + frame * 0.008 * p.speed + phase * 1.5) * Math.PI * 2) * (amplitude * 0.3 * p.scale);
+      const wave3 = Math.sin((normalizedX * frequency * 0.5 + frame * 0.003 * p.speed + phase * 0.7) * Math.PI * 2) * (amplitude * 0.5 * p.scale);
 
       const y = baseY + wave1 + wave2 + wave3;
-
-      if (x === 0) {
-        points.push(`M ${x} ${y}`);
-      } else {
-        points.push(`L ${x} ${y}`);
-      }
+      points.push([x, y]);
     }
 
-    // Create a closed shape that extends to top of screen
-    points.push(`L ${width} 0`);
-    points.push(`L 0 0`);
-    points.push('Z');
+    // Build cubic bezier path for smoother curves
+    let d = `M ${points[0][0]} ${points[0][1]}`;
+    for (let i = 1; i < points.length - 1; i++) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      const next = points[i + 1];
+      const cp1x = prev[0] + (curr[0] - prev[0]) * 0.5;
+      const cp1y = curr[1];
+      const cp2x = curr[0] + (next[0] - curr[0]) * 0.5;
+      const cp2y = curr[1];
+      d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${next[0]} ${next[1]}`;
+    }
 
-    return points.join(' ');
+    d += ` L ${width} 0 L 0 0 Z`;
+    return d;
   };
 
   const auroraWaves = Array.from({ length: waveCount }, (_, i) => {
-    // Color shift for each wave
     const hueShift = i * 30;
     const r = Math.min(255, Math.max(0, baseColor.r - hueShift * 0.5));
     const g = Math.min(255, Math.max(0, baseColor.g + hueShift * 0.3));
     const b = Math.min(255, Math.max(0, baseColor.b + hueShift * 0.2));
 
+    // Time-shifting gradient color stop offset
+    const gradShift = Math.sin(frame * 0.01 + i) * 10;
+
     const baseY = height * (0.3 + i * 0.15);
     const amplitude = 30 + i * 15;
     const frequency = 1 + i * 0.3;
     const phase = i * 0.8;
-    const opacity = 0.06 - i * 0.01;
+    const opacity = 0.08 + i * 0.02;
 
     return {
-      path: generateAuroraPath(i, baseY, amplitude, frequency, phase),
+      path: generateAuroraPath(baseY, amplitude, frequency, phase),
       color: `rgb(${r},${g},${b})`,
-      opacity,
+      opacity: Math.min(opacity, 0.15),
+      gradShift,
     };
   });
 
@@ -106,17 +121,17 @@ export const AuroraAnimation: React.FC<AnimationProps> = ({
             x2="0%"
             y2="0%"
           >
-            <stop offset="0%" stopColor={wave.color} stopOpacity="0.8" />
-            <stop offset="50%" stopColor={wave.color} stopOpacity="0.3" />
+            <stop offset={`${Math.max(0, wave.gradShift)}%`} stopColor={wave.color} stopOpacity="0.8" />
+            <stop offset={`${50 + wave.gradShift * 0.5}%`} stopColor={wave.color} stopOpacity="0.3" />
             <stop offset="100%" stopColor={wave.color} stopOpacity="0" />
           </linearGradient>
         ))}
         <filter id="auroraBlur">
-          <feGaussianBlur stdDeviation="20" />
+          <feGaussianBlur stdDeviation={40 * p.blur} />
         </filter>
       </defs>
 
-      <g filter="url(#auroraBlur)">
+      <g filter="url(#auroraBlur)" opacity={entrance}>
         {auroraWaves.map((wave, i) => (
           <path
             key={i}

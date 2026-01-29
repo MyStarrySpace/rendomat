@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { clientApi, videoApi, templateApi, aiApi, Client, Video, Template, ResearchGenerationResult, API_BASE } from "@/lib/api";
 import { THEMES } from "@/lib/themes";
+import { calculateSceneDuration } from "@/lib/scene-duration";
 import PersonaSelector from "@/components/PersonaSelector";
 import { Button } from "@/components/ui";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -25,116 +26,6 @@ const ASPECT_RATIO_OPTIONS = [
   { value: "1:1", label: "Square 1:1", platforms: "Instagram Feed, LinkedIn Feed" },
   { value: "9:16", label: "Vertical 9:16", platforms: "TikTok, Instagram Reels, YouTube Shorts" },
 ];
-
-// Calculate smart scene duration based on content
-// Returns duration in frames (30fps)
-function calculateSceneDuration(slide: any): number {
-  const FPS = 30;
-  const data = typeof slide.data === 'string' ? JSON.parse(slide.data) : slide.data;
-  const sceneType = slide.scene_type || 'text-only';
-  const preset = data?.animation_preset || 'smooth';
-
-  // Base reading speed: ~150 words per minute = 2.5 words per second
-  // But for video, we need more time for comprehension: ~100 words per minute = 1.67 words per second
-  const WORDS_PER_SECOND = 1.5;
-
-  // Calculate text content length
-  let totalWords = 0;
-  const title = data?.title || '';
-  const bodyText = data?.body_text || '';
-  const quote = data?.quote || '';
-  const statsText = data?.stats_text || '';
-
-  totalWords += title.split(/\s+/).filter(Boolean).length;
-  totalWords += bodyText.split(/\s+/).filter(Boolean).length;
-  totalWords += quote.split(/\s+/).filter(Boolean).length;
-  totalWords += statsText.split(/\s+/).filter(Boolean).length;
-
-  // Base duration from text (minimum 3 seconds for reading)
-  let textDuration = Math.max(3, totalWords / WORDS_PER_SECOND);
-
-  // Scene type adjustments
-  let typeDuration = 0;
-  switch (sceneType) {
-    case 'text-only':
-      typeDuration = 0; // Just text reading time
-      break;
-    case 'quote':
-      typeDuration = 2; // Extra pause for quote impact
-      break;
-    case 'single-image':
-      typeDuration = 2; // Time to appreciate the image
-      break;
-    case 'dual-images':
-      typeDuration = 3; // Time for both images
-      break;
-    case 'grid':
-    case 'grid-2x2':
-      typeDuration = 4; // Time for multiple images
-      break;
-    case 'stats':
-      // Count stat items
-      const statLines = statsText.split('\n').filter(Boolean).length;
-      typeDuration = Math.max(2, statLines * 1.5); // 1.5s per stat
-      break;
-    case 'bar-chart':
-    case 'progress-bars':
-      // Parse chart data for bar count
-      try {
-        const chartData = data?.chart_data ? JSON.parse(data.chart_data) : null;
-        const barCount = chartData?.labels?.length || chartData?.data?.length || 4;
-        typeDuration = Math.max(3, barCount * 1); // 1s per bar
-      } catch {
-        typeDuration = 4;
-      }
-      break;
-    case 'equation':
-      typeDuration = 3; // Time for equation comprehension
-      break;
-    default:
-      typeDuration = 0;
-  }
-
-  // Animation preset adjustments (lyric styles need more time for word animations)
-  let animationMultiplier = 1;
-  switch (preset) {
-    case 'lyric':
-    case 'stacking':
-    case 'cascade':
-      animationMultiplier = 1.4; // 40% more time for dramatic word animations
-      break;
-    case 'burst':
-      animationMultiplier = 1.3; // 30% more time
-      break;
-    case 'cinematic':
-      animationMultiplier = 1.3; // Slow, epic feel needs more time
-      break;
-    case 'typewriter':
-      animationMultiplier = 1.2; // Sequential reveals need more time
-      break;
-    case 'minimal':
-    case 'smooth':
-      animationMultiplier = 1;
-      break;
-    default:
-      animationMultiplier = 1;
-  }
-
-  // Calculate total duration
-  let totalSeconds = (textDuration + typeDuration) * animationMultiplier;
-
-  // Add entrance/exit animation time (1.5s total)
-  totalSeconds += 1.5;
-
-  // Clamp between min and max
-  const MIN_DURATION = 4; // Minimum 4 seconds
-  const MAX_DURATION = 25; // Maximum 25 seconds
-  totalSeconds = Math.max(MIN_DURATION, Math.min(MAX_DURATION, totalSeconds));
-
-  // Round to nearest 0.5 second and convert to frames
-  totalSeconds = Math.round(totalSeconds * 2) / 2;
-  return Math.round(totalSeconds * FPS);
-}
 
 // Test personas for quick form population
 const TEST_PERSONAS = [

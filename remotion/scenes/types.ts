@@ -1,5 +1,5 @@
 import { Theme } from '../themes';
-import { AnimationStyleId } from '../animations/types';
+import { AnimationStyleId, AnimationParams } from '../animations/types';
 
 export interface SceneData {
   title?: string;
@@ -20,6 +20,7 @@ export interface SceneData {
   // Animation settings
   animation_style?: AnimationStyleId;
   animation_intensity?: 'low' | 'medium' | 'high';
+  animation_params?: AnimationParams;
   [key: string]: any;
 }
 

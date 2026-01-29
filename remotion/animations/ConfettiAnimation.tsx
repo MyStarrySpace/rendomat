@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
 import { useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
-import { AnimationProps } from './types';
+import { AnimationProps, resolveParams } from './types';
+import { createRng, rngFloat, rngInt, rngPick } from './random';
+
+type ConfettiShape = 'rect' | 'circle' | 'triangle' | 'star' | 'ribbon';
 
 interface ConfettiPiece {
   id: number;
@@ -13,63 +16,66 @@ interface ConfettiPiece {
   swayAmplitude: number;
   swayFrequency: number;
   color: string;
-  shape: 'rect' | 'circle' | 'triangle';
+  shape: ConfettiShape;
   delay: number;
+  tumbleSpeed: number;
 }
+
+// Expanded color palette
+const COLOR_PALETTE = [
+  '#FF6B6B', '#FFE66D', '#4ECDC4', '#45B7D1', '#96CEB4',
+  '#FFEAA7', '#DDA0DD', '#FF8C94', '#A8E6CF', '#FFD93D',
+];
 
 export const ConfettiAnimation: React.FC<AnimationProps> = ({
   durationInFrames,
   theme,
   intensity = 'medium',
+  params: rawParams,
 }) => {
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
+  const p = resolveParams(rawParams);
 
-  const pieceCount = intensity === 'low' ? 20 : intensity === 'medium' ? 40 : 70;
-  const accentColor = theme.colors.accent || '#8B5CF6';
-
-  // Parse accent color for variations
-  const parseColor = (hex: string) => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result
-      ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16),
-        }
-      : { r: 139, g: 92, b: 246 };
-  };
-
-  const baseColor = parseColor(accentColor);
+  const baseCount = intensity === 'low' ? 20 : intensity === 'medium' ? 40 : 70;
+  const pieceCount = Math.round(baseCount * p.density);
+  const accentColor = p.colorOverride || theme.colors.accent || '#8B5CF6';
 
   const pieces = useMemo<ConfettiPiece[]>(() => {
-    const shapes: Array<'rect' | 'circle' | 'triangle'> = ['rect', 'circle', 'triangle'];
+    const rng = createRng(7000);
+    const shapes: ConfettiShape[] = ['rect', 'circle', 'triangle', 'star', 'ribbon'];
+    const colors = [accentColor, ...COLOR_PALETTE];
 
-    return Array.from({ length: pieceCount }, (_, i) => {
-      // Generate color variations
-      const hueShift = (Math.random() - 0.5) * 60;
-      const r = Math.min(255, Math.max(0, baseColor.r + hueShift));
-      const g = Math.min(255, Math.max(0, baseColor.g + hueShift * 0.5));
-      const b = Math.min(255, Math.max(0, baseColor.b - hueShift * 0.3));
+    return Array.from({ length: pieceCount }, (_, i) => ({
+      id: i,
+      x: rngFloat(rng, 0, 100),
+      startY: rngFloat(rng, -20, -5),
+      size: rngFloat(rng, 4, 10),
+      rotation: rngFloat(rng, 0, 360),
+      rotationSpeed: rngFloat(rng, -8, 8),
+      fallSpeed: rngFloat(rng, 0.2, 0.5),
+      swayAmplitude: rngFloat(rng, 2, 5),
+      swayFrequency: rngFloat(rng, 0.02, 0.04),
+      color: rngPick(rng, colors),
+      shape: rngPick(rng, shapes),
+      delay: rngFloat(rng, 0, 60),
+      tumbleSpeed: rngFloat(rng, 0.08, 0.15),
+    }));
+  }, [pieceCount, accentColor]);
 
-      return {
-        id: i,
-        x: Math.random() * 100,
-        startY: -10 - Math.random() * 20,
-        size: 4 + Math.random() * 8,
-        rotation: Math.random() * 360,
-        rotationSpeed: (Math.random() - 0.5) * 8,
-        fallSpeed: 0.3 + Math.random() * 0.4,
-        swayAmplitude: 2 + Math.random() * 4,
-        swayFrequency: 0.02 + Math.random() * 0.03,
-        color: `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`,
-        shape: shapes[Math.floor(Math.random() * shapes.length)],
-        delay: Math.random() * 90,
-      };
-    });
-  }, [pieceCount, baseColor.r, baseColor.g, baseColor.b]);
+  // Global entrance: initial burst then settle
+  const entrance = interpolate(frame, [0, p.entranceDuration], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  }) * p.opacity;
 
-  const renderShape = (piece: ConfettiPiece, rotation: number) => {
+  // Initial burst - faster fall at start
+  const burstMultiplier = interpolate(frame, [0, 30, 60], [2, 1.2, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  const renderShape = (piece: ConfettiPiece, rotation: number, tumbleScaleX: number) => {
     switch (piece.shape) {
       case 'rect':
         return (
@@ -78,18 +84,53 @@ export const ConfettiAnimation: React.FC<AnimationProps> = ({
             y={-piece.size / 4}
             width={piece.size}
             height={piece.size / 2}
-            rx={1}
-            transform={`rotate(${rotation})`}
+            transform={`rotate(${rotation}) scale(${tumbleScaleX}, 1)`}
           />
         );
       case 'circle':
-        return <circle cx={0} cy={0} r={piece.size / 2} />;
-      case 'triangle':
+        return (
+          <ellipse
+            cx={0}
+            cy={0}
+            rx={piece.size / 2 * tumbleScaleX}
+            ry={piece.size / 2}
+          />
+        );
+      case 'triangle': {
         const h = piece.size * 0.866;
         return (
           <polygon
             points={`0,${-h / 2} ${-piece.size / 2},${h / 2} ${piece.size / 2},${h / 2}`}
-            transform={`rotate(${rotation})`}
+            transform={`rotate(${rotation}) scale(${tumbleScaleX}, 1)`}
+          />
+        );
+      }
+      case 'star': {
+        const r = piece.size / 2;
+        const ir = r * 0.4;
+        const pts: string[] = [];
+        for (let i = 0; i < 5; i++) {
+          const outerAngle = (i * 72 - 90) * (Math.PI / 180);
+          const innerAngle = ((i * 72 + 36) - 90) * (Math.PI / 180);
+          pts.push(`${Math.cos(outerAngle) * r},${Math.sin(outerAngle) * r}`);
+          pts.push(`${Math.cos(innerAngle) * ir},${Math.sin(innerAngle) * ir}`);
+        }
+        return (
+          <polygon
+            points={pts.join(' ')}
+            transform={`rotate(${rotation}) scale(${tumbleScaleX}, 1)`}
+          />
+        );
+      }
+      case 'ribbon':
+        return (
+          <rect
+            x={-piece.size / 2}
+            y={-piece.size / 8}
+            width={piece.size}
+            height={piece.size / 4}
+            rx={piece.size / 8}
+            transform={`rotate(${rotation}) scale(${tumbleScaleX}, 1)`}
           />
         );
       default:
@@ -109,41 +150,42 @@ export const ConfettiAnimation: React.FC<AnimationProps> = ({
       }}
       viewBox={`0 0 ${width} ${height}`}
     >
-      {pieces.map((piece) => {
-        const effectiveFrame = Math.max(0, frame - piece.delay);
+      <g opacity={entrance}>
+        {pieces.map((piece) => {
+          const effectiveFrame = Math.max(0, frame - piece.delay);
 
-        // Calculate position
-        const progress = (effectiveFrame * piece.fallSpeed) % 130;
-        const y = piece.startY + progress;
+          const progress = (effectiveFrame * piece.fallSpeed * burstMultiplier * p.speed) % 130;
+          const y = piece.startY + progress;
 
-        // Sway motion
-        const sway = Math.sin(effectiveFrame * piece.swayFrequency + piece.id) * piece.swayAmplitude;
-        const x = piece.x + sway;
+          const sway = Math.sin(effectiveFrame * piece.swayFrequency + piece.id) * piece.swayAmplitude;
+          const x = piece.x + sway;
 
-        // Rotation
-        const currentRotation = piece.rotation + effectiveFrame * piece.rotationSpeed;
+          const currentRotation = piece.rotation + effectiveFrame * piece.rotationSpeed;
 
-        // Fade out near bottom
-        const opacity = interpolate(
-          y,
-          [80, 100, 110],
-          [0.4, 0.2, 0],
-          { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-        );
+          // 3D tumble illusion via scaleX oscillation
+          const tumbleScaleX = 0.3 + Math.abs(Math.cos(effectiveFrame * piece.tumbleSpeed)) * 0.7;
 
-        if (opacity <= 0) return null;
+          const opacity = interpolate(
+            y,
+            [piece.startY, piece.startY + 10, 80, 100, 110],
+            [0, 0.5, 0.4, 0.2, 0],
+            { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+          );
 
-        return (
-          <g
-            key={piece.id}
-            transform={`translate(${(x / 100) * width}, ${(y / 100) * height})`}
-            fill={piece.color}
-            opacity={opacity}
-          >
-            {renderShape(piece, currentRotation)}
-          </g>
-        );
-      })}
+          if (opacity <= 0) return null;
+
+          return (
+            <g
+              key={piece.id}
+              transform={`translate(${(x / 100) * width}, ${(y / 100) * height}) scale(${p.scale})`}
+              fill={piece.color}
+              opacity={opacity}
+            >
+              {renderShape(piece, currentRotation, tumbleScaleX)}
+            </g>
+          );
+        })}
+      </g>
     </svg>
   );
 };

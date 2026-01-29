@@ -1,5 +1,5 @@
 import React from 'react';
-import { AnimationStyleId, AnimationProps, Theme } from './types';
+import { AnimationStyleId, AnimationProps, AnimationParams, Theme } from './types';
 import { ParticlesAnimation } from './ParticlesAnimation';
 import { FloatingShapesAnimation } from './FloatingShapesAnimation';
 import { WavesAnimation } from './WavesAnimation';
@@ -15,6 +15,7 @@ export interface AnimationLayerProps {
   durationInFrames: number;
   theme: Theme;
   intensity?: 'low' | 'medium' | 'high';
+  params?: AnimationParams;
 }
 
 const animationComponents: Record<
@@ -37,6 +38,7 @@ export const AnimationLayer: React.FC<AnimationLayerProps> = ({
   durationInFrames,
   theme,
   intensity = 'medium',
+  params,
 }) => {
   if (animationStyle === 'none') {
     return null;
@@ -54,6 +56,7 @@ export const AnimationLayer: React.FC<AnimationLayerProps> = ({
       durationInFrames={durationInFrames}
       theme={theme}
       intensity={intensity}
+      params={params}
     />
   );
 };

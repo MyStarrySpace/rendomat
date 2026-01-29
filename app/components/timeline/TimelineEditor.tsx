@@ -25,6 +25,8 @@ interface TimelineEditorProps {
   onOpenStockBrowser?: (fieldName: string) => void;
   onRenderVideo?: () => void;
   onRegenerateFromPrompt?: () => void;
+  videoRef?: React.RefObject<HTMLVideoElement | null>;
+  sceneRenderProgress?: Map<number, number>;
 }
 
 export function TimelineEditor({
@@ -38,6 +40,8 @@ export function TimelineEditor({
   onOpenStockBrowser,
   onRenderVideo,
   onRegenerateFromPrompt,
+  videoRef: externalVideoRef,
+  sceneRenderProgress,
 }: TimelineEditorProps) {
   const [showRenderChangedModal, setShowRenderChangedModal] = useState(false);
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
@@ -47,7 +51,8 @@ export function TimelineEditor({
     }
     return false;
   });
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const internalVideoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = externalVideoRef || internalVideoRef;
   const [videoSyncEnabled, setVideoSyncEnabled] = useState(true);
 
   // Scene update handler (for resize during drag - local preview)
@@ -113,7 +118,9 @@ export function TimelineEditor({
     onScenesChange();
     timeline.clearSceneChanged(sceneId);
     timeline.selectScene(null);
-  }, [onScenesChange, timeline]);
+    // Trigger video render
+    onRenderVideo?.();
+  }, [onScenesChange, timeline, onRenderVideo]);
 
   // Transition save handler
   const handleTransitionSave = useCallback(async (
@@ -343,6 +350,7 @@ export function TimelineEditor({
               onScrollChange={timeline.setScrollLeft}
               getTransitionLabel={getTransitionLabel}
               changedSceneIds={timeline.changedSceneIds}
+              sceneRenderProgress={sceneRenderProgress}
             />
           </div>
 
@@ -360,10 +368,10 @@ export function TimelineEditor({
           />
         </div>
 
-        {/* Hidden video element for sync */}
-        {video.output_path && (
+        {/* Hidden video element for sync (only when no external ref) */}
+        {!externalVideoRef && video.output_path && (
           <video
-            ref={videoRef}
+            ref={internalVideoRef}
             src={`${API_BASE}/uploads/${video.output_path}`}
             className="hidden"
             muted

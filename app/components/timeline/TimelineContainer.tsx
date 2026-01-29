@@ -41,6 +41,7 @@ interface TimelineContainerProps {
   onScrollChange?: (scrollLeft: number) => void;
   getTransitionLabel: (typeId: string) => string;
   changedSceneIds?: Set<number>;
+  sceneRenderProgress?: Map<number, number>;
 }
 
 export function TimelineContainer({
@@ -68,6 +69,7 @@ export function TimelineContainer({
   onScrollChange,
   getTransitionLabel,
   changedSceneIds,
+  sceneRenderProgress,
 }: TimelineContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const totalFrames = calculateTotalFrames(scenes);
@@ -154,6 +156,7 @@ export function TimelineContainer({
             getTransitionLabel={getTransitionLabel}
             snapEnabled={snapEnabled}
             changedSceneIds={changedSceneIds}
+            sceneRenderProgress={sceneRenderProgress}
           />
         </div>
 
