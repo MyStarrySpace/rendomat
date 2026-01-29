@@ -374,6 +374,18 @@ export const sceneDb = {
       updates.push('data = ?');
       values.push(typeof data.data === 'string' ? data.data : JSON.stringify(data.data));
     }
+    if (data.start_frame !== undefined) {
+      updates.push('start_frame = ?');
+      values.push(data.start_frame);
+    }
+    if (data.end_frame !== undefined) {
+      updates.push('end_frame = ?');
+      values.push(data.end_frame);
+    }
+    if (data.scene_number !== undefined) {
+      updates.push('scene_number = ?');
+      values.push(data.scene_number);
+    }
 
     if (updates.length === 0) {
       return this.getById(id);
@@ -414,7 +426,120 @@ export const sceneDb = {
 
   delete(id) {
     db.prepare('DELETE FROM scenes WHERE id = ?').run(id);
-  }
+  },
+
+  recalculateFrames(videoId) {
+    const scenes = db.prepare(
+      'SELECT id, scene_number, start_frame, end_frame FROM scenes WHERE video_id = ? ORDER BY scene_number'
+    ).all(videoId);
+
+    let runningFrame = 0;
+    for (const scene of scenes) {
+      const duration = scene.end_frame - scene.start_frame;
+      db.prepare(
+        'UPDATE scenes SET start_frame = ?, end_frame = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).run(runningFrame, runningFrame + duration, scene.id);
+      runningFrame += duration;
+    }
+
+    return db.prepare(
+      'SELECT * FROM scenes WHERE video_id = ? ORDER BY scene_number'
+    ).all(videoId);
+  },
+
+  reorderScene(sceneId, newSceneNumber) {
+    const self = this;
+    const reorder = db.transaction(() => {
+      const scene = db.prepare('SELECT * FROM scenes WHERE id = ?').get(sceneId);
+      if (!scene) throw new Error('Scene not found');
+
+      const oldSceneNumber = scene.scene_number;
+      if (oldSceneNumber === newSceneNumber) {
+        return db.prepare(
+          'SELECT * FROM scenes WHERE video_id = ? ORDER BY scene_number'
+        ).all(scene.video_id);
+      }
+
+      const videoId = scene.video_id;
+
+      // Build scene_number -> scene_id map for transition remapping
+      const allScenes = db.prepare(
+        'SELECT id, scene_number FROM scenes WHERE video_id = ? ORDER BY scene_number'
+      ).all(videoId);
+      const sceneNumToId = new Map(allScenes.map(s => [s.scene_number, s.id]));
+
+      // Load transitions before reorder
+      const transitions = db.prepare(
+        'SELECT * FROM transitions WHERE video_id = ?'
+      ).all(videoId);
+
+      // Map transitions to scene IDs
+      const transitionsBySceneIds = transitions.map(t => ({
+        id: t.id,
+        fromId: sceneNumToId.get(t.from_scene_number),
+        toId: sceneNumToId.get(t.to_scene_number),
+      }));
+
+      // Temporarily set moved scene to -1 to avoid UNIQUE conflict
+      db.prepare(
+        'UPDATE scenes SET scene_number = -1 WHERE id = ?'
+      ).run(sceneId);
+
+      // Shift other scenes one at a time to avoid UNIQUE constraint violations
+      if (newSceneNumber < oldSceneNumber) {
+        // Moving earlier: shift scenes in [new, old-1] up by 1, process from highest to lowest
+        const toShift = db.prepare(
+          'SELECT id, scene_number FROM scenes WHERE video_id = ? AND scene_number >= ? AND scene_number < ? ORDER BY scene_number DESC'
+        ).all(videoId, newSceneNumber, oldSceneNumber);
+        for (const s of toShift) {
+          db.prepare('UPDATE scenes SET scene_number = ? WHERE id = ?').run(s.scene_number + 1, s.id);
+        }
+      } else {
+        // Moving later: shift scenes in [old+1, new] down by 1, process from lowest to highest
+        const toShift = db.prepare(
+          'SELECT id, scene_number FROM scenes WHERE video_id = ? AND scene_number > ? AND scene_number <= ? ORDER BY scene_number ASC'
+        ).all(videoId, oldSceneNumber, newSceneNumber);
+        for (const s of toShift) {
+          db.prepare('UPDATE scenes SET scene_number = ? WHERE id = ?').run(s.scene_number - 1, s.id);
+        }
+      }
+
+      // Set moved scene to new number
+      db.prepare(
+        'UPDATE scenes SET scene_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).run(newSceneNumber, sceneId);
+
+      // Recalculate frames
+      self.recalculateFrames(videoId);
+
+      // Remap transitions by scene ID
+      const updatedScenes = db.prepare(
+        'SELECT id, scene_number FROM scenes WHERE video_id = ? ORDER BY scene_number'
+      ).all(videoId);
+      const idToNewNum = new Map(updatedScenes.map(s => [s.id, s.scene_number]));
+
+      for (const t of transitionsBySceneIds) {
+        if (!t.fromId || !t.toId) continue;
+        const newFrom = idToNewNum.get(t.fromId);
+        const newTo = idToNewNum.get(t.toId);
+        if (newFrom === undefined || newTo === undefined) continue;
+
+        // Only keep transitions between adjacent scenes
+        if (newTo === newFrom + 1) {
+          db.prepare(
+            'UPDATE transitions SET from_scene_number = ?, to_scene_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+          ).run(newFrom, newTo, t.id);
+        } else {
+          db.prepare('DELETE FROM transitions WHERE id = ?').run(t.id);
+        }
+      }
+
+      return db.prepare(
+        'SELECT * FROM scenes WHERE video_id = ? ORDER BY scene_number'
+      ).all(videoId);
+    });
+    return reorder();
+  },
 };
 
 // Render job operations

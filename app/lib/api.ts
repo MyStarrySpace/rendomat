@@ -245,6 +245,26 @@ export const sceneApi = {
     });
     if (!res.ok) throw new Error('Failed to clear scene cache');
   },
+
+  async reorder(videoId: number, sceneId: number, newSceneNumber: number): Promise<{ scenes: Scene[]; transitions: Transition[] }> {
+    const res = await fetch(`${API_BASE}/api/videos/${videoId}/scenes/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sceneId, newSceneNumber }),
+    });
+    if (!res.ok) throw new Error('Failed to reorder scene');
+    return res.json();
+  },
+
+  async resize(sceneId: number, edge: 'start' | 'end', newFrame: number): Promise<{ scenes: Scene[] }> {
+    const res = await fetch(`${API_BASE}/api/scenes/${sceneId}/resize`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ edge, newFrame }),
+    });
+    if (!res.ok) throw new Error('Failed to resize scene');
+    return res.json();
+  },
 };
 
 // Transition API

@@ -860,6 +860,66 @@ app.put('/api/scenes/:id', (req, res) => {
   }
 });
 
+// Reorder a scene within a video
+app.put('/api/videos/:videoId/scenes/reorder', (req, res) => {
+  try {
+    const videoId = parseInt(req.params.videoId, 10);
+    const { sceneId, newSceneNumber } = req.body;
+    console.log('[scene-reorder] Request body:', JSON.stringify(req.body), 'videoId:', videoId);
+
+    if (!sceneId || newSceneNumber === undefined) {
+      console.log('[scene-reorder] Validation failed - sceneId:', sceneId, 'newSceneNumber:', newSceneNumber);
+      return res.status(400).json({ error: 'sceneId and newSceneNumber are required' });
+    }
+
+    console.log('[scene-reorder] Reordering scene', { videoId, sceneId, newSceneNumber });
+    const scenes = sceneDb.reorderScene(sceneId, newSceneNumber);
+    const transitions = transitionDb.getAllForVideo(videoId);
+    console.log('[scene-reorder] Success, scenes:', scenes.length);
+    res.json({ scenes, transitions });
+  } catch (error) {
+    console.error('[scene-reorder] Error:', error.message, error.stack);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Resize a scene edge and ripple subsequent scenes
+app.put('/api/scenes/:id/resize', (req, res) => {
+  try {
+    const sceneId = parseInt(req.params.id, 10);
+    const { edge, newFrame } = req.body;
+
+    if (!edge || newFrame === undefined) {
+      return res.status(400).json({ error: 'edge and newFrame are required' });
+    }
+
+    const scene = sceneDb.getById(sceneId);
+    if (!scene) {
+      return res.status(404).json({ error: 'Scene not found' });
+    }
+
+    console.log('[scene-resize] Resizing scene', { sceneId, edge, newFrame });
+
+    if (edge === 'start') {
+      const minStart = 0;
+      const maxStart = scene.end_frame - 15;
+      const clampedStart = Math.min(Math.max(newFrame, minStart), maxStart);
+      sceneDb.update(sceneId, { start_frame: clampedStart });
+    } else {
+      const minEnd = scene.start_frame + 15;
+      const clampedEnd = Math.max(newFrame, minEnd);
+      sceneDb.update(sceneId, { end_frame: clampedEnd });
+    }
+
+    const scenes = sceneDb.recalculateFrames(scene.video_id);
+    console.log('[scene-resize] Success, recalculated frames');
+    res.json({ scenes });
+  } catch (error) {
+    console.error('[scene-resize] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.delete('/api/scenes/:id', (req, res) => {
   try {
     const scene = sceneDb.getById(req.params.id);

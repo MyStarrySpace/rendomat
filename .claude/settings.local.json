@@ -77,7 +77,9 @@
       "Bash(cmd //c \"taskkill /PID 67156 /F\")",
       "Bash(git commit:*)",
       "Bash(npx next build)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npx next lint:*)",
+      "Bash(npx next build:*)"
     ]
   }
 }

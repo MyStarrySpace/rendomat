@@ -66,6 +66,9 @@ tmp/
 temp/
 *.tmp
 
+# Transition preview clips (generated)
+public/transitions/
+
 # Audio files (generated narrations)
 public/audio/
 remotion/public/audio/*.mp3

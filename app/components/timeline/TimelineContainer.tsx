@@ -11,12 +11,14 @@ import {
   pixelToFrame,
   TRACKS,
 } from './lib/timeline-utils';
+import { DragPreview, ResizePreview } from './hooks/useTimeline';
 
 const RULER_HEIGHT = 24;
 const TRACK_LABEL_WIDTH = 80;
 
 interface TimelineContainerProps {
   scenes: Scene[];
+  previewScenes?: Scene[];
   transitions: Transition[];
   zoom: number;
   playheadFrame: number;
@@ -24,12 +26,14 @@ interface TimelineContainerProps {
   selectedTransitionId: number | null;
   isPlaying: boolean;
   snapEnabled: boolean;
+  dragPreview?: DragPreview | null;
+  resizePreview?: ResizePreview | null;
   onSeek: (frame: number) => void;
   onSceneSelect: (sceneId: number | null) => void;
   onTransitionSelect: (transitionId: number | null) => void;
   onSceneDragStart?: (sceneId: number, startFrame: number) => void;
-  onSceneDragMove?: (sceneId: number, newStartFrame: number) => void;
-  onSceneDragEnd?: (sceneId: number, newStartFrame: number) => void;
+  onSceneDragMove?: (sceneId: number, cursorFrame: number) => void;
+  onSceneDragEnd?: (sceneId: number, cursorFrame: number) => void;
   onSceneResizeStart?: (sceneId: number, edge: 'start' | 'end') => void;
   onSceneResizeMove?: (sceneId: number, edge: 'start' | 'end', newFrame: number) => void;
   onSceneResizeEnd?: (sceneId: number, edge: 'start' | 'end', newFrame: number) => void;
@@ -41,6 +45,7 @@ interface TimelineContainerProps {
 
 export function TimelineContainer({
   scenes,
+  previewScenes,
   transitions,
   zoom,
   playheadFrame,
@@ -48,6 +53,8 @@ export function TimelineContainer({
   selectedTransitionId,
   isPlaying,
   snapEnabled,
+  dragPreview,
+  resizePreview,
   onSeek,
   onSceneSelect,
   onTransitionSelect,
@@ -128,10 +135,13 @@ export function TimelineContainer({
         <div className="relative">
           <TimelineTrack
             scenes={scenes}
+            previewScenes={previewScenes}
             transitions={transitions}
             zoom={zoom}
             selectedSceneId={selectedSceneId}
             selectedTransitionId={selectedTransitionId}
+            dragPreview={dragPreview}
+            resizePreview={resizePreview}
             onSceneSelect={onSceneSelect}
             onTransitionSelect={onTransitionSelect}
             onSceneDragStart={onSceneDragStart}

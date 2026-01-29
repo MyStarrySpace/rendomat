@@ -3,9 +3,9 @@
  */
 
 export const FPS = 30;
-export const DEFAULT_ZOOM = 80; // pixels per second
-export const MIN_ZOOM = 10;  // Allow much more zoom out
-export const MAX_ZOOM = 600; // Allow much more zoom in for frame-level editing
+export const DEFAULT_ZOOM = 16; // pixels per second
+export const MIN_ZOOM = 2;   // Allow much more zoom out
+export const MAX_ZOOM = 120; // Allow much more zoom in for frame-level editing
 export const SNAP_GRID_FRAMES = 15; // 0.5 second snap (default)
 
 // Track types for multi-track timeline
@@ -79,10 +79,10 @@ export function frameToSeconds(frame: number): number {
 export function getSnapGridSize(zoom: number, snapEnabled: boolean): number {
   if (!snapEnabled) return 1; // Snap to individual frames
 
-  if (zoom >= 400) return 1;      // Frame-level at very high zoom
-  if (zoom >= 200) return 5;      // 5 frames
-  if (zoom >= 100) return 15;     // 0.5 seconds
-  if (zoom >= 50) return 30;      // 1 second
+  if (zoom >= 80) return 1;       // Frame-level at very high zoom
+  if (zoom >= 40) return 5;       // 5 frames
+  if (zoom >= 20) return 15;      // 0.5 seconds
+  if (zoom >= 10) return 30;      // 1 second
   return 60;                       // 2 seconds at low zoom
 }
 
@@ -123,19 +123,19 @@ export function generateRulerMarkers(
   let minorInterval: number;
   let showFrames = false;
 
-  if (zoom < 20) {
+  if (zoom < 4) {
     majorInterval = FPS * 30; // Every 30 seconds
     minorInterval = FPS * 10; // Every 10 seconds
-  } else if (zoom < 50) {
+  } else if (zoom < 10) {
     majorInterval = FPS * 10; // Every 10 seconds
     minorInterval = FPS * 5;  // Every 5 seconds
-  } else if (zoom < 100) {
+  } else if (zoom < 20) {
     majorInterval = FPS * 5;  // Every 5 seconds
     minorInterval = FPS;      // Every second
-  } else if (zoom < 200) {
+  } else if (zoom < 40) {
     majorInterval = FPS * 2;  // Every 2 seconds
     minorInterval = FPS / 2;  // Every 0.5 seconds
-  } else if (zoom < 400) {
+  } else if (zoom < 80) {
     majorInterval = FPS;      // Every second
     minorInterval = FPS / 6;  // Every 5 frames
     showFrames = true;
@@ -201,6 +201,94 @@ export function formatDuration(frames: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.round(seconds % 60);
   return `${mins}m ${secs}s`;
+}
+
+/**
+ * Compute sequential layout for scenes.
+ * Returns scenes with recomputed start_frame/end_frame in sequence.
+ * Optionally moves dragSceneId to targetIndex for preview during drag.
+ */
+export function computeSequentialLayout<T extends { id: number; start_frame: number; end_frame: number; scene_number: number }>(
+  scenes: T[],
+  dragSceneId?: number,
+  targetIndex?: number,
+): T[] {
+  const sorted = [...scenes].sort((a, b) => a.scene_number - b.scene_number);
+
+  if (dragSceneId !== undefined && targetIndex !== undefined) {
+    // Remove dragged scene, layout the rest sequentially,
+    // then place dragged scene at the gap position (for insertion line calc)
+    const dragIdx = sorted.findIndex(s => s.id === dragSceneId);
+    if (dragIdx !== -1) {
+      const [dragged] = sorted.splice(dragIdx, 1);
+      const insertIdx = Math.min(Math.max(0, targetIndex), sorted.length);
+
+      // Layout non-dragged scenes sequentially
+      let runningFrame = 0;
+      const result: T[] = [];
+      for (let i = 0; i < sorted.length; i++) {
+        if (i === insertIdx) {
+          // Reserve the insertion point frame for the dragged scene marker
+          // but don't add gap - the dragged scene floats freely
+        }
+        const duration = sorted[i].end_frame - sorted[i].start_frame;
+        result.push({
+          ...sorted[i],
+          start_frame: runningFrame,
+          end_frame: runningFrame + duration,
+          scene_number: i >= insertIdx ? i + 1 : i,
+        });
+        runningFrame += duration;
+      }
+
+      // Add dragged scene with its insertion-point position (used for insertion line)
+      const insertFrame = insertIdx < result.length
+        ? result[insertIdx].start_frame
+        : runningFrame;
+      const dragDuration = dragged.end_frame - dragged.start_frame;
+      result.push({
+        ...dragged,
+        start_frame: insertFrame,
+        end_frame: insertFrame + dragDuration,
+        scene_number: insertIdx,
+      });
+
+      return result;
+    }
+  }
+
+  // No drag: simple sequential layout
+  let runningFrame = 0;
+  return sorted.map((scene, index) => {
+    const duration = scene.end_frame - scene.start_frame;
+    const result = {
+      ...scene,
+      start_frame: runningFrame,
+      end_frame: runningFrame + duration,
+      scene_number: index,
+    };
+    runningFrame += duration;
+    return result;
+  });
+}
+
+/**
+ * Find the target insertion index based on cursor frame position
+ * among the sorted scenes (excluding the dragged scene).
+ */
+export function findDropTargetIndex<T extends { id: number; start_frame: number; end_frame: number }>(
+  scenes: T[],
+  dragSceneId: number,
+  cursorFrame: number,
+): number {
+  const others = scenes.filter(s => s.id !== dragSceneId);
+  if (others.length === 0) return 0;
+
+  for (let i = 0; i < others.length; i++) {
+    const midpoint = (others[i].start_frame + others[i].end_frame) / 2;
+    if (cursorFrame < midpoint) return i;
+  }
+  return others.length;
 }
 
 /**

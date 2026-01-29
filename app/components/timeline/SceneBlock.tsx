@@ -18,10 +18,13 @@ interface SceneBlockProps {
   scene: Scene;
   zoom: number;
   isSelected: boolean;
+  isDraggedScene?: boolean;
+  previewLeft?: number;
+  previewWidth?: number;
   onClick: () => void;
   onDragStart?: (sceneId: number, startFrame: number) => void;
-  onDragMove?: (sceneId: number, newStartFrame: number) => void;
-  onDragEnd?: (sceneId: number, newStartFrame: number) => void;
+  onDragMove?: (sceneId: number, cursorFrame: number) => void;
+  onDragEnd?: (sceneId: number, cursorFrame: number) => void;
   onResizeStart?: (sceneId: number, edge: 'start' | 'end') => void;
   onResizeMove?: (sceneId: number, edge: 'start' | 'end', newFrame: number) => void;
   onResizeEnd?: (sceneId: number, edge: 'start' | 'end', newFrame: number) => void;
@@ -31,13 +34,16 @@ interface SceneBlockProps {
   hasChanges?: boolean;
   inTransitionFrames?: number;
   outTransitionFrames?: number;
-  containerOffset?: number; // Offset for track labels
+  containerOffset?: number;
 }
 
 export function SceneBlock({
   scene,
   zoom,
   isSelected,
+  isDraggedScene = false,
+  previewLeft,
+  previewWidth,
   onClick,
   onDragStart,
   onDragMove,
@@ -54,35 +60,39 @@ export function SceneBlock({
   containerOffset = 80,
 }: SceneBlockProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [isPendingDrag, setIsPendingDrag] = useState(false);
   const [isResizing, setIsResizing] = useState<'start' | 'end' | null>(null);
   const dragStartX = useRef<number>(0);
+  const dragStartY = useRef<number>(0);
   const dragStartFrame = useRef<number>(0);
-  const originalStartFrame = useRef<number>(0);
-  const originalEndFrame = useRef<number>(0);
   const hasDragged = useRef<boolean>(false);
+  const DRAG_THRESHOLD = 6; // pixels before drag activates
 
   const isUnrendered = !scene.cache_path;
   const duration = getSceneDuration(scene);
 
-  const left = frameToPixel(scene.start_frame, zoom);
-  const width = frameToPixel(duration, zoom);
+  // Use preview position/width during drag or resize, otherwise use scene's actual values
+  const displayLeft = previewLeft !== undefined
+    ? previewLeft
+    : frameToPixel(scene.start_frame, zoom);
+  const width = previewWidth !== undefined
+    ? previewWidth
+    : frameToPixel(duration, zoom);
   const color = getSceneTypeColor(scene.scene_type);
   const zebraStyle = getZebraStripeStyle(isUnrendered, hasChanges);
 
-  // Handle drag start (for reordering)
+  // Handle drag start (for reordering) — enters pending state until threshold crossed
   const handleDragMouseDown = useCallback((e: React.MouseEvent) => {
     if (isResizing) return;
     e.preventDefault();
     e.stopPropagation();
 
-    setIsDragging(true);
+    setIsPendingDrag(true);
     hasDragged.current = false;
     dragStartX.current = e.clientX;
+    dragStartY.current = e.clientY;
     dragStartFrame.current = scene.start_frame;
-    originalStartFrame.current = scene.start_frame;
-    originalEndFrame.current = scene.end_frame;
-    onDragStart?.(scene.id, scene.start_frame);
-  }, [scene.id, scene.start_frame, scene.end_frame, isResizing, onDragStart]);
+  }, [scene.start_frame, isResizing]);
 
   // Handle resize start
   const handleResizeMouseDown = useCallback((
@@ -92,16 +102,26 @@ export function SceneBlock({
     e.stopPropagation();
     e.preventDefault();
     setIsResizing(edge);
-    originalStartFrame.current = scene.start_frame;
-    originalEndFrame.current = scene.end_frame;
     onResizeStart?.(scene.id, edge);
-  }, [scene.id, scene.start_frame, scene.end_frame, onResizeStart]);
+  }, [scene.id, onResizeStart]);
 
   // Mouse move and up handlers
   useEffect(() => {
-    if (!isDragging && !isResizing) return;
+    if (!isPendingDrag && !isDragging && !isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
+      // Check if we should transition from pending to actual drag
+      if (isPendingDrag && !isDragging) {
+        const dx = e.clientX - dragStartX.current;
+        const dy = e.clientY - dragStartY.current;
+        if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
+        // Threshold crossed — commit to dragging
+        setIsPendingDrag(false);
+        setIsDragging(true);
+        hasDragged.current = true;
+        onDragStart?.(scene.id, scene.start_frame);
+      }
+
       const container = document.querySelector('[data-timeline-container]');
       if (!container) return;
 
@@ -110,18 +130,11 @@ export function SceneBlock({
       const gridSize = getSnapGridSize(zoom, snapEnabled);
 
       if (isDragging && onDragMove) {
-        // Calculate delta from drag start
-        const deltaX = e.clientX - dragStartX.current;
-        // Mark as dragged if moved more than 3 pixels
-        if (Math.abs(deltaX) > 3) {
-          hasDragged.current = true;
-        }
-        const deltaFrames = pixelToFrame(deltaX, zoom);
-        const snappedDelta = snapEnabled ? snapToGrid(deltaFrames, gridSize) : deltaFrames;
-        const newStartFrame = Math.max(0, dragStartFrame.current + snappedDelta);
-        onDragMove(scene.id, newStartFrame);
+        // Send cursor position as a frame value for reorder calculation
+        const cursorX = e.clientX - rect.left + scrollLeft - containerOffset;
+        const cursorFrame = pixelToFrame(Math.max(0, cursorX), zoom);
+        onDragMove(scene.id, cursorFrame);
       } else if (isResizing && onResizeMove) {
-        // Calculate absolute position in timeline
         const x = e.clientX - rect.left + scrollLeft - containerOffset;
         const rawFrame = pixelToFrame(Math.max(0, x), zoom);
         const snappedFrame = snapEnabled ? snapToGrid(rawFrame, gridSize) : rawFrame;
@@ -130,13 +143,19 @@ export function SceneBlock({
     };
 
     const handleMouseUp = (e: MouseEvent) => {
+      if (isPendingDrag) {
+        // Mouse released before threshold — treat as click, not drag
+        setIsPendingDrag(false);
+      }
       if (isDragging && onDragEnd) {
-        const deltaX = e.clientX - dragStartX.current;
-        const deltaFrames = pixelToFrame(deltaX, zoom);
-        const gridSize = getSnapGridSize(zoom, snapEnabled);
-        const snappedDelta = snapEnabled ? snapToGrid(deltaFrames, gridSize) : deltaFrames;
-        const newStartFrame = Math.max(0, dragStartFrame.current + snappedDelta);
-        onDragEnd(scene.id, newStartFrame);
+        const container = document.querySelector('[data-timeline-container]');
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          const scrollLeft = container.scrollLeft || 0;
+          const cursorX = e.clientX - rect.left + scrollLeft - containerOffset;
+          const cursorFrame = pixelToFrame(Math.max(0, cursorX), zoom);
+          onDragEnd(scene.id, cursorFrame);
+        }
         setIsDragging(false);
       }
       if (isResizing && onResizeEnd) {
@@ -161,24 +180,24 @@ export function SceneBlock({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, isResizing, scene.id, zoom, snapEnabled, containerOffset, onDragMove, onDragEnd, onResizeMove, onResizeEnd]);
+  }, [isPendingDrag, isDragging, isResizing, scene.id, scene.start_frame, zoom, snapEnabled, containerOffset, onDragStart, onDragMove, onDragEnd, onResizeMove, onResizeEnd]);
 
   return (
     <div
       style={{
         position: 'absolute',
-        left,
+        left: displayLeft,
         width: Math.max(width, 30),
         height: trackHeight - 8,
         top: 4,
-        zIndex: isDragging || isResizing || isSelected ? 50 : 10,
+        zIndex: isDragging ? 100 : (isResizing || isSelected ? 50 : 10),
+        transition: isDragging ? 'none' : 'left 150ms ease',
       }}
       className="group"
     >
       {/* Main block - entire block is draggable */}
       <div
         onMouseDown={(e) => {
-          // Only start drag if not clicking on resize handles or buttons
           const target = e.target as HTMLElement;
           if (target.closest('[data-resize-handle]') || target.closest('button')) {
             return;
@@ -186,20 +205,20 @@ export function SceneBlock({
           handleDragMouseDown(e);
         }}
         onClick={(e) => {
-          // Only trigger click/select if we didn't actually drag
           if (!hasDragged.current) {
             onClick();
           }
           hasDragged.current = false;
         }}
-        className={`h-full flex items-center overflow-hidden transition-shadow relative cursor-grab ${
+        className={`h-full flex items-center overflow-hidden relative cursor-grab ${
           isSelected
             ? 'ring-2 ring-[hsl(var(--accent))] ring-offset-1 ring-offset-[hsl(var(--background))]'
             : ''
-        } ${isDragging ? 'opacity-90 shadow-lg cursor-grabbing' : ''} ${isResizing ? 'opacity-90' : ''}`}
+        } ${isDragging ? 'opacity-80 shadow-xl cursor-grabbing scale-[1.02]' : ''} ${isResizing ? 'opacity-90' : ''}`}
         style={{
           backgroundColor: color,
           ...zebraStyle,
+          ...(isDragging ? { boxShadow: '0 8px 25px rgba(0,0,0,0.3)' } : {}),
         }}
       >
         {/* In-transition indicator */}
@@ -258,26 +277,15 @@ export function SceneBlock({
           </button>
         )}
 
-        {/* Resize handles */}
+        {/* Right resize handle only */}
         {(onResizeMove || onResizeEnd) && (
-          <>
-            {/* Left resize handle */}
-            <div
-              data-resize-handle="start"
-              className={`absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30 transition-colors z-20 ${
-                isResizing === 'start' ? 'bg-white/40' : ''
-              }`}
-              onMouseDown={(e) => handleResizeMouseDown(e, 'start')}
-            />
-            {/* Right resize handle */}
-            <div
-              data-resize-handle="end"
-              className={`absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30 transition-colors z-20 ${
-                isResizing === 'end' ? 'bg-white/40' : ''
-              }`}
-              onMouseDown={(e) => handleResizeMouseDown(e, 'end')}
-            />
-          </>
+          <div
+            data-resize-handle="end"
+            className={`absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30 transition-colors z-20 ${
+              isResizing === 'end' ? 'bg-white/40' : ''
+            }`}
+            onMouseDown={(e) => handleResizeMouseDown(e, 'end')}
+          />
         )}
       </div>
     </div>

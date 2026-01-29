@@ -12,7 +12,22 @@ import {
   snapToGrid,
   clamp,
   getSnapGridSize,
+  computeSequentialLayout,
+  findDropTargetIndex,
 } from '../lib/timeline-utils';
+
+export interface DragPreview {
+  sceneId: number;
+  targetIndex: number;
+  originalIndex: number;
+  cursorFrame: number;
+}
+
+export interface ResizePreview {
+  sceneId: number;
+  edge: 'start' | 'end';
+  newFrame: number;
+}
 
 export interface TimelineState {
   zoom: number;
@@ -29,6 +44,8 @@ export interface UseTimelineOptions {
   scenes: Scene[];
   transitions: Transition[];
   onSceneUpdate?: (sceneId: number, data: Partial<Scene>) => Promise<void>;
+  onSceneReorder?: (videoId: number, sceneId: number, newSceneNumber: number) => Promise<void>;
+  onSceneResize?: (sceneId: number, edge: 'start' | 'end', newFrame: number) => Promise<void>;
   onTransitionSelect?: (transitionId: number | null) => void;
 }
 
@@ -36,6 +53,8 @@ export function useTimeline({
   scenes,
   transitions,
   onSceneUpdate,
+  onSceneReorder,
+  onSceneResize,
   onTransitionSelect,
 }: UseTimelineOptions) {
   const [state, setState] = useState<TimelineState>({
@@ -49,9 +68,17 @@ export function useTimeline({
     changedSceneIds: new Set(),
   });
 
+  // Drag preview state for reorder
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
+  const dragPreviewRef = useRef<DragPreview | null>(null);
+
+  // Resize preview state
+  const [resizePreview, setResizePreview] = useState<ResizePreview | null>(null);
+
   // Track original scene positions for drag
   const dragState = useRef<{
     sceneId: number;
+    originalSceneNumber: number;
     originalStartFrame: number;
     originalEndFrame: number;
   } | null>(null);
@@ -64,6 +91,34 @@ export function useTimeline({
     () => [...scenes].sort((a, b) => a.scene_number - b.scene_number),
     [scenes]
   );
+
+  // Preview scenes: during drag or resize, show adjusted layout
+  const previewScenes = useMemo(() => {
+    if (dragPreview) {
+      return computeSequentialLayout(
+        sortedScenes,
+        dragPreview.sceneId,
+        dragPreview.targetIndex,
+      );
+    }
+    if (resizePreview) {
+      // Apply the resize to the target scene, then recompute sequential layout
+      const modified = sortedScenes.map(s => {
+        if (s.id !== resizePreview.sceneId) return s;
+        if (resizePreview.edge === 'start') {
+          const maxStart = s.end_frame - 15;
+          const newStart = clamp(resizePreview.newFrame, 0, maxStart);
+          return { ...s, start_frame: newStart };
+        } else {
+          const minEnd = s.start_frame + 15;
+          const newEnd = Math.max(resizePreview.newFrame, minEnd);
+          return { ...s, end_frame: newEnd };
+        }
+      });
+      return computeSequentialLayout(modified);
+    }
+    return sortedScenes;
+  }, [sortedScenes, dragPreview, resizePreview]);
 
   // Total duration
   const totalFrames = useMemo(
@@ -180,89 +235,116 @@ export function useTimeline({
     setState(prev => ({ ...prev, scrollLeft }));
   }, []);
 
-  // Scene drag handlers - for reordering scenes in time
-  const handleSceneDragStart = useCallback((sceneId: number, startFrame: number) => {
+  // Scene drag handlers - for reordering scenes
+  const handleSceneDragStart = useCallback((sceneId: number, _startFrame: number) => {
     const scene = sortedScenes.find(s => s.id === sceneId);
     if (!scene) return;
 
+    const originalIndex = sortedScenes.findIndex(s => s.id === sceneId);
     dragState.current = {
       sceneId,
+      originalSceneNumber: scene.scene_number,
       originalStartFrame: scene.start_frame,
       originalEndFrame: scene.end_frame,
     };
+
+    const preview = {
+      sceneId,
+      targetIndex: originalIndex,
+      originalIndex,
+      cursorFrame: scene.start_frame,
+    };
+    dragPreviewRef.current = preview;
+    setDragPreview(preview);
   }, [sortedScenes]);
 
-  const handleSceneDragMove = useCallback((sceneId: number, newStartFrame: number) => {
+  const handleSceneDragMove = useCallback((sceneId: number, cursorFrame: number) => {
     if (!dragState.current || dragState.current.sceneId !== sceneId) return;
-    if (!onSceneUpdate) return;
 
-    const { originalStartFrame, originalEndFrame } = dragState.current;
-    const duration = originalEndFrame - originalStartFrame;
+    const targetIndex = findDropTargetIndex(sortedScenes, sceneId, cursorFrame);
 
-    // Calculate new position (newStartFrame is absolute position)
-    const clampedStart = Math.max(0, newStartFrame);
-    const newEndFrame = clampedStart + duration;
-
-    // Update scene position (this is temporary during drag)
-    onSceneUpdate(sceneId, {
-      start_frame: clampedStart,
-      end_frame: newEndFrame,
+    setDragPreview(prev => {
+      if (!prev) return null;
+      const updated = {
+        ...prev,
+        targetIndex,
+        cursorFrame,
+      };
+      dragPreviewRef.current = updated;
+      return updated;
     });
-  }, [onSceneUpdate]);
+  }, [sortedScenes]);
 
-  const handleSceneDragEnd = useCallback((sceneId: number, newStartFrame: number) => {
-    if (dragState.current && dragState.current.sceneId === sceneId && onSceneUpdate) {
-      const duration = dragState.current.originalEndFrame - dragState.current.originalStartFrame;
-      const clampedStart = Math.max(0, newStartFrame);
-      onSceneUpdate(sceneId, {
-        start_frame: clampedStart,
-        end_frame: clampedStart + duration,
-      });
+  const handleSceneDragEnd = useCallback(async (sceneId: number, _cursorFrame: number) => {
+    if (!dragState.current || dragState.current.sceneId !== sceneId) {
+      dragPreviewRef.current = null;
+      setDragPreview(null);
+      dragState.current = null;
+      return;
     }
-    dragState.current = null;
-  }, [onSceneUpdate]);
 
-  // Scene resize handlers
+    // Read from ref to avoid stale closure
+    const preview = dragPreviewRef.current;
+    if (!preview) {
+      dragState.current = null;
+      return;
+    }
+
+    // Compute the new scene_number from targetIndex
+    // Both targetIndex and scene_number are 0-based
+    const newSceneNumber = preview.targetIndex;
+    const oldSceneNumber = dragState.current.originalSceneNumber;
+
+    dragPreviewRef.current = null;
+    setDragPreview(null);
+    dragState.current = null;
+
+    if (newSceneNumber !== oldSceneNumber && onSceneReorder) {
+      const scene = sortedScenes.find(s => s.id === sceneId);
+      if (scene) {
+        await onSceneReorder(scene.video_id, sceneId, newSceneNumber);
+      }
+    }
+  }, [sortedScenes, onSceneReorder]);
+
+  // Scene resize handlers — local preview during drag, server commit on drop
   const handleSceneResizeStart = useCallback((sceneId: number, edge: 'start' | 'end') => {
     const scene = sortedScenes.find(s => s.id === sceneId);
     if (!scene) return;
 
     dragState.current = {
       sceneId,
+      originalSceneNumber: scene.scene_number,
       originalStartFrame: scene.start_frame,
       originalEndFrame: scene.end_frame,
     };
+    setResizePreview({ sceneId, edge, newFrame: edge === 'start' ? scene.start_frame : scene.end_frame });
   }, [sortedScenes]);
 
-  const handleSceneResizeMove = useCallback((sceneId: number, edge: 'start' | 'end', newFrame: number) => {
-    const scene = sortedScenes.find(s => s.id === sceneId);
-    if (!scene || !onSceneUpdate) return;
-
-    if (edge === 'start') {
-      // Ensure minimum duration of 15 frames (0.5s)
-      const maxStart = scene.end_frame - 15;
-      const newStart = clamp(newFrame, 0, maxStart);
-      onSceneUpdate(sceneId, { start_frame: newStart });
-    } else {
-      // Ensure minimum duration of 15 frames (0.5s)
-      const minEnd = scene.start_frame + 15;
-      const newEnd = Math.max(newFrame, minEnd);
-      onSceneUpdate(sceneId, { end_frame: newEnd });
-    }
-  }, [sortedScenes, onSceneUpdate]);
+  const handleSceneResizeMove = useCallback((_sceneId: number, edge: 'start' | 'end', newFrame: number) => {
+    setResizePreview(prev => {
+      if (!prev) return null;
+      return { ...prev, newFrame };
+    });
+  }, []);
 
   const handleSceneResizeEnd = useCallback(async (sceneId: number, edge: 'start' | 'end', newFrame: number) => {
-    const scene = sortedScenes.find(s => s.id === sceneId);
-    if (!scene || !onSceneUpdate) return;
+    setResizePreview(null);
 
-    if (edge === 'start') {
-      const maxStart = scene.end_frame - 15;
-      const newStart = clamp(newFrame, 0, maxStart);
-      await onSceneUpdate(sceneId, { start_frame: newStart });
-    } else {
-      const minEnd = scene.start_frame + 15;
-      const newEnd = Math.max(newFrame, minEnd);
-      await onSceneUpdate(sceneId, { end_frame: newEnd });
+    if (onSceneResize) {
+      await onSceneResize(sceneId, edge, newFrame);
+    } else if (onSceneUpdate) {
+      const scene = sortedScenes.find(s => s.id === sceneId);
+      if (!scene) return;
+      if (edge === 'start') {
+        const maxStart = scene.end_frame - 15;
+        const newStart = clamp(newFrame, 0, maxStart);
+        await onSceneUpdate(sceneId, { start_frame: newStart });
+      } else {
+        const minEnd = scene.start_frame + 15;
+        const newEnd = Math.max(newFrame, minEnd);
+        await onSceneUpdate(sceneId, { end_frame: newEnd });
+      }
     }
 
     // Mark scene as changed (needs re-render)
@@ -272,7 +354,7 @@ export function useTimeline({
     }));
 
     dragState.current = null;
-  }, [sortedScenes, onSceneUpdate]);
+  }, [sortedScenes, onSceneUpdate, onSceneResize]);
 
   // Mark scene as changed (when data is modified)
   const markSceneChanged = useCallback((sceneId: number) => {
@@ -386,10 +468,13 @@ export function useTimeline({
     // State
     ...state,
     sortedScenes,
+    previewScenes,
     totalFrames,
     selectedScene,
     selectedTransition,
     containerRef,
+    dragPreview,
+    resizePreview,
 
     // Actions
     setZoom,

@@ -6,6 +6,7 @@ import { ClassProfileVideo } from './ClassProfileVideo';
 import { UltrahumanVSL } from './UltrahumanVSL';
 import { DynamicSceneComposition, DynamicSceneProps } from './DynamicSceneComposition';
 import { ASPECT_RATIOS, type AspectRatioKey } from './aspect-ratios';
+import { TransitionPreviewComposition, TransitionPreviewProps } from './TransitionPreviewComposition';
 import type { PolicyWrappedRenderProps, CivicProfileRenderProps, ClassProfileRenderProps } from './types';
 
 const defaultDynamicSceneProps: DynamicSceneProps = {
@@ -147,8 +148,18 @@ export const RemotionRoot: React.FC = () => {
           urlText: 'civic-engine.app',
         }}
       />
+      <Composition
+        id="TransitionPreview"
+        component={TransitionPreviewComposition}
+        durationInFrames={30}
+        fps={30}
+        width={320}
+        height={180}
+        defaultProps={{ transitionType: 'crossfade' as const, durationFrames: 20 }}
+        calculateMetadata={({ props }: { props: TransitionPreviewProps }) => ({
+          durationInFrames: props.durationFrames || 30,
+        })}
+      />
     </>
   );
 };
-
-

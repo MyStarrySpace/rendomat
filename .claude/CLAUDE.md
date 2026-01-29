@@ -47,3 +47,18 @@ UI components are in `app/components/ui/`:
 - `Input`, `Textarea`, `Label`
 
 Import from `@/components/ui` or `@/components/ui/[component]`.
+
+## Transition Previews
+
+When transition rendering code is modified (`remotion/components/Transition.tsx` or `remotion/lib/transitions.ts`), re-render the transition preview clips:
+
+```bash
+node scripts/render-transition-previews.mjs
+```
+
+To re-render a single transition type:
+```bash
+node scripts/render-transition-previews.mjs --type crossfade
+```
+
+Preview clips are stored in `public/transitions/` as MP4 files (320×180, 30fps).

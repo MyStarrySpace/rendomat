@@ -9,18 +9,22 @@ import {
   calculateTotalFrames,
   TRACKS,
 } from './lib/timeline-utils';
+import { DragPreview, ResizePreview } from './hooks/useTimeline';
 
 interface TimelineTrackProps {
   scenes: Scene[];
+  previewScenes?: Scene[];
   transitions: Transition[];
   zoom: number;
   selectedSceneId: number | null;
   selectedTransitionId: number | null;
+  dragPreview?: DragPreview | null;
+  resizePreview?: ResizePreview | null;
   onSceneSelect: (sceneId: number | null) => void;
   onTransitionSelect: (transitionId: number | null) => void;
   onSceneDragStart?: (sceneId: number, startFrame: number) => void;
-  onSceneDragMove?: (sceneId: number, newStartFrame: number) => void;
-  onSceneDragEnd?: (sceneId: number, newStartFrame: number) => void;
+  onSceneDragMove?: (sceneId: number, cursorFrame: number) => void;
+  onSceneDragEnd?: (sceneId: number, cursorFrame: number) => void;
   onSceneResizeStart?: (sceneId: number, edge: 'start' | 'end') => void;
   onSceneResizeMove?: (sceneId: number, edge: 'start' | 'end', newFrame: number) => void;
   onSceneResizeEnd?: (sceneId: number, edge: 'start' | 'end', newFrame: number) => void;
@@ -32,10 +36,13 @@ interface TimelineTrackProps {
 
 export function TimelineTrack({
   scenes,
+  previewScenes,
   transitions,
   zoom,
   selectedSceneId,
   selectedTransitionId,
+  dragPreview,
+  resizePreview,
   onSceneSelect,
   onTransitionSelect,
   onSceneDragStart,
@@ -52,6 +59,28 @@ export function TimelineTrack({
   const totalFrames = calculateTotalFrames(scenes);
   const trackWidth = frameToPixel(totalFrames, zoom) + 200;
 
+  const isPreviewActive = !!(dragPreview || resizePreview);
+
+  // Build maps of scene id -> preview position and preview width during drag or resize
+  const previewPositionMap = new Map<number, number>();
+  const previewWidthMap = new Map<number, number>();
+  if (isPreviewActive && previewScenes) {
+    for (const ps of previewScenes) {
+      if (dragPreview && ps.id === dragPreview.sceneId) {
+        // Dragged scene follows the cursor, offset so the block centers on cursor
+        const draggedScene = scenes.find(s => s.id === dragPreview.sceneId);
+        const duration = draggedScene ? draggedScene.end_frame - draggedScene.start_frame : 0;
+        const cursorPixel = frameToPixel(dragPreview.cursorFrame, zoom);
+        previewPositionMap.set(ps.id, cursorPixel - frameToPixel(duration / 2, zoom));
+      } else {
+        previewPositionMap.set(ps.id, frameToPixel(ps.start_frame, zoom));
+      }
+      // Set preview width for resized scenes
+      const previewDuration = ps.end_frame - ps.start_frame;
+      previewWidthMap.set(ps.id, frameToPixel(previewDuration, zoom));
+    }
+  }
+
   // Get in/out transition frames for a scene
   const getSceneTransitions = (scene: Scene) => {
     const inTransition = transitions.find(t => t.to_scene_number === scene.scene_number);
@@ -62,6 +91,15 @@ export function TimelineTrack({
       outFrames: outTransition?.duration_frames || 0,
     };
   };
+
+  // Compute insertion line position during drag
+  const insertionLineLeft = (() => {
+    if (!dragPreview || !previewScenes) return null;
+    // The dragged scene in previewScenes has start_frame set to the insertion point
+    const draggedPreview = previewScenes.find(s => s.id === dragPreview.sceneId);
+    if (!draggedPreview) return null;
+    return frameToPixel(draggedPreview.start_frame, zoom);
+  })();
 
   const totalHeight = TRACKS.reduce((sum, track) => sum + track.height, 0);
   const TRACK_LABEL_WIDTH = 80;
@@ -117,6 +155,9 @@ export function TimelineTrack({
               {/* Video track: Scene blocks */}
               {track.id === 'video' && scenes.map((scene) => {
                 const { inFrames, outFrames } = getSceneTransitions(scene);
+                const isDraggedScene = dragPreview?.sceneId === scene.id;
+                const previewLeft = previewPositionMap.get(scene.id);
+                const previewWidth = previewWidthMap.get(scene.id);
 
                 return (
                   <SceneBlock
@@ -124,6 +165,9 @@ export function TimelineTrack({
                     scene={scene}
                     zoom={zoom}
                     isSelected={selectedSceneId === scene.id}
+                    isDraggedScene={isDraggedScene}
+                    previewLeft={previewLeft}
+                    previewWidth={previewWidth}
                     onClick={() => onSceneSelect(scene.id)}
                     onDragStart={onSceneDragStart}
                     onDragMove={onSceneDragMove}
@@ -141,6 +185,17 @@ export function TimelineTrack({
                   />
                 );
               })}
+
+              {/* Insertion line during drag */}
+              {track.id === 'video' && dragPreview && insertionLineLeft !== null && (
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-[hsl(var(--accent))] z-40 pointer-events-none"
+                  style={{
+                    left: insertionLineLeft,
+                    boxShadow: '0 0 6px hsl(var(--accent))',
+                  }}
+                />
+              )}
 
               {/* Audio track: Show audio representation when we have audio */}
               {track.id === 'audio' && (

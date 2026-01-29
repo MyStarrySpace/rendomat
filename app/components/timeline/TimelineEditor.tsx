@@ -50,10 +50,35 @@ export function TimelineEditor({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoSyncEnabled, setVideoSyncEnabled] = useState(true);
 
-  // Scene update handler
+  // Scene update handler (for resize during drag - local preview)
   const handleSceneUpdate = useCallback(async (sceneId: number, data: Partial<Scene>) => {
-    await sceneApi.update(sceneId, data);
-    onScenesChange();
+    try {
+      await sceneApi.update(sceneId, data);
+      onScenesChange();
+    } catch (error) {
+      console.error('[TimelineEditor] sceneApi.update failed', error);
+    }
+  }, [onScenesChange]);
+
+  // Scene reorder handler
+  const handleSceneReorder = useCallback(async (videoId: number, sceneId: number, newSceneNumber: number) => {
+    try {
+      await sceneApi.reorder(videoId, sceneId, newSceneNumber);
+      onScenesChange();
+      onTransitionsChange();
+    } catch (error) {
+      console.error('[TimelineEditor] sceneApi.reorder failed', error);
+    }
+  }, [onScenesChange, onTransitionsChange]);
+
+  // Scene resize handler (server-side with frame recalculation)
+  const handleSceneResize = useCallback(async (sceneId: number, edge: 'start' | 'end', newFrame: number) => {
+    try {
+      await sceneApi.resize(sceneId, edge, newFrame);
+      onScenesChange();
+    } catch (error) {
+      console.error('[TimelineEditor] sceneApi.resize failed', error);
+    }
   }, [onScenesChange]);
 
   // Timeline hook
@@ -61,6 +86,8 @@ export function TimelineEditor({
     scenes,
     transitions,
     onSceneUpdate: handleSceneUpdate,
+    onSceneReorder: handleSceneReorder,
+    onSceneResize: handleSceneResize,
   });
 
   // Derived state
@@ -118,14 +145,13 @@ export function TimelineEditor({
     timeline.handleSceneDragStart(sceneId, startFrame);
   }, [timeline]);
 
-  const handleSceneDragMove = useCallback((sceneId: number, newStartFrame: number) => {
-    timeline.handleSceneDragMove(sceneId, newStartFrame);
+  const handleSceneDragMove = useCallback((sceneId: number, cursorFrame: number) => {
+    timeline.handleSceneDragMove(sceneId, cursorFrame);
   }, [timeline]);
 
-  const handleSceneDragEnd = useCallback((sceneId: number, newStartFrame: number) => {
-    timeline.handleSceneDragEnd(sceneId, newStartFrame);
-    onScenesChange();
-  }, [timeline, onScenesChange]);
+  const handleSceneDragEnd = useCallback((sceneId: number, cursorFrame: number) => {
+    timeline.handleSceneDragEnd(sceneId, cursorFrame);
+  }, [timeline]);
 
   // Scene resize handlers - pass through to timeline hook
   const handleSceneResizeStart = useCallback((sceneId: number, edge: 'start' | 'end') => {
@@ -138,8 +164,7 @@ export function TimelineEditor({
 
   const handleSceneResizeEnd = useCallback((sceneId: number, edge: 'start' | 'end', newFrame: number) => {
     timeline.handleSceneResizeEnd(sceneId, edge, newFrame);
-    onScenesChange();
-  }, [timeline, onScenesChange]);
+  }, [timeline]);
 
   // Render single scene
   const handleRenderScene = useCallback(async (sceneId: number) => {
@@ -295,6 +320,7 @@ export function TimelineEditor({
           <div className="flex-1 min-w-0">
             <TimelineContainer
               scenes={timeline.sortedScenes}
+              previewScenes={timeline.previewScenes}
               transitions={transitions}
               zoom={timeline.zoom}
               playheadFrame={timeline.playheadFrame}
@@ -302,6 +328,8 @@ export function TimelineEditor({
               selectedTransitionId={timeline.selectedTransitionId}
               isPlaying={timeline.isPlaying}
               snapEnabled={timeline.snapToGrid}
+              dragPreview={timeline.dragPreview}
+              resizePreview={timeline.resizePreview}
               onSeek={timeline.seekToFrame}
               onSceneSelect={handleSceneSelect}
               onTransitionSelect={timeline.selectTransition}
