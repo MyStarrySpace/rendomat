@@ -15,6 +15,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { AnimationPicker } from '@/components/ui/AnimationPicker';
+import StockImageBrowser from '../../app/components/StockImageBrowser';
 import { formatDuration, getSceneDuration } from './lib/timeline-utils';
 
 interface SceneEditorProps {
@@ -35,6 +36,8 @@ export function SceneEditor({
   const [editData, setEditData] = useState<any>({});
   const [uploading, setUploading] = useState(false);
   const [rendering, setRendering] = useState(false);
+  const [showStockBrowser, setShowStockBrowser] = useState(false);
+  const [stockImageField, setStockImageField] = useState<string | null>(null);
   const isUnrendered = !scene.cache_path;
 
   useEffect(() => {
@@ -209,16 +212,17 @@ export function SceneEditor({
                         )}
                       </div>
                     </label>
-                    {onOpenStockBrowser && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenStockBrowser(field)}
-                        className="w-full bg-[hsl(var(--accent-muted))] hover:bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 text-[hsl(var(--accent))] px-2 py-1 transition-colors text-[10px] font-medium flex items-center justify-center gap-1"
-                      >
-                        <ImageIcon className="w-3 h-3" />
-                        Stock
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStockImageField(field);
+                        setShowStockBrowser(true);
+                      }}
+                      className="w-full bg-[hsl(var(--accent-muted))] hover:bg-[hsl(var(--accent))]/20 border border-[hsl(var(--accent))]/30 text-[hsl(var(--accent))] px-2 py-1 transition-colors text-[10px] font-medium flex items-center justify-center gap-1"
+                    >
+                      <ImageIcon className="w-3 h-3" />
+                      Stock
+                    </button>
                   </div>
                 )}
               </div>
@@ -404,6 +408,21 @@ export function SceneEditor({
           Cancel
         </Button>
       </div>
+
+      {/* Stock Image Browser — embedded so it writes to this component's editData */}
+      <StockImageBrowser
+        isOpen={showStockBrowser}
+        onClose={() => {
+          setShowStockBrowser(false);
+          setStockImageField(null);
+        }}
+        onSelectImage={(imageUrl) => {
+          if (stockImageField) {
+            setEditData((prev: any) => ({ ...prev, [stockImageField]: imageUrl }));
+          }
+        }}
+        initialQuery={editData.title || 'business'}
+      />
     </div>
   );
 }
