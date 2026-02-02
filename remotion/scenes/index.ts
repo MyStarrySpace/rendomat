@@ -11,3 +11,4 @@ export { ProgressBarsScene } from './ProgressBarsScene';
 export { AreaChartScene } from './AreaChartScene';
 export { ImageGalleryScene } from './ImageGalleryScene';
 export { EquationScene } from './EquationScene';
+export { SpotlightsScene } from './SpotlightsScene';

@@ -38,6 +38,7 @@ import { TimelineEditor } from "@/components/timeline";
 import { THEMES } from "@/lib/themes";
 import { AnimationPicker } from "@/components/ui/AnimationPicker";
 import StockImageBrowser from "../../components/StockImageBrowser";
+import { SpotlightsEditor } from "@/components/timeline/SpotlightsEditor";
 import PersonaSelector from "@/components/PersonaSelector";
 import { Button } from "@/components/ui";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -1056,6 +1057,7 @@ export default function VideoDetailPage() {
                                   <option value="dual-images">Dual Images + Title</option>
                                   <option value="grid-2x2">Grid (2x2 Images)</option>
                                   <option value="image-gallery">Image Gallery</option>
+                                  <option value="spotlights">Spotlights (Image Tour)</option>
                                 </optgroup>
                                 <optgroup label="Data Visualization">
                                   <option value="line-chart">Line Chart</option>
@@ -1341,6 +1343,11 @@ export default function VideoDetailPage() {
                                   Generate with AI
                                 </button>
                               </div>
+                            )}
+
+                            {/* Spotlights Editor */}
+                            {scene.scene_type === 'spotlights' && (
+                              <SpotlightsEditor editData={editData} setEditData={setEditData} />
                             )}
 
                             {/* Raw JSON Editor */}

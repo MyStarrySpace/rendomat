@@ -69,6 +69,10 @@ export function calculateSceneDuration(slide: SlideData): number {
     case 'equation':
       typeDuration = 2;
       break;
+    case 'spotlights':
+      const spotlightPoints = data?.spotlights?.length || 1;
+      typeDuration = Math.max(3, spotlightPoints * 3);
+      break;
     default:
       typeDuration = 0;
   }

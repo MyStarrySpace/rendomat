@@ -16,6 +16,7 @@ interface SidePanelProps {
   onTransitionSave: (transitionId: number, data: { transition_type?: string; duration_frames?: number }) => Promise<void>;
   onTransitionDelete: (transitionId: number) => Promise<void>;
   onOpenStockBrowser?: (fieldName: string) => void;
+  onSceneTypeChange?: (sceneId: number, newType: string) => void;
   hasChanges?: boolean;
 }
 
@@ -28,6 +29,7 @@ export function SidePanel({
   onTransitionSave,
   onTransitionDelete,
   onOpenStockBrowser,
+  onSceneTypeChange,
   hasChanges = false,
 }: SidePanelProps) {
   const isOpen = selectedScene !== null || selectedTransition !== null;
@@ -64,6 +66,7 @@ export function SidePanel({
                   onSave={onSceneSave}
                   onCancel={onClose}
                   onOpenStockBrowser={onOpenStockBrowser}
+                  onSceneTypeChange={onSceneTypeChange}
                   hasChanges={hasChanges}
                 />
               )}

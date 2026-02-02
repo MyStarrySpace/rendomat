@@ -322,6 +322,7 @@ export function getSceneTypeColor(sceneType: string): string {
     'area-chart': 'hsl(280 60% 55%)',
     'progress-bars': 'hsl(280 60% 55%)',
     'equation': 'hsl(340 60% 55%)',
+    'spotlights': 'hsl(30 70% 50%)',
   };
   return colors[sceneType] || 'hsl(38 70% 50%)';
 }

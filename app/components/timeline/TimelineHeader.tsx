@@ -12,6 +12,7 @@ import {
   Square,
   RefreshCw,
   Sparkles,
+  Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { frameToTime, frameToTimeWithFrames, MIN_ZOOM, MAX_ZOOM } from './lib/timeline-utils';
@@ -35,6 +36,7 @@ interface TimelineHeaderProps {
   onSeekEnd: () => void;
   onRenderChanged: () => void;
   onRegenerateFromPrompt?: () => void;
+  onAddScene?: () => void;
 }
 
 export function TimelineHeader({
@@ -56,6 +58,7 @@ export function TimelineHeader({
   onSeekEnd,
   onRenderChanged,
   onRegenerateFromPrompt,
+  onAddScene,
 }: TimelineHeaderProps) {
   // Calculate zoom percentage for display
   const zoomPercent = Math.round((zoom / 80) * 100);
@@ -123,8 +126,19 @@ export function TimelineHeader({
         </div>
       </div>
 
-      {/* Center: Render buttons */}
+      {/* Center: Add scene + Render buttons */}
       <div className="flex items-center gap-2">
+        {onAddScene && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onAddScene}
+            icon={<Plus className="w-4 h-4" />}
+            title="Add a new scene"
+          >
+            Add Scene
+          </Button>
+        )}
         {(hasUnrenderedScenes || hasChangedScenes) && (
           <Button
             variant={hasChangedScenes ? 'secondary' : 'default'}

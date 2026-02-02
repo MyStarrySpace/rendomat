@@ -17,12 +17,39 @@ import {
 import { AnimationPicker } from '@/components/ui/AnimationPicker';
 import StockImageBrowser from '../../app/components/StockImageBrowser';
 import { formatDuration, getSceneDuration } from './lib/timeline-utils';
+import { SpotlightsEditor } from './SpotlightsEditor';
+
+const SCENE_TYPE_OPTIONS = [
+  { group: 'Text Content', types: [
+    { value: 'text-only', label: 'Text Only' },
+    { value: 'quote', label: 'Quote' },
+  ]},
+  { group: 'Visual Content', types: [
+    { value: 'single-image', label: 'Single Image' },
+    { value: 'dual-images', label: 'Dual Images' },
+    { value: 'grid-2x2', label: 'Grid 2x2' },
+    { value: 'image-gallery', label: 'Image Gallery' },
+    { value: 'spotlights', label: 'Spotlights' },
+  ]},
+  { group: 'Data Visualization', types: [
+    { value: 'stats', label: 'Stats' },
+    { value: 'bar-chart', label: 'Bar Chart' },
+    { value: 'line-chart', label: 'Line Chart' },
+    { value: 'pie-chart', label: 'Pie Chart' },
+    { value: 'area-chart', label: 'Area Chart' },
+    { value: 'progress-bars', label: 'Progress Bars' },
+  ]},
+  { group: 'Scientific', types: [
+    { value: 'equation', label: 'Equation' },
+  ]},
+];
 
 interface SceneEditorProps {
   scene: Scene;
   onSave: (sceneId: number, data: any) => Promise<void>;
   onCancel: () => void;
   onOpenStockBrowser?: (fieldName: string) => void;
+  onSceneTypeChange?: (sceneId: number, newType: string) => void;
   hasChanges?: boolean;
 }
 
@@ -31,6 +58,7 @@ export function SceneEditor({
   onSave,
   onCancel,
   onOpenStockBrowser,
+  onSceneTypeChange,
   hasChanges = false,
 }: SceneEditorProps) {
   const [editData, setEditData] = useState<any>({});
@@ -101,9 +129,23 @@ export function SceneEditor({
             <h3 className="font-medium text-[hsl(var(--foreground))]">
               Scene {scene.scene_number}: {scene.name}
             </h3>
-            <p className="text-xs text-[hsl(var(--foreground-muted))]">
-              {scene.scene_type} &bull; {formatDuration(duration)}
-            </p>
+            <div className="flex items-center gap-2 text-xs text-[hsl(var(--foreground-muted))]">
+              <select
+                value={scene.scene_type}
+                onChange={(e) => onSceneTypeChange?.(scene.id, e.target.value)}
+                disabled={!onSceneTypeChange}
+                className="bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-1.5 py-0.5 text-xs text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))] disabled:opacity-70 disabled:cursor-default"
+              >
+                {SCENE_TYPE_OPTIONS.map((group) => (
+                  <optgroup key={group.group} label={group.group}>
+                    {group.types.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <span>&bull; {formatDuration(duration)}</span>
+            </div>
           </div>
           {(isUnrendered || hasChanges) && (
             <div className="flex items-center gap-1 text-[hsl(var(--warning))]">
@@ -369,6 +411,11 @@ export function SceneEditor({
             Generate with AI
           </button>
         </div>
+      )}
+
+      {/* Spotlights Editor */}
+      {scene.scene_type === 'spotlights' && (
+        <SpotlightsEditor editData={editData} setEditData={setEditData} />
       )}
 
       {/* Advanced JSON */}

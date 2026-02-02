@@ -14,6 +14,7 @@ import {
   AreaChartScene,
   ImageGalleryScene,
   EquationScene,
+  SpotlightsScene,
 } from './scenes';
 import { getTheme, Theme } from './themes';
 import { AnimationLayer, AnimationStyleId } from './animations';
@@ -89,6 +90,9 @@ export const DynamicSceneComposition: React.FC<DynamicSceneProps> = ({
 
       case 'equation':
         return <EquationScene data={data} durationInFrames={durationInFrames} theme={theme} />;
+
+      case 'spotlights':
+        return <SpotlightsScene data={data} durationInFrames={durationInFrames} theme={theme} />;
 
       default:
         return (

@@ -3,13 +3,14 @@
 import React, { useCallback, useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Scene, Transition, TransitionType, sceneApi, Video, API_BASE } from '@/lib/api';
+import { calculateSceneDuration } from '@/lib/scene-duration';
 import { useTimeline } from './hooks/useTimeline';
 import { TimelineHeader } from './TimelineHeader';
 import { TimelineContainer } from './TimelineContainer';
 import { SidePanel } from './SidePanel';
-import { Film, AlertTriangle, X, RefreshCw, Sparkles } from 'lucide-react';
+import { Film, AlertTriangle, X, RefreshCw, Sparkles, Plus } from 'lucide-react';
 import { Button } from '@/components/ui';
-import { frameToSeconds, getSceneAtFrame } from './lib/timeline-utils';
+import { frameToSeconds, getSceneAtFrame, TRACKS } from './lib/timeline-utils';
 
 // Local storage key for "don't show again" preference
 const RENDER_MODAL_DISMISSED_KEY = 'timeline-render-modal-dismissed';
@@ -234,6 +235,62 @@ export function TimelineEditor({
     onRegenerateFromPrompt?.();
   }, [onRegenerateFromPrompt]);
 
+  // Add a new scene
+  const handleAddScene = useCallback(async () => {
+    try {
+      const lastScene = scenes.length > 0
+        ? scenes.reduce((a, b) => a.end_frame > b.end_frame ? a : b)
+        : null;
+      const startFrame = lastScene ? lastScene.end_frame : 0;
+      const sceneNumber = scenes.length > 0
+        ? Math.max(...scenes.map(s => s.scene_number)) + 1
+        : 0;
+
+      const defaultData = { title: `Scene ${sceneNumber}`, body_text: '' };
+      const durationFrames = calculateSceneDuration({ scene_type: 'text-only', data: defaultData });
+
+      const newScene = await sceneApi.create(video.id, {
+        scene_number: sceneNumber,
+        name: `Scene ${sceneNumber}`,
+        scene_type: 'text-only',
+        start_frame: startFrame,
+        end_frame: startFrame + durationFrames,
+        data: JSON.stringify(defaultData),
+        cache_path: null,
+        cache_hash: null,
+        cached_at: null,
+      });
+
+      onScenesChange();
+      // Auto-select the new scene to open the editor
+      timeline.selectScene(newScene.id);
+    } catch (error) {
+      console.error('[TimelineEditor] handleAddScene failed', error);
+    }
+  }, [scenes, video.id, onScenesChange, timeline]);
+
+  // Handle scene type change
+  const handleSceneTypeChange = useCallback(async (sceneId: number, newType: string) => {
+    try {
+      const scene = scenes.find(s => s.id === sceneId);
+      if (!scene) return;
+
+      const sceneData = scene.data ? JSON.parse(scene.data) : {};
+      const durationFrames = calculateSceneDuration({ scene_type: newType, data: sceneData });
+
+      await sceneApi.update(sceneId, {
+        scene_type: newType,
+        end_frame: scene.start_frame + durationFrames,
+        cache_path: null,
+        cache_hash: null,
+        cached_at: null,
+      });
+      onScenesChange();
+    } catch (error) {
+      console.error('[TimelineEditor] handleSceneTypeChange failed', error);
+    }
+  }, [scenes, onScenesChange]);
+
   // Get transition type label
   const getTransitionLabel = useCallback((typeId: string) => {
     const type = transitionTypes.find(t => t.id === typeId);
@@ -283,15 +340,101 @@ export function TimelineEditor({
   }, [timeline.isPlaying, videoSyncEnabled]);
 
   if (scenes.length === 0) {
+    const totalTrackHeight = TRACKS.reduce((sum, t) => sum + t.height, 0);
+    const RULER_HEIGHT = 24;
+    const TRACK_LABEL_WIDTH = 80;
+
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center border border-[hsl(var(--border))] bg-[hsl(var(--surface))]">
-        <Film className="w-10 h-10 text-[hsl(var(--foreground-subtle))] mb-4" />
-        <h3 className="headline text-lg text-[hsl(var(--foreground))] mb-1">
-          No scenes yet
-        </h3>
-        <p className="text-sm text-[hsl(var(--foreground-muted))]">
-          Scenes will appear in the timeline once created
-        </p>
+      <div className="flex flex-col border border-[hsl(var(--border))] bg-[hsl(var(--surface))] overflow-hidden opacity-75">
+        {/* Disabled header */}
+        <div className="flex items-center justify-between px-4 py-2 bg-[hsl(var(--surface))] border-b border-[hsl(var(--border))] pointer-events-none select-none">
+          <div className="flex items-center gap-2 text-[hsl(var(--foreground-muted))]">
+            <Film className="w-4 h-4" />
+            <span className="text-sm">Timeline</span>
+          </div>
+          <span className="text-xs text-[hsl(var(--foreground-muted))]">00:00 / 00:00</span>
+        </div>
+
+        {/* Empty timeline area */}
+        <div
+          className="relative overflow-hidden bg-[hsl(var(--background))]"
+          style={{ height: RULER_HEIGHT + totalTrackHeight + 8 }}
+        >
+          {/* Ruler placeholder */}
+          <div
+            className="h-6 border-b border-[hsl(var(--border))] bg-[hsl(var(--surface))]"
+            style={{ marginLeft: TRACK_LABEL_WIDTH }}
+          />
+
+          {/* Track area */}
+          <div className="relative" style={{ height: totalTrackHeight }}>
+            {/* Track labels */}
+            <div
+              className="absolute left-0 top-0 bottom-0 bg-[hsl(var(--surface))] border-r border-[hsl(var(--border))] z-10"
+              style={{ width: TRACK_LABEL_WIDTH }}
+            >
+              {TRACKS.map((track, index) => {
+                const top = TRACKS.slice(0, index).reduce((sum, t) => sum + t.height, 0);
+                return (
+                  <div
+                    key={track.id}
+                    className="absolute left-0 right-0 flex items-center px-2 text-[10px] font-medium text-[hsl(var(--foreground-muted))] border-b border-[hsl(var(--border))]"
+                    style={{ top, height: track.height }}
+                  >
+                    {track.label}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Track content */}
+            <div style={{ marginLeft: TRACK_LABEL_WIDTH }}>
+              {TRACKS.map((track, index) => {
+                const top = TRACKS.slice(0, index).reduce((sum, t) => sum + t.height, 0);
+                return (
+                  <div
+                    key={track.id}
+                    className="absolute left-0 right-0 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]"
+                    style={{ top, height: track.height, marginLeft: TRACK_LABEL_WIDTH }}
+                  >
+                    {/* Placeholder block on video track */}
+                    {track.id === 'video' && (
+                      <div
+                        className="absolute flex flex-col items-center justify-center gap-1"
+                        style={{
+                          left: 8,
+                          right: 8,
+                          top: 4,
+                          height: track.height - 8,
+                        }}
+                      >
+                        <button
+                          className="flex items-center justify-center gap-2 border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--surface))]/50 hover:bg-[hsl(var(--surface))] hover:border-[hsl(var(--accent))] transition-colors cursor-pointer w-full"
+                          style={{ height: Math.max(28, (track.height - 8) * 0.6) }}
+                          onClick={handleAddScene}
+                        >
+                          <Plus className="w-4 h-4 text-[hsl(var(--foreground-muted))]" />
+                          <span className="text-xs text-[hsl(var(--foreground-muted))]">
+                            Add a scene to get started
+                          </span>
+                        </button>
+                        {onRegenerateFromPrompt && (
+                          <button
+                            className="text-[10px] text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--accent))] transition-colors flex items-center gap-1"
+                            onClick={() => onRegenerateFromPrompt?.()}
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            or generate from prompt
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -319,6 +462,7 @@ export function TimelineEditor({
           onSeekEnd={() => timeline.setPlayheadFrame(timeline.totalFrames)}
           onRenderChanged={handleRenderChanged}
           onRegenerateFromPrompt={handleRegenerateFromPrompt}
+          onAddScene={handleAddScene}
         />
 
         {/* Main timeline area */}
@@ -364,6 +508,7 @@ export function TimelineEditor({
             onTransitionSave={handleTransitionSave}
             onTransitionDelete={handleTransitionDelete}
             onOpenStockBrowser={onOpenStockBrowser}
+            onSceneTypeChange={handleSceneTypeChange}
             hasChanges={timeline.selectedSceneId ? timeline.changedSceneIds.has(timeline.selectedSceneId) : false}
           />
         </div>
