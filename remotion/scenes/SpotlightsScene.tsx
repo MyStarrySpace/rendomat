@@ -2,6 +2,7 @@ import React from 'react';
 import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion';
 import { SceneProps, SpotlightPoint } from './types';
 import { AnimatedText } from '../components/AnimatedText';
+import { SpotlightMarker } from '../components/SpotlightMarker';
 import { AnimationPreset } from '../lib/animationPresets';
 
 export const SpotlightsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
@@ -248,21 +249,22 @@ export const SpotlightsScene: React.FC<SceneProps> = ({ data, durationInFrames, 
         </div>
       )}
 
-      {/* Point indicator dot */}
-      <div style={{
-        position: 'absolute',
-        left: width / 2,
-        top: height / 2,
-        width: 16,
-        height: 16,
-        marginLeft: -8,
-        marginTop: -8,
-        borderRadius: '50%',
-        border: `2px solid ${theme.colors.accent || '#d4a843'}`,
-        background: 'rgba(255,255,255,0.2)',
-        opacity: cardOpacity * 0.7,
-        pointerEvents: 'none',
-      }} />
+      {/* Animated marker */}
+      <SpotlightMarker
+        type={currentPoint.markerType || 'marker'}
+        theme={theme}
+        opacity={cardOpacity}
+        segmentFrame={segmentFrame}
+        cardDelayFrames={cardDelayFrames}
+        screenWidth={width}
+        screenHeight={height}
+        cardX={cardX}
+        cardY={cardY}
+        cardOnRight={cardOnRight}
+        cardOnBottom={cardOnBottom}
+        markerWidth={currentPoint.markerWidth}
+        markerHeight={currentPoint.markerHeight}
+      />
     </AbsoluteFill>
   );
 };

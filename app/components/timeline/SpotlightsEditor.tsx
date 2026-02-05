@@ -12,9 +12,26 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
+  Circle,
+  Square,
+  XCircle,
+  AlertCircle,
+  HelpCircle,
+  Crosshair,
 } from 'lucide-react';
 import { API_BASE } from '@/lib/api';
 import StockImageBrowser from '../../app/components/StockImageBrowser';
+
+type SpotlightMarkerType = 'marker' | 'circle' | 'rectangle' | 'x-circle' | 'alert' | 'question';
+
+const MARKER_TYPES: { type: SpotlightMarkerType; label: string; icon: React.ElementType }[] = [
+  { type: 'marker', label: 'Marker', icon: Crosshair },
+  { type: 'circle', label: 'Circle', icon: Circle },
+  { type: 'rectangle', label: 'Rect', icon: Square },
+  { type: 'x-circle', label: 'X Circle', icon: XCircle },
+  { type: 'alert', label: 'Alert', icon: AlertCircle },
+  { type: 'question', label: 'Question', icon: HelpCircle },
+];
 
 interface SpotlightPoint {
   id: string;
@@ -25,6 +42,9 @@ interface SpotlightPoint {
   description?: string;
   image_url?: string;
   badge?: string;
+  markerType?: SpotlightMarkerType;
+  markerWidth?: number;
+  markerHeight?: number;
 }
 
 interface SpotlightsEditorProps {
@@ -73,6 +93,7 @@ export function SpotlightsEditor({ editData, setEditData }: SpotlightsEditorProp
       x: Math.max(0, Math.min(1, x)),
       y: Math.max(0, Math.min(1, y)),
       zoom: 2.5,
+      markerType: 'marker',
     };
     updatePoints([...points, newPoint]);
     setExpandedPoint(newPoint.id);
@@ -360,6 +381,61 @@ export function SpotlightsEditor({ editData, setEditData }: SpotlightsEditorProp
                           />
                         </div>
                       </div>
+                      {/* Marker type */}
+                      <div>
+                        <Label>Marker Type</Label>
+                        <div className="grid grid-cols-3 gap-1 mt-1">
+                          {MARKER_TYPES.map(({ type: mt, label, icon: Icon }) => {
+                            const isActive = (pt.markerType || 'marker') === mt;
+                            return (
+                              <button
+                                key={mt}
+                                type="button"
+                                onClick={() => updatePoint(pt.id, { markerType: mt })}
+                                className={`
+                                  flex items-center gap-1 px-2 py-1 text-[10px] font-medium border transition-colors
+                                  ${isActive
+                                    ? 'bg-[hsl(var(--accent))] text-[hsl(var(--background))] border-[hsl(var(--accent))]'
+                                    : 'bg-[hsl(var(--background))] text-[hsl(var(--foreground-muted))] border-[hsl(var(--border))] hover:border-[hsl(var(--accent))]'
+                                  }
+                                `}
+                              >
+                                <Icon className="w-3 h-3" />
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      {/* Marker dimensions (only for circle, rectangle, x-circle, alert, question) */}
+                      {(pt.markerType || 'marker') !== 'marker' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label>Width ({pt.markerWidth || 80}px)</Label>
+                            <input
+                              type="range"
+                              min={40}
+                              max={200}
+                              step={4}
+                              value={pt.markerWidth || 80}
+                              onChange={(e) => updatePoint(pt.id, { markerWidth: parseInt(e.target.value) })}
+                              className="w-full mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label>Height ({pt.markerHeight || pt.markerWidth || 80}px)</Label>
+                            <input
+                              type="range"
+                              min={40}
+                              max={200}
+                              step={4}
+                              value={pt.markerHeight || pt.markerWidth || 80}
+                              onChange={(e) => updatePoint(pt.id, { markerHeight: parseInt(e.target.value) })}
+                              className="w-full mt-1"
+                            />
+                          </div>
+                        </div>
+                      )}
                       {/* Point image */}
                       <div>
                         <Label>Image (optional)</Label>

@@ -386,6 +386,18 @@ export const sceneDb = {
       updates.push('scene_number = ?');
       values.push(data.scene_number);
     }
+    if (data.cache_path !== undefined) {
+      updates.push('cache_path = ?');
+      values.push(data.cache_path);
+    }
+    if (data.cache_hash !== undefined) {
+      updates.push('cache_hash = ?');
+      values.push(data.cache_hash);
+    }
+    if (data.cached_at !== undefined) {
+      updates.push('cached_at = ?');
+      values.push(data.cached_at);
+    }
 
     if (updates.length === 0) {
       return this.getById(id);
@@ -397,8 +409,8 @@ export const sceneDb = {
     const stmt = db.prepare(`UPDATE scenes SET ${updates.join(', ')} WHERE id = ?`);
     stmt.run(...values);
 
-    // Invalidate cache when scene is updated
-    if (data.data !== undefined || data.scene_type !== undefined) {
+    // Invalidate cache when scene content is updated (and cache wasn't explicitly managed)
+    if ((data.data !== undefined || data.scene_type !== undefined) && data.cache_path === undefined) {
       this.invalidateCache(id);
     }
 

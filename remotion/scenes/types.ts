@@ -1,6 +1,8 @@
 import { Theme } from '../themes';
 import { AnimationStyleId, AnimationParams } from '../animations/types';
 
+export type SpotlightMarkerType = 'marker' | 'circle' | 'rectangle' | 'x-circle' | 'alert' | 'question';
+
 export interface SpotlightPoint {
   id: string;
   x: number;            // 0-1 normalized position on image
@@ -10,6 +12,9 @@ export interface SpotlightPoint {
   description?: string;
   image_url?: string;   // optional small image shown at the point
   badge?: string;       // optional badge text (e.g. "1", "A")
+  markerType?: SpotlightMarkerType;
+  markerWidth?: number;   // marker width in px (default 80)
+  markerHeight?: number;  // marker height in px (defaults to markerWidth)
 }
 
 export interface SceneData {

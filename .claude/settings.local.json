@@ -80,7 +80,11 @@
       "Bash(npm run:*)",
       "Bash(npx next lint:*)",
       "Bash(npx next build:*)",
-      "WebFetch(domain:codepen.io)"
+      "WebFetch(domain:codepen.io)",
+      "Bash(wmic process:*)",
+      "Bash(ls:*)",
+      "Bash(ss:*)",
+      "Bash(python3:*)"
     ]
   }
 }

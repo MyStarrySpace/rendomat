@@ -84,6 +84,11 @@ async function getServeUrl() {
   return serveUrlPromise;
 }
 
+function invalidateBundle() {
+  serveUrlPromise = null;
+  console.log('[render-server] bundle cache invalidated — will re-bundle on next render');
+}
+
 function clampArray(arr, max) {
   if (!Array.isArray(arr)) return [];
   return arr.slice(0, max);
@@ -1346,6 +1351,236 @@ app.delete('/api/scenes/:sceneId/cache', async (req, res) => {
   } catch (error) {
     console.error('[scene-cache-clear] Error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================================================================
+// Test Render API — render a scene from raw data without an existing video
+// =============================================================================
+
+// Helper: get-or-create a "Test Renders" client for test endpoints
+function getTestClientId() {
+  const existing = clientDb.getAll().find(c => c.name === '__test_renders__');
+  if (existing) return existing.id;
+  return clientDb.create({ name: '__test_renders__', company: 'Test Renders', industry: 'test' });
+}
+
+app.post('/api/rebundle', (req, res) => {
+  invalidateBundle();
+  res.json({ success: true, message: 'Bundle cache invalidated. Next render will re-bundle.' });
+});
+
+app.post('/api/test/render-scene', async (req, res) => {
+  try {
+    const {
+      scene_type = 'text-only',
+      data = {},
+      theme_id,
+      duration_frames,
+    } = req.body;
+
+    console.log(`[test-render] Rendering test scene: type=${scene_type}`);
+
+    // Calculate duration if not provided
+    const FPS = 30;
+    let finalDurationFrames = duration_frames;
+    if (!finalDurationFrames) {
+      // Simple default: 5 seconds, or use spotlights heuristic
+      if (scene_type === 'spotlights') {
+        const numPoints = (data.spotlights || []).length || 1;
+        finalDurationFrames = Math.max(3, numPoints * 3) * FPS;
+      } else {
+        finalDurationFrames = 5 * FPS;
+      }
+    }
+
+    // Create a temporary video for this test render
+    const testClientId = getTestClientId();
+    const tempVideoId = videoDb.create({
+      client_id: testClientId,
+      title: `Test Render - ${scene_type} - ${Date.now()}`,
+      composition_id: 'DynamicScene',
+      status: 'draft',
+      duration_seconds: finalDurationFrames / FPS,
+      aspect_ratio: '16:9',
+      data: null,
+      theme_id: theme_id || null,
+    });
+
+    // Create the scene
+    const sceneId = sceneDb.create({
+      video_id: tempVideoId,
+      scene_number: 0,
+      name: `Test ${scene_type}`,
+      scene_type,
+      start_frame: 0,
+      end_frame: finalDurationFrames,
+      data: typeof data === 'string' ? data : JSON.stringify(data),
+    });
+
+    console.log(`[test-render] Created temp video=${tempVideoId}, scene=${sceneId}`);
+
+    // Render the scene
+    const serveUrl = await getServeUrl();
+    const inputProps = {};
+    if (theme_id) inputProps.themeId = theme_id;
+
+    const scenePath = await renderScene(
+      sceneId,
+      serveUrl,
+      'DynamicScene',
+      inputProps,
+      (progress) => {
+        console.log(`[test-render] Progress: ${(progress * 100).toFixed(1)}%`);
+      }
+    );
+
+    // Update scene with cache path
+    sceneDb.updateCache(sceneId, scenePath, null);
+
+    console.log(`[test-render] Rendered: ${scenePath}`);
+
+    res.json({
+      success: true,
+      scene_id: sceneId,
+      video_id: tempVideoId,
+      cache_path: scenePath,
+      preview_url: `/api/scenes/${sceneId}/preview`,
+      message: `Test scene rendered. Preview at: /api/scenes/${sceneId}/preview`,
+    });
+
+  } catch (error) {
+    console.error('[test-render] Error:', error);
+    res.status(500).json({
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    });
+  }
+});
+
+// Convenience endpoint: render a spotlights scene with sample data
+app.post('/api/test/render-spotlights', async (req, res) => {
+  try {
+    const {
+      image_url,
+      spotlights,
+      theme_id,
+      title = 'Spotlights Test',
+      animation_preset = 'smooth',
+    } = req.body;
+
+    // Build scene data
+    const sceneData = {
+      title,
+      spotlight_image_url: image_url || null,
+      spotlights: spotlights || [],
+      animation_preset,
+    };
+
+    // Validate
+    if (!sceneData.spotlight_image_url) {
+      return res.status(400).json({
+        error: 'image_url is required',
+        example: {
+          image_url: 'http://localhost:4321/uploads/your-image.jpg',
+          spotlights: [
+            { id: '1', x: 0.3, y: 0.4, zoom: 2.5, title: 'Point A', description: 'First spotlight', badge: '1' },
+            { id: '2', x: 0.7, y: 0.6, zoom: 3.0, title: 'Point B', description: 'Second spotlight', badge: '2' },
+          ],
+          theme_id: 'midnight',
+          title: 'My Spotlights Scene',
+        },
+      });
+    }
+
+    if (sceneData.spotlights.length === 0) {
+      return res.status(400).json({
+        error: 'spotlights array is required and must contain at least one point',
+        example_point: { id: '1', x: 0.5, y: 0.5, zoom: 2.5, title: 'Center', description: 'Description', badge: '1' },
+      });
+    }
+
+    // Assign IDs to points that don't have them
+    sceneData.spotlights = sceneData.spotlights.map((pt, i) => ({
+      id: pt.id || String(i + 1),
+      x: pt.x ?? 0.5,
+      y: pt.y ?? 0.5,
+      zoom: pt.zoom ?? 2.5,
+      title: pt.title,
+      description: pt.description,
+      image_url: pt.image_url,
+      badge: pt.badge || String(i + 1),
+      markerType: pt.markerType || 'marker',
+      markerWidth: pt.markerWidth,
+      markerHeight: pt.markerHeight,
+    }));
+
+    const FPS = 30;
+    const numPoints = sceneData.spotlights.length;
+    const durationFrames = Math.max(3, numPoints * 3) * FPS;
+
+    // Create temp video
+    const testClientId = getTestClientId();
+    const tempVideoId = videoDb.create({
+      client_id: testClientId,
+      title: `Spotlights Test - ${Date.now()}`,
+      composition_id: 'DynamicScene',
+      status: 'draft',
+      duration_seconds: durationFrames / FPS,
+      aspect_ratio: '16:9',
+      data: null,
+      theme_id: theme_id || null,
+    });
+
+    // Create scene
+    const sceneId = sceneDb.create({
+      video_id: tempVideoId,
+      scene_number: 0,
+      name: title,
+      scene_type: 'spotlights',
+      start_frame: 0,
+      end_frame: durationFrames,
+      data: JSON.stringify(sceneData),
+    });
+
+    console.log(`[test-spotlights] Created temp video=${tempVideoId}, scene=${sceneId}, points=${numPoints}, duration=${durationFrames}frames`);
+
+    // Render
+    const serveUrl = await getServeUrl();
+    const inputProps = {};
+    if (theme_id) inputProps.themeId = theme_id;
+
+    const scenePath = await renderScene(
+      sceneId,
+      serveUrl,
+      'DynamicScene',
+      inputProps,
+      (progress) => {
+        console.log(`[test-spotlights] Progress: ${(progress * 100).toFixed(1)}%`);
+      }
+    );
+
+    sceneDb.updateCache(sceneId, scenePath, null);
+
+    console.log(`[test-spotlights] Rendered: ${scenePath}`);
+
+    res.json({
+      success: true,
+      scene_id: sceneId,
+      video_id: tempVideoId,
+      cache_path: scenePath,
+      preview_url: `/api/scenes/${sceneId}/preview`,
+      duration_seconds: durationFrames / FPS,
+      num_points: numPoints,
+      message: `Spotlights scene rendered with ${numPoints} points. Preview at: /api/scenes/${sceneId}/preview`,
+    });
+
+  } catch (error) {
+    console.error('[test-spotlights] Error:', error);
+    res.status(500).json({
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    });
   }
 });
 

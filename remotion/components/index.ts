@@ -12,3 +12,5 @@ export type { AnimatedWordProps } from './AnimatedWord';
 
 export { AnimatedCharacter } from './AnimatedCharacter';
 export type { AnimatedCharacterProps } from './AnimatedCharacter';
+
+export { SpotlightMarker } from './SpotlightMarker';
