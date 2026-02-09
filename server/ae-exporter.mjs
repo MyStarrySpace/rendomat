@@ -1244,6 +1244,467 @@ function generateGenericLayers(sceneData, durationInFrames, theme) {
   return layers;
 }
 
+function generateDualImageLayers(sceneData, durationInFrames, theme) {
+  const layers = [];
+  const data = typeof sceneData.data === 'string' ? JSON.parse(sceneData.data) : sceneData.data;
+
+  layers.push({
+    id: `bg-${sceneData.id}`,
+    type: 'solid',
+    name: 'Background',
+    inPoint: 0,
+    outPoint: durationInFrames,
+    properties: [],
+    content: {
+      color: theme?.colors?.background || '#0A0A0A',
+      width: 1920,
+      height: 1080,
+    },
+  });
+
+  if (data?.image_url) {
+    layers.push({
+      id: `image1-${sceneData.id}`,
+      type: 'image',
+      name: 'Image 1 (Left)',
+      inPoint: 0,
+      outPoint: durationInFrames,
+      properties: [
+        createFadeAnimation(durationInFrames),
+        createScaleAnimation(102, 100, 0, durationInFrames),
+      ],
+      content: {
+        source: data.image_url,
+        position: [480, 540],
+        scale: [100, 100],
+      },
+    });
+  }
+
+  if (data?.image_url_2) {
+    layers.push({
+      id: `image2-${sceneData.id}`,
+      type: 'image',
+      name: 'Image 2 (Right)',
+      inPoint: 0,
+      outPoint: durationInFrames,
+      properties: [
+        createFadeAnimation(durationInFrames),
+        createScaleAnimation(102, 100, 0, durationInFrames),
+      ],
+      content: {
+        source: data.image_url_2,
+        position: [1440, 540],
+        scale: [100, 100],
+      },
+    });
+  }
+
+  if (data?.title) {
+    layers.push({
+      id: `title-${sceneData.id}`,
+      type: 'text',
+      name: 'Title',
+      inPoint: 0,
+      outPoint: durationInFrames,
+      properties: [createDelayedFadeIn(20, 15, durationInFrames)],
+      content: {
+        text: data.title,
+        fontSize: 48,
+        fontFamily: theme?.fonts?.heading || 'Inter',
+        fontWeight: 700,
+        color: theme?.colors?.textPrimary || '#FFFFFF',
+        textAlign: 'center',
+        position: [960, 950],
+      },
+    });
+  }
+
+  return layers;
+}
+
+function generateGridLayers(sceneData, durationInFrames, theme) {
+  const layers = [];
+  const data = typeof sceneData.data === 'string' ? JSON.parse(sceneData.data) : sceneData.data;
+
+  layers.push({
+    id: `bg-${sceneData.id}`,
+    type: 'solid',
+    name: 'Background',
+    inPoint: 0,
+    outPoint: durationInFrames,
+    properties: [],
+    content: {
+      color: theme?.colors?.background || '#0A0A0A',
+      width: 1920,
+      height: 1080,
+    },
+  });
+
+  if (data?.title) {
+    layers.push({
+      id: `title-${sceneData.id}`,
+      type: 'text',
+      name: 'Title',
+      inPoint: 0,
+      outPoint: durationInFrames,
+      properties: [createDelayedFadeIn(10, 15, durationInFrames)],
+      content: {
+        text: data.title,
+        fontSize: 48,
+        fontFamily: theme?.fonts?.heading || 'Inter',
+        fontWeight: 700,
+        color: theme?.colors?.textPrimary || '#FFFFFF',
+        textAlign: 'center',
+        position: [960, 80],
+      },
+    });
+  }
+
+  const gridPositions = [
+    [480, 360],
+    [1440, 360],
+    [480, 720],
+    [1440, 720],
+  ];
+  const imageKeys = ['image_url', 'image_url_2', 'image_url_3', 'image_url_4'];
+
+  imageKeys.forEach((key, index) => {
+    if (data?.[key]) {
+      layers.push({
+        id: `grid-image-${index + 1}-${sceneData.id}`,
+        type: 'image',
+        name: `Grid Image ${index + 1}`,
+        inPoint: 0,
+        outPoint: durationInFrames,
+        properties: [
+          createDelayedFadeIn(10 + index * 5, 15, durationInFrames),
+        ],
+        content: {
+          source: data[key],
+          position: gridPositions[index],
+          scale: [100, 100],
+        },
+      });
+    }
+  });
+
+  return layers;
+}
+
+function generateProgressBarsLayers(sceneData, durationInFrames, theme) {
+  const layers = [];
+  const data = typeof sceneData.data === 'string' ? JSON.parse(sceneData.data) : sceneData.data;
+
+  layers.push({
+    id: `bg-${sceneData.id}`,
+    type: 'solid',
+    name: 'Background',
+    inPoint: 0,
+    outPoint: durationInFrames,
+    properties: [],
+    content: {
+      color: theme?.colors?.background || '#0A0A0A',
+      width: 1920,
+      height: 1080,
+    },
+  });
+
+  if (data?.title) {
+    layers.push({
+      id: `title-${sceneData.id}`,
+      type: 'text',
+      name: 'Title',
+      inPoint: 0,
+      outPoint: durationInFrames,
+      properties: [createDelayedFadeIn(10, 15, durationInFrames)],
+      content: {
+        text: data.title,
+        fontSize: 56,
+        fontFamily: theme?.fonts?.heading || 'Inter',
+        fontWeight: 700,
+        color: theme?.colors?.textPrimary || '#FFFFFF',
+        textAlign: 'center',
+        position: [960, 150],
+      },
+    });
+  }
+
+  if (data?.stats_text) {
+    const rows = data.stats_text.split('\n').filter(Boolean);
+    rows.forEach((row, index) => {
+      const parts = row.split('|').map(s => s.trim());
+      const value = parts[0] || '';
+      const label = parts[1] || '';
+      const yPos = 320 + index * 120;
+
+      layers.push({
+        id: `bar-label-${index}-${sceneData.id}`,
+        type: 'text',
+        name: `Bar Label: ${label}`,
+        inPoint: 0,
+        outPoint: durationInFrames,
+        properties: [createDelayedFadeIn(15 + index * 8, 15, durationInFrames)],
+        content: {
+          text: `${label}  ${value}`,
+          fontSize: 32,
+          fontFamily: theme?.fonts?.body || 'Inter',
+          fontWeight: 500,
+          color: theme?.colors?.textPrimary || '#FFFFFF',
+          textAlign: 'left',
+          position: [300, yPos],
+        },
+      });
+
+      layers.push({
+        id: `bar-placeholder-${index}-${sceneData.id}`,
+        type: 'null',
+        name: `Progress Bar ${index + 1}`,
+        inPoint: 0,
+        outPoint: durationInFrames,
+        properties: [createDelayedFadeIn(15 + index * 8, 15, durationInFrames)],
+        metadata: {
+          barValue: value,
+          barLabel: label,
+          barColor: theme?.colors?.accent || '#00D9A3',
+          position: [960, yPos + 40],
+          note: 'Recreate progress bars using AE shape layers',
+        },
+      });
+    });
+  }
+
+  return layers;
+}
+
+function generateImageGalleryLayers(sceneData, durationInFrames, theme) {
+  const layers = [];
+  const data = typeof sceneData.data === 'string' ? JSON.parse(sceneData.data) : sceneData.data;
+
+  layers.push({
+    id: `bg-${sceneData.id}`,
+    type: 'solid',
+    name: 'Background',
+    inPoint: 0,
+    outPoint: durationInFrames,
+    properties: [],
+    content: {
+      color: theme?.colors?.background || '#0A0A0A',
+      width: 1920,
+      height: 1080,
+    },
+  });
+
+  const imageKeys = ['image_url', 'image_url_2', 'image_url_3', 'image_url_4'];
+  const imageCount = imageKeys.filter(key => data?.[key]).length || 1;
+  const staggerOffset = Math.floor(durationInFrames / Math.max(imageCount, 1));
+
+  imageKeys.forEach((key, index) => {
+    if (data?.[key]) {
+      const fadeStart = index * staggerOffset;
+      layers.push({
+        id: `gallery-image-${index + 1}-${sceneData.id}`,
+        type: 'image',
+        name: `Gallery Image ${index + 1}`,
+        inPoint: 0,
+        outPoint: durationInFrames,
+        properties: [
+          createDelayedFadeIn(fadeStart, 15, durationInFrames),
+          createScaleAnimation(102, 100, fadeStart, fadeStart + 30),
+        ],
+        content: {
+          source: data[key],
+          position: [960, 500],
+          scale: [100, 100],
+        },
+      });
+    }
+  });
+
+  if (data?.title) {
+    layers.push({
+      id: `title-${sceneData.id}`,
+      type: 'text',
+      name: 'Title',
+      inPoint: 0,
+      outPoint: durationInFrames,
+      properties: [createDelayedFadeIn(10, 15, durationInFrames)],
+      content: {
+        text: data.title,
+        fontSize: 48,
+        fontFamily: theme?.fonts?.heading || 'Inter',
+        fontWeight: 700,
+        color: theme?.colors?.textPrimary || '#FFFFFF',
+        textAlign: 'center',
+        position: [960, 950],
+      },
+    });
+  }
+
+  return layers;
+}
+
+function generateEquationLayers(sceneData, durationInFrames, theme) {
+  const layers = [];
+  const data = typeof sceneData.data === 'string' ? JSON.parse(sceneData.data) : sceneData.data;
+
+  layers.push({
+    id: `bg-${sceneData.id}`,
+    type: 'solid',
+    name: 'Background',
+    inPoint: 0,
+    outPoint: durationInFrames,
+    properties: [],
+    content: {
+      color: theme?.colors?.background || '#0A0A0A',
+      width: 1920,
+      height: 1080,
+    },
+  });
+
+  const titleText = data?.equation_description || data?.title;
+  if (titleText) {
+    layers.push({
+      id: `title-${sceneData.id}`,
+      type: 'text',
+      name: 'Equation Title',
+      inPoint: 0,
+      outPoint: durationInFrames,
+      properties: [createDelayedFadeIn(10, 15, durationInFrames)],
+      content: {
+        text: titleText,
+        fontSize: 48,
+        fontFamily: theme?.fonts?.heading || 'Inter',
+        fontWeight: 700,
+        color: theme?.colors?.textPrimary || '#FFFFFF',
+        textAlign: 'center',
+        position: [960, 200],
+      },
+    });
+  }
+
+  if (data?.equations && Array.isArray(data.equations)) {
+    data.equations.forEach((eq, index) => {
+      const yPos = 450 + index * 120;
+      layers.push({
+        id: `equation-${index}-${sceneData.id}`,
+        type: 'text',
+        name: `Equation ${index + 1}`,
+        inPoint: 0,
+        outPoint: durationInFrames,
+        properties: [
+          createDelayedFadeIn(20 + index * 10, 15, durationInFrames),
+          createScaleAnimation(90, 100, 20 + index * 10, 40 + index * 10, 'ease-out-back'),
+        ],
+        content: {
+          text: typeof eq === 'string' ? eq : eq.equation || eq.text || '',
+          fontSize: 56,
+          fontFamily: 'Courier New',
+          fontWeight: 700,
+          color: theme?.colors?.accent || '#00D9A3',
+          textAlign: 'center',
+          position: [960, yPos],
+        },
+        metadata: {
+          note: 'LaTeX rendering — consider using an equation plugin or pre-rendered image',
+        },
+      });
+    });
+  } else if (data?.equation) {
+    layers.push({
+      id: `equation-${sceneData.id}`,
+      type: 'text',
+      name: 'Equation',
+      inPoint: 0,
+      outPoint: durationInFrames,
+      properties: [
+        createDelayedFadeIn(20, 15, durationInFrames),
+        createScaleAnimation(90, 100, 20, 40, 'ease-out-back'),
+      ],
+      content: {
+        text: data.equation,
+        fontSize: 64,
+        fontFamily: 'Courier New',
+        fontWeight: 700,
+        color: theme?.colors?.accent || '#00D9A3',
+        textAlign: 'center',
+        position: [960, 540],
+      },
+      metadata: {
+        note: 'LaTeX rendering — consider using an equation plugin or pre-rendered image',
+      },
+    });
+  }
+
+  return layers;
+}
+
+function generateSpotlightsLayers(sceneData, durationInFrames, theme) {
+  const layers = [];
+  const data = typeof sceneData.data === 'string' ? JSON.parse(sceneData.data) : sceneData.data;
+
+  layers.push({
+    id: `bg-${sceneData.id}`,
+    type: 'solid',
+    name: 'Background',
+    inPoint: 0,
+    outPoint: durationInFrames,
+    properties: [],
+    content: {
+      color: theme?.colors?.background || '#0A0A0A',
+      width: 1920,
+      height: 1080,
+    },
+  });
+
+  if (data?.spotlight_image_url) {
+    layers.push({
+      id: `spotlight-image-${sceneData.id}`,
+      type: 'image',
+      name: 'Spotlight Base Image',
+      inPoint: 0,
+      outPoint: durationInFrames,
+      properties: [createFadeAnimation(durationInFrames)],
+      content: {
+        source: data.spotlight_image_url,
+        position: [960, 540],
+        scale: [100, 100],
+      },
+    });
+  }
+
+  if (data?.spotlights && Array.isArray(data.spotlights)) {
+    data.spotlights.forEach((spotlight, index) => {
+      const x = (spotlight.x || 0.5) * 1920;
+      const y = (spotlight.y || 0.5) * 1080;
+
+      layers.push({
+        id: `spotlight-marker-${index}-${sceneData.id}`,
+        type: 'null',
+        name: `Spotlight: ${spotlight.title || `Point ${index + 1}`}`,
+        inPoint: 0,
+        outPoint: durationInFrames,
+        properties: [
+          createDelayedFadeIn(15 + index * 10, 15, durationInFrames),
+        ],
+        content: {
+          position: [x, y],
+        },
+        metadata: {
+          title: spotlight.title,
+          description: spotlight.description,
+          zoom: spotlight.zoom,
+          badge: spotlight.badge,
+          markerType: spotlight.markerType,
+          note: 'Recreate spotlight zoom/pan animations manually in AE',
+        },
+      });
+    });
+  }
+
+  return layers;
+}
+
 // Animation layer generator
 function generateAnimationLayer(animationStyle, durationInFrames, theme) {
   if (!animationStyle || animationStyle === 'none') return null;
@@ -1356,6 +1817,24 @@ export function generateSceneLayers(scene, theme, fps = 30) {
     case 'pie-chart':
     case 'area-chart':
       layers = generateChartLayers(scene, durationInFrames, theme, scene.scene_type);
+      break;
+    case 'dual-images':
+      layers = generateDualImageLayers(scene, durationInFrames, theme);
+      break;
+    case 'grid':
+      layers = generateGridLayers(scene, durationInFrames, theme);
+      break;
+    case 'progress-bars':
+      layers = generateProgressBarsLayers(scene, durationInFrames, theme);
+      break;
+    case 'image-gallery':
+      layers = generateImageGalleryLayers(scene, durationInFrames, theme);
+      break;
+    case 'equation':
+      layers = generateEquationLayers(scene, durationInFrames, theme);
+      break;
+    case 'spotlights':
+      layers = generateSpotlightsLayers(scene, durationInFrames, theme);
       break;
     default:
       layers = generateGenericLayers(scene, durationInFrames, theme);

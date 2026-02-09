@@ -10,7 +10,7 @@
  */
 export interface RemotionExportManifest {
   /** Manifest format version */
-  version: '1.0';
+  version: '2.0';
 
   /** Composition metadata */
   metadata: ManifestMetadata;

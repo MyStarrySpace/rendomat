@@ -2185,7 +2185,7 @@ app.get('/api/scenes/:sceneId/preview', async (req, res) => {
 
 // Get theme by ID helper
 function getThemeById(themeId) {
-  // Import themes inline to avoid circular dependencies
+  // All 7 themes synced from app/lib/themes.ts
   const THEMES = {
     'tech-dark': {
       id: 'tech-dark',
@@ -2207,33 +2207,90 @@ function getThemeById(themeId) {
       name: 'Artisanal Light',
       colors: {
         background: '#FAF9F6',
+        backgroundGradient: 'linear-gradient(135deg, #FAF9F6 0%, #F5E6D3 100%)',
         textPrimary: '#2D2D2D',
         textSecondary: '#6B6B6B',
         accent: '#D4845F',
+        accentSecondary: '#8B7355',
+        surface: 'rgba(0, 0, 0, 0.03)',
+        surfaceLight: 'rgba(0, 0, 0, 0.05)',
       },
       fonts: { heading: 'Montserrat', body: 'Source Sans Pro' },
+    },
+    'clinical-light': {
+      id: 'clinical-light',
+      name: 'Clinical Light',
+      colors: {
+        background: '#FFFFFF',
+        backgroundGradient: 'linear-gradient(135deg, #FFFFFF 0%, #F0F4F8 100%)',
+        textPrimary: '#1A202C',
+        textSecondary: '#718096',
+        accent: '#3182CE',
+        accentSecondary: '#00B5D8',
+        surface: 'rgba(49, 130, 206, 0.05)',
+        surfaceLight: 'rgba(49, 130, 206, 0.08)',
+      },
+      fonts: { heading: 'Poppins', body: 'Open Sans' },
     },
     'corporate-blue': {
       id: 'corporate-blue',
       name: 'Corporate Blue',
       colors: {
         background: '#0F1D3D',
+        backgroundGradient: 'linear-gradient(135deg, #0F1D3D 0%, #1E3A5F 100%)',
         textPrimary: '#FFFFFF',
         textSecondary: '#CBD5E0',
         accent: '#F6AD55',
+        accentSecondary: '#FBD38D',
+        surface: 'rgba(255, 255, 255, 0.06)',
+        surfaceLight: 'rgba(255, 255, 255, 0.1)',
       },
       fonts: { heading: 'Montserrat', body: 'Inter' },
+    },
+    'minimal-mono': {
+      id: 'minimal-mono',
+      name: 'Minimal Monochrome',
+      colors: {
+        background: '#FAFAFA',
+        backgroundGradient: 'linear-gradient(135deg, #FFFFFF 0%, #F5F5F5 100%)',
+        textPrimary: '#000000',
+        textSecondary: '#666666',
+        accent: '#000000',
+        accentSecondary: '#333333',
+        surface: 'rgba(0, 0, 0, 0.02)',
+        surfaceLight: 'rgba(0, 0, 0, 0.04)',
+      },
+      fonts: { heading: 'Poppins', body: 'Inter' },
     },
     'vibrant-gradient': {
       id: 'vibrant-gradient',
       name: 'Vibrant Gradient',
       colors: {
         background: '#1A1A2E',
+        backgroundGradient: 'linear-gradient(135deg, #16213E 0%, #0F3460 50%, #533483 100%)',
         textPrimary: '#FFFFFF',
         textSecondary: '#E0E0E0',
         accent: '#FF00FF',
+        accentSecondary: '#00FFD1',
+        surface: 'rgba(255, 255, 255, 0.08)',
+        surfaceLight: 'rgba(255, 255, 255, 0.12)',
       },
       fonts: { heading: 'Montserrat', body: 'Poppins' },
+    },
+    'ocean-blue-green': {
+      id: 'ocean-blue-green',
+      name: 'Ocean Blue-Green',
+      colors: {
+        background: '#0D1B2A',
+        backgroundGradient: 'linear-gradient(135deg, #0D1B2A 0%, #1B263B 50%, #0F4C5C 100%)',
+        textPrimary: '#FFFFFF',
+        textSecondary: '#9FB4C7',
+        accent: '#00D9A3',
+        accentSecondary: '#5EEAD4',
+        surface: 'rgba(0, 217, 163, 0.08)',
+        surfaceLight: 'rgba(0, 217, 163, 0.12)',
+      },
+      fonts: { heading: 'Inter', body: 'Inter' },
     },
   };
   return THEMES[themeId] || THEMES['tech-dark'];
