@@ -17,9 +17,12 @@ import {
   buildTextTransform,
   buildTextFilter,
 } from '../lib/textAnimation';
+import { getGlitchWordJitter } from '../lib/textModifiers';
 import { AnimatedCharacter } from './AnimatedCharacter';
 import { AnimatedWord } from './AnimatedWord';
 import type { AnimationPreset } from '../lib/animationPresets';
+import type { TextModifierType, TextModifierRenderFn } from '../lib/textModifiers';
+import { getTextModifier } from '../lib/textModifiers';
 
 // =============================================================================
 // TEXT ANIMATION PRESET CONFIGURATIONS
@@ -97,9 +100,9 @@ export const TEXT_ANIMATION_CONFIGS: Record<AnimationPreset, TextAnimationConfig
     unit: 'character',
     staggerFrames: 2,
     spring: 'crisp',
-    distance: 10,
+    distance: 0,
     direction: 'up',
-    effects: ['fadeUp'],
+    effects: ['snap'],
   },
   cinematic: {
     unit: 'line',
@@ -109,13 +112,13 @@ export const TEXT_ANIMATION_CONFIGS: Record<AnimationPreset, TextAnimationConfig
     direction: 'up',
     effects: ['fadeUp', 'blur', 'anticipation'],
   },
-  lyric: {
+  spiral: {
     unit: 'word',
-    staggerFrames: 4,
-    spring: 'bouncy',
-    distance: 60,
-    direction: 'left',
-    effects: ['fadeLeft'],
+    staggerFrames: 3,
+    spring: 'smooth',
+    distance: 40,
+    direction: 'right',
+    effects: ['fadeUp'],
   },
   stacking: {
     unit: 'word',
@@ -172,6 +175,8 @@ export interface AnimatedTextProps {
   segmentStyle?: React.CSSProperties;
   /** Class name for the container */
   className?: string;
+  /** Optional visual modifier to apply on top of the animation */
+  modifier?: TextModifierType;
 }
 
 export const AnimatedText: React.FC<AnimatedTextProps> = ({
@@ -187,9 +192,13 @@ export const AnimatedText: React.FC<AnimatedTextProps> = ({
   style = {},
   segmentStyle = {},
   className,
+  modifier,
 }) => {
   // Ensure we have a valid string
   const text = children ?? '';
+
+  // Resolve modifier function
+  const modifierFn = modifier ? getTextModifier(modifier) : undefined;
 
   // Get preset configuration with overrides
   const config = useMemo(() => {
@@ -227,6 +236,8 @@ export const AnimatedText: React.FC<AnimatedTextProps> = ({
             config={config}
             startDelay={startDelay}
             segmentStyle={segmentStyle}
+            modifierFn={modifierFn}
+            modifierType={modifier}
           />
         );
       case 'word':
@@ -236,6 +247,7 @@ export const AnimatedText: React.FC<AnimatedTextProps> = ({
             config={config}
             startDelay={startDelay}
             segmentStyle={segmentStyle}
+            modifierFn={modifierFn}
           />
         );
       case 'line':
@@ -245,6 +257,7 @@ export const AnimatedText: React.FC<AnimatedTextProps> = ({
             config={config}
             startDelay={startDelay}
             segmentStyle={segmentStyle}
+            modifierFn={modifierFn}
           />
         );
       case 'element':
@@ -254,6 +267,7 @@ export const AnimatedText: React.FC<AnimatedTextProps> = ({
             text={children}
             config={config}
             startDelay={startDelay}
+            modifierFn={modifierFn}
           />
         );
     }
@@ -274,6 +288,8 @@ interface AnimationProps {
   config: TextAnimationConfig;
   startDelay: number;
   segmentStyle?: React.CSSProperties;
+  modifierFn?: TextModifierRenderFn;
+  modifierType?: TextModifierType;
 }
 
 interface CharacterAnimationProps extends AnimationProps {
@@ -285,27 +301,114 @@ const CharacterAnimation: React.FC<CharacterAnimationProps> = ({
   config,
   startDelay,
   segmentStyle,
+  modifierFn,
+  modifierType,
 }) => {
+  const frame = useCurrentFrame();
+  const isTypewriter = config.effects.includes('snap');
+
+  // In typewriter mode, find the typing front — last character whose animation has started
+  let typingFrontIdx = -1;
+  if (isTypewriter) {
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const sf = getSegmentStartFrame(i, {
+        startDelay,
+        staggerFrames: config.staggerFrames,
+        totalSegments: segments.length,
+      });
+      if (frame >= sf + 1) {
+        typingFrontIdx = i;
+        break;
+      }
+    }
+  }
+
+  // Hide cursor ~20 frames (≈0.67s) after the last character is typed
+  const lastCharStart = getSegmentStartFrame(segments.length - 1, {
+    startDelay,
+    staggerFrames: config.staggerFrames,
+    totalSegments: segments.length,
+  });
+  const allTyped = typingFrontIdx === segments.length - 1;
+  const cursorHidden = allTyped && frame > lastCharStart + 20;
+  const showCursorAtFront = isTypewriter && typingFrontIdx >= 0 && !cursorHidden;
+
+  // Group characters by wordIndex so we can wrap each word in a nowrap span
+  // to prevent mid-word line breaks
+  const wordGroups: { wordIndex: number; chars: { segment: typeof segments[0]; idx: number }[] }[] = [];
+  let currentWordIndex = -1;
+  for (let idx = 0; idx < segments.length; idx++) {
+    const segment = segments[idx];
+    const wi = segment.wordIndex ?? 0;
+    if (segment.isSpace) {
+      // Spaces are rendered between word groups, not inside them
+      wordGroups.push({ wordIndex: -1, chars: [{ segment, idx }] });
+    } else if (wi !== currentWordIndex) {
+      currentWordIndex = wi;
+      wordGroups.push({ wordIndex: wi, chars: [{ segment, idx }] });
+    } else {
+      wordGroups[wordGroups.length - 1].chars.push({ segment, idx });
+    }
+  }
+
   return (
     <>
-      {segments.map((segment, idx) => (
-        <AnimatedCharacter
-          key={`char-${idx}`}
-          char={segment.text}
-          index={idx}
-          startFrame={getSegmentStartFrame(idx, {
-            startDelay,
-            staggerFrames: config.staggerFrames,
-            totalSegments: segments.length,
-          })}
-          spring={config.spring}
-          distance={config.distance}
-          direction={config.direction}
-          effects={config.effects}
-          isSpace={segment.isSpace}
-          style={segmentStyle}
-        />
-      ))}
+      {wordGroups.map((group, gi) => {
+        // Spaces don't need a nowrap wrapper
+        if (group.chars.length === 1 && group.chars[0].segment.isSpace) {
+          const { segment, idx } = group.chars[0];
+          return (
+            <AnimatedCharacter
+              key={`char-${idx}`}
+              char={segment.text}
+              index={idx}
+              startFrame={getSegmentStartFrame(idx, {
+                startDelay,
+                staggerFrames: config.staggerFrames,
+                totalSegments: segments.length,
+              })}
+              spring={config.spring}
+              distance={config.distance}
+              direction={config.direction}
+              effects={config.effects}
+              isSpace
+              style={segmentStyle}
+              modifier={modifierFn}
+              isTypingFront={showCursorAtFront && idx === typingFrontIdx}
+            />
+          );
+        }
+
+        // Wrap word characters in a nowrap span to prevent mid-word breaks
+        // Apply occasional word-level glitch jitter when glitch modifier is active
+        const wordJitter = modifierType === 'glitch'
+          ? getGlitchWordJitter(frame, group.wordIndex)
+          : undefined;
+        return (
+          <span key={`word-${gi}`} style={{ whiteSpace: 'nowrap', transform: wordJitter, display: wordJitter ? 'inline-block' : undefined }}>
+            {group.chars.map(({ segment, idx }) => (
+              <AnimatedCharacter
+                key={`char-${idx}`}
+                char={segment.text}
+                index={idx}
+                startFrame={getSegmentStartFrame(idx, {
+                  startDelay,
+                  staggerFrames: config.staggerFrames,
+                  totalSegments: segments.length,
+                })}
+                spring={config.spring}
+                distance={config.distance}
+                direction={config.direction}
+                effects={config.effects}
+                isSpace={segment.isSpace}
+                style={segmentStyle}
+                modifier={modifierFn}
+                isTypingFront={showCursorAtFront && idx === typingFrontIdx}
+              />
+            ))}
+          </span>
+        );
+      })}
     </>
   );
 };
@@ -319,6 +422,7 @@ const WordAnimation: React.FC<WordAnimationProps> = ({
   config,
   startDelay,
   segmentStyle,
+  modifierFn,
 }) => {
   return (
     <>
@@ -338,6 +442,7 @@ const WordAnimation: React.FC<WordAnimationProps> = ({
           effects={config.effects}
           addSpace={idx < segments.length - 1}
           style={segmentStyle}
+          modifier={modifierFn}
         />
       ))}
     </>
@@ -353,6 +458,7 @@ const LineAnimation: React.FC<LineAnimationProps> = ({
   config,
   startDelay,
   segmentStyle,
+  modifierFn,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -401,17 +507,32 @@ const LineAnimation: React.FC<LineAnimationProps> = ({
         const transform = buildTextTransform({ translateX, translateY });
         const filter = buildTextFilter(blur);
 
+        const spanStyle: React.CSSProperties = {
+          display: 'block',
+          opacity: progress,
+          transform,
+          filter: filter !== 'none' ? filter : undefined,
+          willChange: 'transform, opacity',
+          ...segmentStyle,
+        };
+
+        if (modifierFn) {
+          return (
+            <React.Fragment key={`line-${idx}`}>
+              {modifierFn({
+                children: segment.text,
+                progress,
+                baseStyle: spanStyle,
+                keyPrefix: `line-${idx}`,
+              })}
+            </React.Fragment>
+          );
+        }
+
         return (
           <span
             key={`line-${idx}`}
-            style={{
-              display: 'block',
-              opacity: progress,
-              transform,
-              filter: filter !== 'none' ? filter : undefined,
-              willChange: 'transform, opacity',
-              ...segmentStyle,
-            }}
+            style={spanStyle}
           >
             {segment.text}
           </span>
@@ -425,12 +546,14 @@ interface ElementAnimationProps {
   text: string;
   config: TextAnimationConfig;
   startDelay: number;
+  modifierFn?: TextModifierRenderFn;
 }
 
 const ElementAnimation: React.FC<ElementAnimationProps> = ({
   text,
   config,
   startDelay,
+  modifierFn,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -480,16 +603,25 @@ const ElementAnimation: React.FC<ElementAnimationProps> = ({
   });
   const filter = buildTextFilter(blur);
 
+  const spanStyle: React.CSSProperties = {
+    display: 'inline-block',
+    opacity: progress,
+    transform,
+    filter: filter !== 'none' ? filter : undefined,
+    willChange: 'transform, opacity',
+  };
+
+  if (modifierFn) {
+    return modifierFn({
+      children: text,
+      progress,
+      baseStyle: spanStyle,
+      keyPrefix: 'element-0',
+    }) as React.ReactElement;
+  }
+
   return (
-    <span
-      style={{
-        display: 'inline-block',
-        opacity: progress,
-        transform,
-        filter: filter !== 'none' ? filter : undefined,
-        willChange: 'transform, opacity',
-      }}
-    >
+    <span style={spanStyle}>
       {text}
     </span>
   );

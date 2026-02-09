@@ -10,6 +10,7 @@ import { spring, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import { springConfig } from '../lib/motion';
 import type { TextEffect } from '../lib/textAnimation';
 import { buildTextTransform, buildTextFilter } from '../lib/textAnimation';
+import type { TextModifierRenderFn } from '../lib/textModifiers';
 
 export interface AnimatedWordProps {
   /** The word to display */
@@ -30,6 +31,8 @@ export interface AnimatedWordProps {
   style?: React.CSSProperties;
   /** Whether to add space after the word */
   addSpace?: boolean;
+  /** Optional visual modifier to apply */
+  modifier?: TextModifierRenderFn;
 }
 
 export const AnimatedWord: React.FC<AnimatedWordProps> = ({
@@ -42,6 +45,7 @@ export const AnimatedWord: React.FC<AnimatedWordProps> = ({
   effects = ['fadeUp'],
   style = {},
   addSpace = true,
+  modifier,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -185,20 +189,31 @@ export const AnimatedWord: React.FC<AnimatedWordProps> = ({
 
   const filter = buildTextFilter(blur);
 
+  const spanStyle: React.CSSProperties = {
+    display: 'inline-block',
+    opacity: progress,
+    transform,
+    filter: filter !== 'none' ? filter : undefined,
+    willChange: 'transform, opacity',
+    transformOrigin: 'center bottom',
+    whiteSpace: 'pre',
+    ...style,
+  };
+
+  const content = <>{word}{addSpace ? ' ' : ''}</>;
+
+  if (modifier) {
+    return modifier({
+      children: content,
+      progress,
+      baseStyle: spanStyle,
+      keyPrefix: `word-${index}`,
+    }) as React.ReactElement;
+  }
+
   return (
-    <span
-      style={{
-        display: 'inline-block',
-        opacity: progress,
-        transform,
-        filter: filter !== 'none' ? filter : undefined,
-        willChange: 'transform, opacity',
-        transformOrigin: 'center bottom',
-        whiteSpace: 'pre',
-        ...style,
-      }}
-    >
-      {word}{addSpace ? ' ' : ''}
+    <span style={spanStyle}>
+      {content}
     </span>
   );
 };

@@ -8,6 +8,7 @@ import { DynamicSceneComposition, DynamicSceneProps } from './DynamicSceneCompos
 import { ASPECT_RATIOS, type AspectRatioKey } from './aspect-ratios';
 import { TransitionPreviewComposition, TransitionPreviewProps } from './TransitionPreviewComposition';
 import { AnimationPreviewComposition, AnimationPreviewProps } from './AnimationPreviewComposition';
+import { TextAnimationPreviewComposition, TextAnimationPreviewProps } from './TextAnimationPreviewComposition';
 import type { PolicyWrappedRenderProps, CivicProfileRenderProps, ClassProfileRenderProps } from './types';
 
 const defaultDynamicSceneProps: DynamicSceneProps = {
@@ -176,6 +177,22 @@ export const RemotionRoot: React.FC = () => {
         }}
         calculateMetadata={({ props }: { props: AnimationPreviewProps }) => ({
           durationInFrames: props.durationFrames || 90,
+        })}
+      />
+      <Composition
+        id="TextAnimationPreview"
+        component={TextAnimationPreviewComposition}
+        durationInFrames={300}
+        fps={30}
+        width={640}
+        height={360}
+        defaultProps={{
+          preset: 'energetic' as const,
+          durationFrames: 300,
+          modifier: undefined,
+        }}
+        calculateMetadata={({ props }: { props: TextAnimationPreviewProps }) => ({
+          durationInFrames: props.durationFrames || 180,
         })}
       />
     </>

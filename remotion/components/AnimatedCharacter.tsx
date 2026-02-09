@@ -10,6 +10,7 @@ import { spring, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import { springConfig } from '../lib/motion';
 import type { TextEffect } from '../lib/textAnimation';
 import { buildTextTransform, buildTextFilter } from '../lib/textAnimation';
+import type { TextModifierRenderFn } from '../lib/textModifiers';
 
 export interface AnimatedCharacterProps {
   /** The character to display */
@@ -30,6 +31,10 @@ export interface AnimatedCharacterProps {
   isSpace?: boolean;
   /** Style overrides */
   style?: React.CSSProperties;
+  /** Optional visual modifier to apply */
+  modifier?: TextModifierRenderFn;
+  /** Whether this character is at the typing front (cursor rendered here) */
+  isTypingFront?: boolean;
 }
 
 export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = ({
@@ -42,6 +47,8 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = ({
   effects = ['fadeUp'],
   isSpace = false,
   style = {},
+  modifier,
+  isTypingFront = false,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -63,8 +70,14 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = ({
   let rotate = 0;
   let blur = 0;
 
+  // Snap effect: binary opacity, no motion
+  const isSnap = effects.includes('snap');
+
   for (const effect of effects) {
     switch (effect) {
+      case 'snap':
+        // Handled separately — no transform, binary opacity
+        break;
       case 'fadeUp':
         translateY = interpolate(progress, [0, 1], [distance, 0]);
         break;
@@ -106,8 +119,11 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = ({
     }
   }
 
-  // Apply direction-based translation
-  if (direction !== 'up' && !effects.includes('fadeUp') && !effects.includes('fadeDown') &&
+  // For snap mode, opacity is binary: off until animation starts, then fully on
+  const resolvedOpacity = isSnap ? (adjustedFrame >= 1 ? 1 : 0) : progress;
+
+  // Apply direction-based translation (skip for snap — no motion)
+  if (!isSnap && direction !== 'up' && !effects.includes('fadeUp') && !effects.includes('fadeDown') &&
       !effects.includes('fadeLeft') && !effects.includes('fadeRight')) {
     switch (direction) {
       case 'up':
@@ -135,34 +151,72 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = ({
 
   const filter = buildTextFilter(blur);
 
-  // Space characters need special handling to preserve whitespace
-  if (isSpace) {
-    return (
+  // Cursor: zero-width container so it never affects text layout.
+  // Blink handled internally via frame timing (~530ms / 16 frames at 30fps).
+  const cursorBlink = Math.floor(frame / 16) % 2 === 0;
+  const cursorEl = isTypingFront ? (
+    <span style={{ display: 'inline-block', width: 0, overflow: 'visible' as const }}>
       <span
         style={{
           display: 'inline-block',
-          width: '0.3em',
-          opacity: progress,
-          ...style,
+          width: 2,
+          height: '1em',
+          backgroundColor: cursorBlink ? 'currentColor' : 'transparent',
+          verticalAlign: 'text-bottom',
         }}
-      >
-        &nbsp;
-      </span>
+      />
+    </span>
+  ) : null;
+
+  // Space characters need special handling to preserve whitespace
+  if (isSpace) {
+    return (
+      <>
+        <span
+          style={{
+            display: 'inline-block',
+            width: '0.3em',
+            opacity: resolvedOpacity,
+            ...style,
+          }}
+        >
+          &nbsp;
+        </span>
+        {cursorEl}
+      </>
     );
   }
 
+  const spanStyle: React.CSSProperties = {
+    display: 'inline-block',
+    opacity: resolvedOpacity,
+    transform,
+    filter: filter !== 'none' ? filter : undefined,
+    willChange: 'transform, opacity',
+    ...style,
+  };
+
+  // Only call modifier when character is visible (gate on opacity per contract)
+  if (modifier && resolvedOpacity > 0) {
+    return (
+      <>
+        {modifier({
+          children: char,
+          progress,       // spring timeline, NOT resolvedOpacity
+          baseStyle: spanStyle,
+          keyPrefix: `char-${index}`,
+        })}
+        {cursorEl}
+      </>
+    ) as React.ReactElement;
+  }
+
   return (
-    <span
-      style={{
-        display: 'inline-block',
-        opacity: progress,
-        transform,
-        filter: filter !== 'none' ? filter : undefined,
-        willChange: 'transform, opacity',
-        ...style,
-      }}
-    >
-      {char}
-    </span>
+    <>
+      <span style={spanStyle}>
+        {char}
+      </span>
+      {cursorEl}
+    </>
   );
 };

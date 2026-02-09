@@ -20,7 +20,7 @@ export type AnimationPreset =
   | 'kinetic'      // Fast, dynamic movement
   | 'typewriter'   // Sequential character/word reveals
   | 'cinematic'    // Slow, epic feel
-  | 'lyric'        // Lyric video style - words fly in from alternating directions
+  | 'spiral'       // Spiral - text slides in and rotates in a spiral pattern
   | 'stacking'     // Words fly up and stack into sentences
   | 'cascade'      // Words cascade down from above
   | 'burst';       // Words burst in from center
@@ -148,14 +148,14 @@ export const ANIMATION_PRESETS: Record<AnimationPreset, PresetConfig> = {
     fadeOutFrames: 24,
   },
 
-  // Lyric video style presets - more dramatic, word-focused animations
-  lyric: {
-    spring: 'bouncy',
+  // Spiral animation - custom multi-step choreography (uses SpiralTextAnimation)
+  spiral: {
+    spring: 'smooth',
     startDelay: 5,
     staggerDelay: 4,
-    distance: 60,        // Larger distance for dramatic fly-in
+    distance: 60,
     scaleFrom: 0.9,
-    direction: 'random', // Alternating directions
+    direction: 'right',
     fadeInFrames: 15,
     fadeOutFrames: 12,
   },
@@ -266,8 +266,8 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       title: { distance: 15, fadeInFrames: 50 },
       body: { startDelay: 45, fadeInFrames: 40 },
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       title: { distance: 80, staggerDelay: 5 },
       body: { startDelay: 15, distance: 60, staggerDelay: 4 },
     },
@@ -328,8 +328,8 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       title: { fadeInFrames: 60 },
       body: { startDelay: 40 },
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       title: { scaleFrom: 0.5, distance: 40 },
       body: { startDelay: 20, distance: 70, staggerDelay: 5 },
     },
@@ -383,8 +383,8 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.cinematic,
       data: { staggerDelay: 20 },
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       data: { staggerDelay: 6, distance: 50 },
     },
     stacking: {
@@ -442,8 +442,8 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       image: { scaleFrom: 1.1, fadeInFrames: 60 }, // Ken Burns zoom out
       title: { startDelay: 50 },
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       image: { scaleFrom: 0.85, distance: 50 },
       title: { startDelay: 25, distance: 60 },
     },
@@ -497,8 +497,8 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.cinematic,
       image: { distance: 60, fadeInFrames: 50 },
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       image: { distance: 80, staggerDelay: 6 },
     },
     stacking: {
@@ -548,8 +548,8 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.cinematic,
       image: { staggerDelay: 15 },
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       image: { staggerDelay: 5, distance: 60 },
     },
     stacking: {
@@ -599,8 +599,8 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.cinematic,
       data: { staggerDelay: 18 },
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       data: { staggerDelay: 5, distance: 50 },
     },
     stacking: {
@@ -650,8 +650,8 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.cinematic,
       data: { staggerDelay: 20, direction: 'left' },
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       data: { staggerDelay: 6, direction: 'left', distance: 60 },
     },
     stacking: {
@@ -701,8 +701,8 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.cinematic,
       data: { staggerDelay: 25 },
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       data: { staggerDelay: 10, distance: 60 },
     },
     stacking: {
@@ -799,7 +799,7 @@ export const PRESET_LABELS: Record<AnimationPreset, string> = {
   kinetic: 'Kinetic',
   typewriter: 'Typewriter',
   cinematic: 'Cinematic',
-  lyric: 'Lyric',
+  spiral: 'Spiral',
   stacking: 'Stacking',
   cascade: 'Cascade',
   burst: 'Burst',
@@ -817,7 +817,7 @@ export const PRESET_DESCRIPTIONS: Record<AnimationPreset, string> = {
   kinetic: 'Fast, dynamic motion',
   typewriter: 'Sequential text reveals',
   cinematic: 'Slow, epic atmosphere',
-  lyric: 'Words fly in from alternating directions',
+  spiral: 'Text slides in and rotates in a spiral',
   stacking: 'Words fly up and stack into sentences',
   cascade: 'Words cascade down from above',
   burst: 'Words burst in from center with scale',
@@ -922,14 +922,14 @@ export const TEXT_ANIMATION_PRESETS: Record<AnimationPreset, TextAnimationPreset
     effects: ['fadeUp'],
   },
 
-  // Lyric video style text animations - dramatic word-by-word reveals
-  lyric: {
+  // Spiral animation - handled by custom SpiralTextAnimation component
+  spiral: {
     unit: 'word',
-    staggerFrames: 4,
-    spring: 'bouncy',
-    distance: 60,
-    direction: 'left',   // Will alternate via special handling
-    effects: ['fadeLeft'],
+    staggerFrames: 3,
+    spring: 'smooth',
+    distance: 40,
+    direction: 'right',
+    effects: ['fadeUp'],
   },
 
   stacking: {

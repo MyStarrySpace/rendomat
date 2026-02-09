@@ -276,7 +276,8 @@ export type TextEffect =
   | 'anticipation'
   | 'followThrough'
   | 'blur'
-  | 'rotate';
+  | 'rotate'
+  | 'snap';
 
 export interface EffectValues {
   opacity: number;
@@ -331,6 +332,9 @@ export function getBaseEffectValues(
         break;
       case 'rotate':
         values.rotate = (1 - progress) * 15;
+        break;
+      case 'snap':
+        values.opacity = progress > 0.01 ? 1 : 0;
         break;
       // squashStretch, anticipation, followThrough are handled by hooks
     }
