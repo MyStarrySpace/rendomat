@@ -39,7 +39,7 @@ export const EchoTextAnimation: React.FC<EchoTextAnimationProps> = ({
   fontWeight = 700,
   color = '#ffffff',
   echoRows = 3,
-  rowGap = 1.2,
+  rowGap = 0.8,
   scrollSpeed = 1.5,
   ghostOpacity = 0.15,
   style,
