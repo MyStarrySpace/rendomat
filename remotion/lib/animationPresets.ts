@@ -23,7 +23,8 @@ export type AnimationPreset =
   | 'spiral'       // Spiral - text slides in and rotates in a spiral pattern
   | 'stacking'     // Words fly up and stack into sentences
   | 'cascade'      // Words cascade down from above
-  | 'burst';       // Words burst in from center
+  | 'burst'        // Words burst in from center
+  | 'echo';        // Stacked marquee - ghost copies scroll above/below hero text
 
 export interface PresetConfig {
   /** Spring configuration key */
@@ -192,6 +193,18 @@ export const ANIMATION_PRESETS: Record<AnimationPreset, PresetConfig> = {
     fadeInFrames: 12,
     fadeOutFrames: 10,
   },
+
+  // Echo animation - handled by custom EchoTextAnimation component
+  echo: {
+    spring: 'smooth',
+    startDelay: 0,
+    staggerDelay: 0,
+    distance: 0,
+    scaleFrom: 1,
+    direction: 'center',
+    fadeInFrames: 20,
+    fadeOutFrames: 15,
+  },
 };
 
 // =============================================================================
@@ -286,6 +299,11 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       title: { scaleFrom: 0.2, distance: 50 },
       body: { startDelay: 12, scaleFrom: 0.3, staggerDelay: 3 },
     },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      title: {},
+      body: { startDelay: 20 },
+    },
   },
 
   'quote': {
@@ -348,6 +366,11 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       title: { scaleFrom: 0.1 },
       body: { startDelay: 15, scaleFrom: 0.4 },
     },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      title: {},
+      body: { startDelay: 20 },
+    },
   },
 
   'stats': {
@@ -398,6 +421,11 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     burst: {
       ...ANIMATION_PRESETS.burst,
       data: { staggerDelay: 4, scaleFrom: 0.2 },
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      title: {},
+      data: { staggerDelay: 8 },
     },
   },
 
@@ -462,6 +490,11 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       image: { scaleFrom: 0.4 },
       title: { startDelay: 20, scaleFrom: 0.3 },
     },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      image: { scaleFrom: 0.98 },
+      title: {},
+    },
   },
 
   'dual-images': {
@@ -512,6 +545,10 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     burst: {
       ...ANIMATION_PRESETS.burst,
       image: { scaleFrom: 0.3, staggerDelay: 4 },
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      image: { distance: 20 },
     },
   },
 
@@ -564,6 +601,10 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.burst,
       image: { staggerDelay: 3, scaleFrom: 0.2 },
     },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      image: { staggerDelay: 5 },
+    },
   },
 
   'bar-chart': {
@@ -614,6 +655,10 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     burst: {
       ...ANIMATION_PRESETS.burst,
       data: { staggerDelay: 3, scaleFrom: 0.3 },
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      data: { staggerDelay: 8 },
     },
   },
 
@@ -666,6 +711,10 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.burst,
       data: { staggerDelay: 4, scaleFrom: 0.3 },
     },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      data: { staggerDelay: 6, direction: 'left' },
+    },
   },
 
   'equation': {
@@ -716,6 +765,10 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     burst: {
       ...ANIMATION_PRESETS.burst,
       data: { staggerDelay: 6, scaleFrom: 0.2 },
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      data: { staggerDelay: 10 },
     },
   },
 };
@@ -803,6 +856,7 @@ export const PRESET_LABELS: Record<AnimationPreset, string> = {
   stacking: 'Stacking',
   cascade: 'Cascade',
   burst: 'Burst',
+  echo: 'Echo',
 };
 
 /**
@@ -810,17 +864,18 @@ export const PRESET_LABELS: Record<AnimationPreset, string> = {
  */
 export const PRESET_DESCRIPTIONS: Record<AnimationPreset, string> = {
   minimal: 'Subtle, professional animations',
-  smooth: 'Gentle, flowing movement',
+  smooth: 'Gentle, flowing word entrance',
   energetic: 'Bouncy, playful feel',
-  dramatic: 'Bold, impactful entrances',
-  elegant: 'Refined, sophisticated timing',
+  dramatic: 'Heavy slam with blur and rotation',
+  elegant: 'Rippling wave of characters',
   kinetic: 'Fast, dynamic motion',
   typewriter: 'Sequential text reveals',
   cinematic: 'Slow, epic atmosphere',
   spiral: 'Text slides in and rotates in a spiral',
-  stacking: 'Words fly up and stack into sentences',
-  cascade: 'Words cascade down from above',
-  burst: 'Words burst in from center with scale',
+  stacking: 'Matrix-style character scramble',
+  cascade: 'Words tumble down with rotation',
+  burst: 'Words pop in with elastic scale',
+  echo: 'Stacked marquee with scrolling ghost copies',
 };
 
 // =============================================================================
@@ -867,9 +922,9 @@ export const TEXT_ANIMATION_PRESETS: Record<AnimationPreset, TextAnimationPreset
   },
   smooth: {
     unit: 'word',
-    staggerFrames: 1,
+    staggerFrames: 3,
     spring: 'gentle',
-    distance: 12,
+    distance: 25,
     direction: 'up',
     effects: ['fadeUp'],
   },
@@ -883,19 +938,19 @@ export const TEXT_ANIMATION_PRESETS: Record<AnimationPreset, TextAnimationPreset
   },
   dramatic: {
     unit: 'word',
-    staggerFrames: 2,
+    staggerFrames: 4,
     spring: 'snappy',
-    distance: 16,
+    distance: 50,
     direction: 'up',
-    effects: ['fadeUp'],
+    effects: ['fadeUp', 'scaleUp', 'blur', 'rotate'],
   },
   elegant: {
-    unit: 'word',
-    staggerFrames: 2,
+    unit: 'character',
+    staggerFrames: 1,
     spring: 'smooth',
-    distance: 10,
+    distance: 20,
     direction: 'up',
-    effects: ['fadeUp'],
+    effects: ['wave'],
   },
   kinetic: {
     unit: 'word',  // Changed from character to word
@@ -933,12 +988,12 @@ export const TEXT_ANIMATION_PRESETS: Record<AnimationPreset, TextAnimationPreset
   },
 
   stacking: {
-    unit: 'word',
-    staggerFrames: 5,
+    unit: 'character',
+    staggerFrames: 1,
     spring: 'snappy',
-    distance: 80,
+    distance: 0,
     direction: 'up',
-    effects: ['fadeUp'],
+    effects: ['scramble'],
   },
 
   cascade: {
@@ -947,7 +1002,7 @@ export const TEXT_ANIMATION_PRESETS: Record<AnimationPreset, TextAnimationPreset
     spring: 'gentle',
     distance: 50,
     direction: 'down',
-    effects: ['fadeDown'],
+    effects: ['fadeDown', 'rotate'],
   },
 
   burst: {
@@ -955,8 +1010,18 @@ export const TEXT_ANIMATION_PRESETS: Record<AnimationPreset, TextAnimationPreset
     staggerFrames: 2,
     spring: 'elastic',
     distance: 40,
-    direction: 'up',     // Combined with scale for burst effect
+    direction: 'up',
     effects: ['scaleUp'],
+  },
+
+  // Echo animation - handled by custom EchoTextAnimation component
+  echo: {
+    unit: 'element',
+    staggerFrames: 0,
+    spring: 'smooth',
+    distance: 0,
+    direction: 'up',
+    effects: ['fadeUp'],
   },
 };
 

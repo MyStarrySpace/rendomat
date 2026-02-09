@@ -200,14 +200,43 @@ export function SceneEditor({
             <option value="kinetic">Kinetic</option>
             <option value="typewriter">Typewriter</option>
           </optgroup>
-          <optgroup label="Lyric Video">
-            <option value="lyric">Lyric</option>
+          <optgroup label="Specialty">
+            <option value="spiral">Spiral</option>
             <option value="stacking">Stacking</option>
             <option value="cascade">Cascade</option>
             <option value="burst">Burst</option>
+            <option value="echo">Echo</option>
           </optgroup>
         </select>
       </div>
+
+      {/* Text Layout Preset */}
+      {['text-only', 'quote', 'stats'].includes(scene.scene_type) && (
+        <div>
+          <Label>Text Layout</Label>
+          <select
+            value={editData.text_layout || 'centered'}
+            onChange={(e) => setEditData({ ...editData, text_layout: e.target.value })}
+            className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-3 py-2 text-sm text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
+          >
+            <optgroup label="Classic">
+              <option value="centered">Centered</option>
+              <option value="offset">Offset</option>
+            </optgroup>
+            <optgroup label="Anchored">
+              <option value="bottom-left">Bottom Left</option>
+              <option value="lower-third">Lower Third</option>
+              <option value="top-right">Top Right</option>
+            </optgroup>
+            <optgroup label="Editorial">
+              <option value="split">Split</option>
+              <option value="full-bleed">Full Bleed</option>
+              <option value="stacked">Stacked</option>
+              <option value="diagonal">Diagonal</option>
+            </optgroup>
+          </select>
+        </div>
+      )}
 
       {/* Image Fields */}
       {(scene.scene_type === 'single-image' ||

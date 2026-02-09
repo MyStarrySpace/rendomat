@@ -2,6 +2,7 @@ import React from 'react';
 import { AbsoluteFill } from 'remotion';
 import { AnimatedText } from './components/AnimatedText';
 import { SpiralTextAnimation } from './components/SpiralTextAnimation';
+import { EchoTextAnimation } from './components/EchoTextAnimation';
 import type { AnimationPreset } from './lib/animationPresets';
 import type { TextModifierType } from './lib/textModifiers';
 
@@ -19,6 +20,43 @@ export const TextAnimationPreviewComposition: React.FC<TextAnimationPreviewProps
   durationFrames = 90,
   modifier,
 }) => {
+  // Echo preset uses a fully custom component
+  if (preset === 'echo') {
+    return (
+      <AbsoluteFill
+        style={{
+          backgroundColor: '#0a0a0a',
+        }}
+      >
+        {/* Preset label */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 20,
+            left: 24,
+            color: 'rgba(255,255,255,0.35)',
+            fontFamily: 'sans-serif',
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            zIndex: 10,
+          }}
+        >
+          {modifier ? `${preset} + ${modifier}` : preset}
+        </div>
+
+        <EchoTextAnimation
+          text="Rendomat"
+          fontSize={56}
+          fontFamily="sans-serif"
+          fontWeight={700}
+          color="#ffffff"
+        />
+      </AbsoluteFill>
+    );
+  }
+
   // Spiral preset uses a fully custom component
   if (preset === 'spiral') {
     return (

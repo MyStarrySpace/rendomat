@@ -18,6 +18,7 @@ const PRESETS = [
   'stacking',
   'cascade',
   'burst',
+  'echo',
 ];
 
 const MODIFIERS = ['chromatic', 'blur-in', 'glow', 'glitch'];
@@ -64,6 +65,9 @@ async function main() {
   function getDuration(preset) {
     if (preset === 'spiral') return 300;
     if (preset === 'typewriter') return 210;
+    if (preset === 'echo') return 150;
+    // Character-level presets need longer duration for stagger
+    if (preset === 'elegant' || preset === 'stacking') return 120;
     return 90;
   }
 

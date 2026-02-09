@@ -62,7 +62,7 @@ export const TEXT_ANIMATION_CONFIGS: Record<AnimationPreset, TextAnimationConfig
     spring: 'gentle',
     distance: 25,
     direction: 'up',
-    effects: ['fadeUp', 'scaleUp'],
+    effects: ['fadeUp'],
   },
   energetic: {
     unit: 'word',
@@ -78,15 +78,15 @@ export const TEXT_ANIMATION_CONFIGS: Record<AnimationPreset, TextAnimationConfig
     spring: 'snappy',
     distance: 50,
     direction: 'up',
-    effects: ['fadeUp', 'anticipation', 'followThrough'],
+    effects: ['fadeUp', 'scaleUp', 'blur', 'rotate'],
   },
   elegant: {
-    unit: 'word',
-    staggerFrames: 5,
+    unit: 'character',
+    staggerFrames: 1,
     spring: 'smooth',
     distance: 20,
     direction: 'up',
-    effects: ['fadeUp', 'scaleUp'],
+    effects: ['wave'],
   },
   kinetic: {
     unit: 'character',
@@ -121,12 +121,12 @@ export const TEXT_ANIMATION_CONFIGS: Record<AnimationPreset, TextAnimationConfig
     effects: ['fadeUp'],
   },
   stacking: {
-    unit: 'word',
-    staggerFrames: 5,
+    unit: 'character',
+    staggerFrames: 1,
     spring: 'snappy',
-    distance: 80,
+    distance: 0,
     direction: 'up',
-    effects: ['fadeUp'],
+    effects: ['scramble'],
   },
   cascade: {
     unit: 'word',
@@ -134,7 +134,7 @@ export const TEXT_ANIMATION_CONFIGS: Record<AnimationPreset, TextAnimationConfig
     spring: 'gentle',
     distance: 50,
     direction: 'down',
-    effects: ['fadeDown'],
+    effects: ['fadeDown', 'rotate'],
   },
   burst: {
     unit: 'word',
@@ -143,6 +143,14 @@ export const TEXT_ANIMATION_CONFIGS: Record<AnimationPreset, TextAnimationConfig
     distance: 40,
     direction: 'up',
     effects: ['scaleUp'],
+  },
+  echo: {
+    unit: 'element',
+    staggerFrames: 0,
+    spring: 'smooth',
+    distance: 0,
+    direction: 'up',
+    effects: ['fadeUp'],
   },
 };
 
