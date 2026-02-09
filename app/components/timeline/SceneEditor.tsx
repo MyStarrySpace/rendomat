@@ -206,6 +206,9 @@ export function SceneEditor({
             <option value="cascade">Cascade</option>
             <option value="burst">Burst</option>
             <option value="echo">Echo</option>
+            <option value="reveal">Reveal</option>
+            <option value="tracking">Tracking</option>
+            <option value="flicker">Flicker</option>
           </optgroup>
         </select>
       </div>

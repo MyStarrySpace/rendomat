@@ -8,6 +8,9 @@ import {
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
 import { EchoTextAnimation } from '../components/EchoTextAnimation';
+import { RevealTextAnimation } from '../components/RevealTextAnimation';
+import { TrackingTextAnimation } from '../components/TrackingTextAnimation';
+import { FlickerTextAnimation } from '../components/FlickerTextAnimation';
 import { useTextLayout } from '../hooks/useTextLayout';
 import type { TextLayoutPreset } from '../lib/textLayouts';
 
@@ -32,7 +35,7 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, th
     ? data.title.split('\n')
     : null;
 
-  // Echo preset: title uses the full-scene EchoTextAnimation component
+  // Custom preset components: title uses the full-scene custom component
   if (preset === 'echo' && data.title) {
     return (
       <AbsoluteFill style={{
@@ -41,6 +44,60 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, th
         opacity: sceneFade,
       }}>
         <EchoTextAnimation
+          text={data.title}
+          fontSize={titleFontSize}
+          fontFamily={`'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`}
+          fontWeight={layout.titleFontWeight}
+          color={theme.colors.textPrimary}
+        />
+      </AbsoluteFill>
+    );
+  }
+
+  if (preset === 'reveal' && data.title) {
+    return (
+      <AbsoluteFill style={{
+        ...textLayout.container,
+        background: theme.colors.backgroundGradient || theme.colors.background,
+        opacity: sceneFade,
+      }}>
+        <RevealTextAnimation
+          text={data.title}
+          fontSize={titleFontSize}
+          fontFamily={`'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`}
+          fontWeight={layout.titleFontWeight}
+          color={theme.colors.textPrimary}
+        />
+      </AbsoluteFill>
+    );
+  }
+
+  if (preset === 'tracking' && data.title) {
+    return (
+      <AbsoluteFill style={{
+        ...textLayout.container,
+        background: theme.colors.backgroundGradient || theme.colors.background,
+        opacity: sceneFade,
+      }}>
+        <TrackingTextAnimation
+          text={data.title}
+          fontSize={titleFontSize}
+          fontFamily={`'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`}
+          fontWeight={layout.titleFontWeight}
+          color={theme.colors.textPrimary}
+        />
+      </AbsoluteFill>
+    );
+  }
+
+  if (preset === 'flicker' && data.title) {
+    return (
+      <AbsoluteFill style={{
+        ...textLayout.container,
+        background: theme.colors.backgroundGradient || theme.colors.background,
+        opacity: sceneFade,
+      }}>
+        <FlickerTextAnimation
           text={data.title}
           fontSize={titleFontSize}
           fontFamily={`'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`}

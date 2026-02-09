@@ -3,6 +3,9 @@ import { AbsoluteFill } from 'remotion';
 import { AnimatedText } from './components/AnimatedText';
 import { SpiralTextAnimation } from './components/SpiralTextAnimation';
 import { EchoTextAnimation } from './components/EchoTextAnimation';
+import { RevealTextAnimation } from './components/RevealTextAnimation';
+import { TrackingTextAnimation } from './components/TrackingTextAnimation';
+import { FlickerTextAnimation } from './components/FlickerTextAnimation';
 import type { AnimationPreset } from './lib/animationPresets';
 import type { TextModifierType } from './lib/textModifiers';
 
@@ -90,6 +93,114 @@ export const TextAnimationPreviewComposition: React.FC<TextAnimationPreviewProps
           fontWeight={700}
           color="#ffffff"
           modifier={modifier}
+        />
+      </AbsoluteFill>
+    );
+  }
+
+  // Reveal preset uses a fully custom component
+  if (preset === 'reveal') {
+    return (
+      <AbsoluteFill
+        style={{
+          backgroundColor: '#0a0a0a',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: 20,
+            left: 24,
+            color: 'rgba(255,255,255,0.35)',
+            fontFamily: 'sans-serif',
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            zIndex: 10,
+          }}
+        >
+          {modifier ? `${preset} + ${modifier}` : preset}
+        </div>
+
+        <RevealTextAnimation
+          text="Rendomat"
+          fontSize={56}
+          fontFamily="sans-serif"
+          fontWeight={700}
+          color="#ffffff"
+        />
+      </AbsoluteFill>
+    );
+  }
+
+  // Tracking preset uses a fully custom component
+  if (preset === 'tracking') {
+    return (
+      <AbsoluteFill
+        style={{
+          backgroundColor: '#0a0a0a',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: 20,
+            left: 24,
+            color: 'rgba(255,255,255,0.35)',
+            fontFamily: 'sans-serif',
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            zIndex: 10,
+          }}
+        >
+          {modifier ? `${preset} + ${modifier}` : preset}
+        </div>
+
+        <TrackingTextAnimation
+          text="Rendomat"
+          fontSize={56}
+          fontFamily="sans-serif"
+          fontWeight={700}
+          color="#ffffff"
+        />
+      </AbsoluteFill>
+    );
+  }
+
+  // Flicker preset uses a fully custom component
+  if (preset === 'flicker') {
+    return (
+      <AbsoluteFill
+        style={{
+          backgroundColor: '#0a0a0a',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: 20,
+            left: 24,
+            color: 'rgba(255,255,255,0.35)',
+            fontFamily: 'sans-serif',
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            zIndex: 10,
+          }}
+        >
+          {modifier ? `${preset} + ${modifier}` : preset}
+        </div>
+
+        <FlickerTextAnimation
+          text="Rendomat"
+          fontSize={56}
+          fontFamily="sans-serif"
+          fontWeight={700}
+          color="#ffffff"
         />
       </AbsoluteFill>
     );

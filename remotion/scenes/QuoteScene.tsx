@@ -12,6 +12,9 @@ import {
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
 import { EchoTextAnimation } from '../components/EchoTextAnimation';
+import { RevealTextAnimation } from '../components/RevealTextAnimation';
+import { TrackingTextAnimation } from '../components/TrackingTextAnimation';
+import { FlickerTextAnimation } from '../components/FlickerTextAnimation';
 import { useTextLayout } from '../hooks/useTextLayout';
 import type { TextLayoutPreset } from '../lib/textLayouts';
 
@@ -35,7 +38,7 @@ export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
 
   const quoteFontSize = layout.quoteFontSize * (textLayout.titleScale ?? 1);
 
-  // Echo preset: quote text uses the full-scene EchoTextAnimation component
+  // Custom preset components: quote text uses the full-scene custom component
   if (preset === 'echo' && data.quote) {
     return (
       <AbsoluteFill style={{
@@ -44,6 +47,60 @@ export const QuoteScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
         opacity: sceneFade,
       }}>
         <EchoTextAnimation
+          text={data.quote}
+          fontSize={quoteFontSize}
+          fontFamily={`'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`}
+          fontWeight={layout.bodyFontWeight}
+          color={theme.colors.textPrimary}
+        />
+      </AbsoluteFill>
+    );
+  }
+
+  if (preset === 'reveal' && data.quote) {
+    return (
+      <AbsoluteFill style={{
+        ...textLayout.container,
+        background: theme.colors.backgroundGradient || theme.colors.background,
+        opacity: sceneFade,
+      }}>
+        <RevealTextAnimation
+          text={data.quote}
+          fontSize={quoteFontSize}
+          fontFamily={`'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`}
+          fontWeight={layout.bodyFontWeight}
+          color={theme.colors.textPrimary}
+        />
+      </AbsoluteFill>
+    );
+  }
+
+  if (preset === 'tracking' && data.quote) {
+    return (
+      <AbsoluteFill style={{
+        ...textLayout.container,
+        background: theme.colors.backgroundGradient || theme.colors.background,
+        opacity: sceneFade,
+      }}>
+        <TrackingTextAnimation
+          text={data.quote}
+          fontSize={quoteFontSize}
+          fontFamily={`'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`}
+          fontWeight={layout.bodyFontWeight}
+          color={theme.colors.textPrimary}
+        />
+      </AbsoluteFill>
+    );
+  }
+
+  if (preset === 'flicker' && data.quote) {
+    return (
+      <AbsoluteFill style={{
+        ...textLayout.container,
+        background: theme.colors.backgroundGradient || theme.colors.background,
+        opacity: sceneFade,
+      }}>
+        <FlickerTextAnimation
           text={data.quote}
           fontSize={quoteFontSize}
           fontFamily={`'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`}

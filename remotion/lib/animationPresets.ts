@@ -24,7 +24,10 @@ export type AnimationPreset =
   | 'stacking'     // Words fly up and stack into sentences
   | 'cascade'      // Words cascade down from above
   | 'burst'        // Words burst in from center
-  | 'echo';        // Stacked marquee - ghost copies scroll above/below hero text
+  | 'echo'         // Stacked marquee - ghost copies scroll above/below hero text
+  | 'reveal'       // Curtain wipe via clip-path with traveling accent bar
+  | 'tracking'     // Letter-spacing breathes from ultra-wide to normal + fade-in
+  | 'flicker';     // Neon sign power-on with deterministic rapid opacity toggling
 
 export interface PresetConfig {
   /** Spring configuration key */
@@ -205,6 +208,42 @@ export const ANIMATION_PRESETS: Record<AnimationPreset, PresetConfig> = {
     fadeInFrames: 20,
     fadeOutFrames: 15,
   },
+
+  // Reveal animation - handled by custom RevealTextAnimation component
+  reveal: {
+    spring: 'crisp',
+    startDelay: 0,
+    staggerDelay: 0,
+    distance: 0,
+    scaleFrom: 1,
+    direction: 'left',
+    fadeInFrames: 20,
+    fadeOutFrames: 15,
+  },
+
+  // Tracking animation - handled by custom TrackingTextAnimation component
+  tracking: {
+    spring: 'gentle',
+    startDelay: 0,
+    staggerDelay: 0,
+    distance: 0,
+    scaleFrom: 1,
+    direction: 'center',
+    fadeInFrames: 20,
+    fadeOutFrames: 15,
+  },
+
+  // Flicker animation - handled by custom FlickerTextAnimation component
+  flicker: {
+    spring: 'smooth',
+    startDelay: 0,
+    staggerDelay: 0,
+    distance: 0,
+    scaleFrom: 1,
+    direction: 'center',
+    fadeInFrames: 20,
+    fadeOutFrames: 15,
+  },
 };
 
 // =============================================================================
@@ -304,6 +343,21 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       title: {},
       body: { startDelay: 20 },
     },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      title: {},
+      body: { startDelay: 20 },
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      title: {},
+      body: { startDelay: 20 },
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      title: {},
+      body: { startDelay: 20 },
+    },
   },
 
   'quote': {
@@ -371,6 +425,21 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       title: {},
       body: { startDelay: 20 },
     },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      title: {},
+      body: { startDelay: 20 },
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      title: {},
+      body: { startDelay: 20 },
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      title: {},
+      body: { startDelay: 20 },
+    },
   },
 
   'stats': {
@@ -424,6 +493,21 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     },
     echo: {
       ...ANIMATION_PRESETS.echo,
+      title: {},
+      data: { staggerDelay: 8 },
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      title: {},
+      data: { staggerDelay: 8 },
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      title: {},
+      data: { staggerDelay: 8 },
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
       title: {},
       data: { staggerDelay: 8 },
     },
@@ -495,6 +579,21 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       image: { scaleFrom: 0.98 },
       title: {},
     },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      image: { scaleFrom: 0.98 },
+      title: {},
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      image: { scaleFrom: 0.98 },
+      title: {},
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      image: { scaleFrom: 0.98 },
+      title: {},
+    },
   },
 
   'dual-images': {
@@ -548,6 +647,18 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     },
     echo: {
       ...ANIMATION_PRESETS.echo,
+      image: { distance: 20 },
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      image: { distance: 20 },
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      image: { distance: 20 },
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
       image: { distance: 20 },
     },
   },
@@ -605,6 +716,18 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.echo,
       image: { staggerDelay: 5 },
     },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      image: { staggerDelay: 5 },
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      image: { staggerDelay: 5 },
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      image: { staggerDelay: 5 },
+    },
   },
 
   'bar-chart': {
@@ -658,6 +781,18 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     },
     echo: {
       ...ANIMATION_PRESETS.echo,
+      data: { staggerDelay: 8 },
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      data: { staggerDelay: 8 },
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      data: { staggerDelay: 8 },
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
       data: { staggerDelay: 8 },
     },
   },
@@ -715,6 +850,18 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.echo,
       data: { staggerDelay: 6, direction: 'left' },
     },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      data: { staggerDelay: 6, direction: 'left' },
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      data: { staggerDelay: 6, direction: 'left' },
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      data: { staggerDelay: 6, direction: 'left' },
+    },
   },
 
   'equation': {
@@ -768,6 +915,18 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     },
     echo: {
       ...ANIMATION_PRESETS.echo,
+      data: { staggerDelay: 10 },
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      data: { staggerDelay: 10 },
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      data: { staggerDelay: 10 },
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
       data: { staggerDelay: 10 },
     },
   },
@@ -857,6 +1016,9 @@ export const PRESET_LABELS: Record<AnimationPreset, string> = {
   cascade: 'Cascade',
   burst: 'Burst',
   echo: 'Echo',
+  reveal: 'Reveal',
+  tracking: 'Tracking',
+  flicker: 'Flicker',
 };
 
 /**
@@ -876,6 +1038,9 @@ export const PRESET_DESCRIPTIONS: Record<AnimationPreset, string> = {
   cascade: 'Words tumble down with rotation',
   burst: 'Words pop in with elastic scale',
   echo: 'Stacked marquee with scrolling ghost copies',
+  reveal: 'Curtain wipe with traveling accent bar',
+  tracking: 'Letter-spacing breathes from wide to normal',
+  flicker: 'Neon sign power-on with rapid toggling',
 };
 
 // =============================================================================
@@ -1016,6 +1181,36 @@ export const TEXT_ANIMATION_PRESETS: Record<AnimationPreset, TextAnimationPreset
 
   // Echo animation - handled by custom EchoTextAnimation component
   echo: {
+    unit: 'element',
+    staggerFrames: 0,
+    spring: 'smooth',
+    distance: 0,
+    direction: 'up',
+    effects: ['fadeUp'],
+  },
+
+  // Reveal animation - handled by custom RevealTextAnimation component
+  reveal: {
+    unit: 'element',
+    staggerFrames: 0,
+    spring: 'crisp',
+    distance: 0,
+    direction: 'left',
+    effects: ['fadeUp'],
+  },
+
+  // Tracking animation - handled by custom TrackingTextAnimation component
+  tracking: {
+    unit: 'element',
+    staggerFrames: 0,
+    spring: 'gentle',
+    distance: 0,
+    direction: 'up',
+    effects: ['fadeUp'],
+  },
+
+  // Flicker animation - handled by custom FlickerTextAnimation component
+  flicker: {
     unit: 'element',
     staggerFrames: 0,
     spring: 'smooth',

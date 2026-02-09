@@ -152,6 +152,30 @@ export const TEXT_ANIMATION_CONFIGS: Record<AnimationPreset, TextAnimationConfig
     direction: 'up',
     effects: ['fadeUp'],
   },
+  reveal: {
+    unit: 'element',
+    staggerFrames: 0,
+    spring: 'crisp',
+    distance: 0,
+    direction: 'left',
+    effects: ['fadeUp'],
+  },
+  tracking: {
+    unit: 'element',
+    staggerFrames: 0,
+    spring: 'gentle',
+    distance: 0,
+    direction: 'up',
+    effects: ['fadeUp'],
+  },
+  flicker: {
+    unit: 'element',
+    staggerFrames: 0,
+    spring: 'smooth',
+    distance: 0,
+    direction: 'up',
+    effects: ['fadeUp'],
+  },
 };
 
 // =============================================================================
