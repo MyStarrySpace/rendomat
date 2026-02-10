@@ -173,6 +173,84 @@ export const Transition: React.FC<TransitionProps> = ({
         />
       );
 
+    case 'flash':
+      return (
+        <FlashTransition
+          progress={progress}
+          sceneASnapshot={sceneASnapshot}
+          sceneBSnapshot={sceneBSnapshot}
+          sceneAColor={sceneAColor}
+          sceneBColor={sceneBColor}
+        />
+      );
+
+    case 'spin':
+      return (
+        <SpinTransition
+          progress={progress}
+          sceneASnapshot={sceneASnapshot}
+          sceneBSnapshot={sceneBSnapshot}
+          sceneAColor={sceneAColor}
+          sceneBColor={sceneBColor}
+        />
+      );
+
+    case 'flip':
+      return (
+        <FlipTransition
+          progress={progress}
+          sceneASnapshot={sceneASnapshot}
+          sceneBSnapshot={sceneBSnapshot}
+          sceneAColor={sceneAColor}
+          sceneBColor={sceneBColor}
+        />
+      );
+
+    case 'pixelate':
+      return (
+        <PixelateTransition
+          progress={progress}
+          sceneASnapshot={sceneASnapshot}
+          sceneBSnapshot={sceneBSnapshot}
+          sceneAColor={sceneAColor}
+          sceneBColor={sceneBColor}
+        />
+      );
+
+    case 'iris-close':
+      return (
+        <IrisCloseTransition
+          progress={progress}
+          sceneASnapshot={sceneASnapshot}
+          sceneBSnapshot={sceneBSnapshot}
+          sceneAColor={sceneAColor}
+          sceneBColor={sceneBColor}
+        />
+      );
+
+    case 'clock-wipe':
+      return (
+        <ClockWipeTransition
+          progress={progress}
+          sceneASnapshot={sceneASnapshot}
+          sceneBSnapshot={sceneBSnapshot}
+          sceneAColor={sceneAColor}
+          sceneBColor={sceneBColor}
+        />
+      );
+
+    case 'push-left':
+      return (
+        <PushTransition
+          progress={progress}
+          sceneASnapshot={sceneASnapshot}
+          sceneBSnapshot={sceneBSnapshot}
+          sceneAColor={sceneAColor}
+          sceneBColor={sceneBColor}
+          width={width}
+        />
+      );
+
     default:
       return <CutTransition sceneBSnapshot={sceneBSnapshot} sceneBColor={sceneBColor} />;
   }
@@ -262,31 +340,26 @@ const SlideTransition: React.FC<{
   width: number;
   height: number;
 }> = ({ progress, direction, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor, width, height }) => {
-  let sceneATransform = '';
   let sceneBTransform = '';
 
   switch (direction) {
     case 'left':
-      sceneATransform = `translateX(${-progress * width}px)`;
       sceneBTransform = `translateX(${(1 - progress) * width}px)`;
       break;
     case 'right':
-      sceneATransform = `translateX(${progress * width}px)`;
       sceneBTransform = `translateX(${-(1 - progress) * width}px)`;
       break;
     case 'up':
-      sceneATransform = `translateY(${-progress * height}px)`;
       sceneBTransform = `translateY(${(1 - progress) * height}px)`;
       break;
     case 'down':
-      sceneATransform = `translateY(${progress * height}px)`;
       sceneBTransform = `translateY(${-(1 - progress) * height}px)`;
       break;
   }
 
   return (
     <AbsoluteFill>
-      <SceneLayer snapshot={sceneASnapshot} color={sceneAColor} style={{ transform: sceneATransform }} />
+      <SceneLayer snapshot={sceneASnapshot} color={sceneAColor} />
       <SceneLayer snapshot={sceneBSnapshot} color={sceneBColor} style={{ transform: sceneBTransform }} />
     </AbsoluteFill>
   );
@@ -477,5 +550,196 @@ const MorphTransition: React.FC<{
     </AbsoluteFill>
   );
 };
+
+// Flash transition
+const FlashTransition: React.FC<{
+  progress: number;
+  sceneASnapshot?: string;
+  sceneBSnapshot?: string;
+  sceneAColor: string;
+  sceneBColor: string;
+}> = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor }) => {
+  const flashOpacity = Math.sin(progress * Math.PI);
+
+  return (
+    <AbsoluteFill>
+      {progress < 0.5 ? (
+        <SceneLayer snapshot={sceneASnapshot} color={sceneAColor} />
+      ) : (
+        <SceneLayer snapshot={sceneBSnapshot} color={sceneBColor} />
+      )}
+      <AbsoluteFill style={{ background: '#ffffff', opacity: flashOpacity }} />
+    </AbsoluteFill>
+  );
+};
+
+// Spin transition
+const SpinTransition: React.FC<{
+  progress: number;
+  sceneASnapshot?: string;
+  sceneBSnapshot?: string;
+  sceneAColor: string;
+  sceneBColor: string;
+}> = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor }) => (
+  <AbsoluteFill>
+    <SceneLayer
+      snapshot={sceneASnapshot}
+      color={sceneAColor}
+      style={{
+        transform: `rotate(${progress * 180}deg) scale(${1 - progress * 0.5})`,
+        opacity: 1 - progress,
+      }}
+    />
+    <SceneLayer
+      snapshot={sceneBSnapshot}
+      color={sceneBColor}
+      style={{
+        transform: `rotate(${(1 - progress) * -180}deg) scale(${0.5 + progress * 0.5})`,
+        opacity: progress,
+      }}
+    />
+  </AbsoluteFill>
+);
+
+// Flip transition (3D card flip)
+const FlipTransition: React.FC<{
+  progress: number;
+  sceneASnapshot?: string;
+  sceneBSnapshot?: string;
+  sceneAColor: string;
+  sceneBColor: string;
+}> = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor }) => (
+  <AbsoluteFill style={{ perspective: '1200px' }}>
+    {progress < 0.5 ? (
+      <SceneLayer
+        snapshot={sceneASnapshot}
+        color={sceneAColor}
+        style={{
+          transform: `rotateY(${progress * 180}deg)`,
+          backfaceVisibility: 'hidden',
+        }}
+      />
+    ) : (
+      <SceneLayer
+        snapshot={sceneBSnapshot}
+        color={sceneBColor}
+        style={{
+          transform: `rotateY(${(1 - progress) * -180}deg)`,
+          backfaceVisibility: 'hidden',
+        }}
+      />
+    )}
+  </AbsoluteFill>
+);
+
+// Pixelate transition
+const PixelateTransition: React.FC<{
+  progress: number;
+  sceneASnapshot?: string;
+  sceneBSnapshot?: string;
+  sceneAColor: string;
+  sceneBColor: string;
+}> = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor }) => {
+  const radius = Math.sin(progress * Math.PI) * 8;
+  const filterId = 'pixelate-filter';
+
+  return (
+    <AbsoluteFill>
+      <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+        <defs>
+          <filter id={filterId}>
+            <feMorphology operator="dilate" radius={radius} />
+          </filter>
+        </defs>
+      </svg>
+      <SceneLayer
+        snapshot={sceneASnapshot}
+        color={sceneAColor}
+        style={{
+          opacity: 1 - progress,
+          filter: `url(#${filterId})`,
+        }}
+      />
+      <SceneLayer
+        snapshot={sceneBSnapshot}
+        color={sceneBColor}
+        style={{
+          opacity: progress,
+          filter: `url(#${filterId})`,
+        }}
+      />
+    </AbsoluteFill>
+  );
+};
+
+// Iris Close transition
+const IrisCloseTransition: React.FC<{
+  progress: number;
+  sceneASnapshot?: string;
+  sceneBSnapshot?: string;
+  sceneAColor: string;
+  sceneBColor: string;
+}> = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor }) => {
+  const radius = (1 - progress) * 150;
+
+  return (
+    <AbsoluteFill>
+      <SceneLayer snapshot={sceneBSnapshot} color={sceneBColor} />
+      <SceneLayer
+        snapshot={sceneASnapshot}
+        color={sceneAColor}
+        style={{ clipPath: `circle(${radius}% at 50% 50%)` }}
+      />
+    </AbsoluteFill>
+  );
+};
+
+// Clock Wipe transition
+const ClockWipeTransition: React.FC<{
+  progress: number;
+  sceneASnapshot?: string;
+  sceneBSnapshot?: string;
+  sceneAColor: string;
+  sceneBColor: string;
+}> = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor }) => {
+  const angle = progress * 360;
+
+  return (
+    <AbsoluteFill>
+      <SceneLayer snapshot={sceneASnapshot} color={sceneAColor} />
+      <SceneLayer
+        snapshot={sceneBSnapshot}
+        color={sceneBColor}
+        style={{
+          WebkitMaskImage: `conic-gradient(from 0deg, black ${angle}deg, transparent ${angle}deg)`,
+          maskImage: `conic-gradient(from 0deg, black ${angle}deg, transparent ${angle}deg)`,
+        }}
+      />
+    </AbsoluteFill>
+  );
+};
+
+// Push transition (both scenes slide left)
+const PushTransition: React.FC<{
+  progress: number;
+  sceneASnapshot?: string;
+  sceneBSnapshot?: string;
+  sceneAColor: string;
+  sceneBColor: string;
+  width: number;
+}> = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor, width }) => (
+  <AbsoluteFill>
+    <SceneLayer
+      snapshot={sceneASnapshot}
+      color={sceneAColor}
+      style={{ transform: `translateX(${-progress * width}px)` }}
+    />
+    <SceneLayer
+      snapshot={sceneBSnapshot}
+      color={sceneBColor}
+      style={{ transform: `translateX(${(1 - progress) * width}px)` }}
+    />
+  </AbsoluteFill>
+);
 
 export default Transition;

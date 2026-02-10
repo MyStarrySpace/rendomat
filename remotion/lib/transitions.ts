@@ -28,7 +28,14 @@ export type TransitionType =
   | 'zoom-out'       // Zoom out from scene B
   | 'blur'           // Blur out A, blur in B
   | 'glitch'         // Digital glitch effect
-  | 'morph';         // Shape morph transition
+  | 'morph'          // Shape morph transition
+  | 'flash'          // Bright white flash at midpoint
+  | 'spin'           // Rotate + shrink/grow swap
+  | 'flip'           // 3D card flip (rotateY)
+  | 'pixelate'       // Crossfade with pixelation filter
+  | 'iris-close'     // Shrinking circle reveals scene B
+  | 'clock-wipe'     // Radial conic-gradient sweep
+  | 'push-left';     // Both scenes slide left together
 
 export interface TransitionConfig {
   type: TransitionType;
@@ -118,6 +125,34 @@ export const TRANSITION_PRESETS: Record<TransitionType, Omit<TransitionConfig, '
     durationFrames: 30,
     easing: 'spring',
   },
+  'flash': {
+    durationFrames: 12,
+    easing: 'ease-in-out',
+  },
+  'spin': {
+    durationFrames: 24,
+    easing: 'ease-in-out',
+  },
+  'flip': {
+    durationFrames: 24,
+    easing: 'ease-in-out',
+  },
+  'pixelate': {
+    durationFrames: 20,
+    easing: 'ease-in-out',
+  },
+  'iris-close': {
+    durationFrames: 24,
+    easing: 'ease-in-out',
+  },
+  'clock-wipe': {
+    durationFrames: 24,
+    easing: 'ease-out',
+  },
+  'push-left': {
+    durationFrames: 20,
+    easing: 'spring',
+  },
 };
 
 // =============================================================================
@@ -142,6 +177,13 @@ export const TRANSITION_LABELS: Record<TransitionType, string> = {
   'blur': 'Blur',
   'glitch': 'Glitch',
   'morph': 'Morph',
+  'flash': 'Flash',
+  'spin': 'Spin',
+  'flip': 'Flip',
+  'pixelate': 'Pixelate',
+  'iris-close': 'Iris Close',
+  'clock-wipe': 'Clock Wipe',
+  'push-left': 'Push Left',
 };
 
 export const TRANSITION_DESCRIPTIONS: Record<TransitionType, string> = {
@@ -162,6 +204,13 @@ export const TRANSITION_DESCRIPTIONS: Record<TransitionType, string> = {
   'blur': 'Blur transition between scenes',
   'glitch': 'Digital glitch effect',
   'morph': 'Organic shape morphing',
+  'flash': 'Bright white flash at midpoint',
+  'spin': 'Scene rotates and shrinks, then grows back',
+  'flip': '3D card flip between scenes',
+  'pixelate': 'Crossfade with pixelation effect',
+  'iris-close': 'Shrinking circle reveals new scene',
+  'clock-wipe': 'Radial sweep revealing new scene',
+  'push-left': 'Both scenes slide left together',
 };
 
 export const TRANSITION_CATEGORIES = {
@@ -169,6 +218,7 @@ export const TRANSITION_CATEGORIES = {
   'Slide': ['slide-left', 'slide-right', 'slide-up', 'slide-down'] as TransitionType[],
   'Wipe': ['wipe-left', 'wipe-right', 'wipe-up', 'wipe-down'] as TransitionType[],
   'Cinematic': ['zoom-in', 'zoom-out', 'blur', 'glitch', 'morph'] as TransitionType[],
+  'Dynamic': ['flash', 'spin', 'flip', 'pixelate', 'iris-close', 'clock-wipe', 'push-left'] as TransitionType[],
 };
 
 // =============================================================================

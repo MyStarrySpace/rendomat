@@ -23,6 +23,13 @@ const TRANSITION_TYPES = [
   'blur',
   'glitch',
   'morph',
+  'flash',
+  'spin',
+  'flip',
+  'pixelate',
+  'iris-close',
+  'clock-wipe',
+  'push-left',
 ];
 
 // Duration presets matching TRANSITION_PRESETS in transitions.ts
@@ -43,6 +50,13 @@ const DURATION_FRAMES = {
   'blur': 24,
   'glitch': 12,
   'morph': 30,
+  'flash': 12,
+  'spin': 24,
+  'flip': 24,
+  'pixelate': 20,
+  'iris-close': 24,
+  'clock-wipe': 24,
+  'push-left': 20,
 };
 
 function getArg(flag) {
