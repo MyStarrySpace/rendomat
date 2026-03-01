@@ -21,9 +21,10 @@ export const MatrixAnimation: React.FC<AnimationProps> = ({
   intensity = 'medium',
   params: rawParams,
 }) => {
-  const frame = useCurrentFrame();
+  const rawFrame = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const p = resolveParams(rawParams);
+  const frame = rawFrame + p.timeOffset;
 
   const baseCount = intensity === 'low' ? 15 : intensity === 'medium' ? 25 : 40;
   const columnCount = Math.round(baseCount * p.density);
@@ -58,8 +59,8 @@ export const MatrixAnimation: React.FC<AnimationProps> = ({
     return baseChar;
   };
 
-  // Global entrance fade
-  const entrance = interpolate(frame, [0, p.entranceDuration], [0, 1], {
+  // Global entrance fade (uses rawFrame so each scene fades in independently)
+  const entrance = interpolate(rawFrame, [0, p.entranceDuration], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   }) * p.opacity;
@@ -93,9 +94,9 @@ export const MatrixAnimation: React.FC<AnimationProps> = ({
 
       <g opacity={entrance}>
         {columns.map((column) => {
-          // Column stagger entrance
+          // Column stagger entrance (uses rawFrame for per-scene entrance)
           const colEntrance = interpolate(
-            frame,
+            rawFrame,
             [column.entranceDelay, column.entranceDelay + 15],
             [0, 1],
             { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }

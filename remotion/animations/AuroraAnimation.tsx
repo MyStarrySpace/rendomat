@@ -8,9 +8,10 @@ export const AuroraAnimation: React.FC<AnimationProps> = ({
   intensity = 'medium',
   params: rawParams,
 }) => {
-  const frame = useCurrentFrame();
+  const rawFrame = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const p = resolveParams(rawParams);
+  const frame = rawFrame + p.timeOffset;
 
   const baseCount = intensity === 'low' ? 2 : intensity === 'medium' ? 3 : 4;
   const waveCount = Math.round(baseCount * p.density);
@@ -29,8 +30,8 @@ export const AuroraAnimation: React.FC<AnimationProps> = ({
 
   const baseColor = parseColor(accentColor);
 
-  // Global entrance fade
-  const entrance = interpolate(frame, [0, p.entranceDuration], [0, 1], {
+  // Global entrance fade (uses rawFrame so each scene fades in independently)
+  const entrance = interpolate(rawFrame, [0, p.entranceDuration], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   }) * p.opacity;

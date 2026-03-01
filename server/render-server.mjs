@@ -10,8 +10,8 @@ import { spawnSync } from 'node:child_process';
 import { fork } from 'node:child_process';
 
 import { bundle } from '@remotion/bundler';
-import { clientDb, videoDb, sceneDb, transitionDb } from './database.mjs';
-import { renderScene, stitchScenes, cleanCache } from './scene-renderer.mjs';
+import { clientDb, videoDb, sceneDb, transitionDb, audioClipDb, videoClipDb } from './database.mjs';
+import { renderScene, stitchScenes, muxAudio, overlayVideoClips, cleanCache } from './scene-renderer.mjs';
 import { getAllTemplates, getTemplate, createScenesFromTemplate } from './templates.mjs';
 import { generateSlidesFromDescription, generateChartData, generateEquation, improveSceneContent, searchTopicData } from './ai-service.mjs';
 import { PLATFORMS, ASPECT_RATIOS, groupPlatformsByAspectRatio, getDimensionsForAspectRatio } from './platform-config.mjs';
@@ -66,6 +66,107 @@ const upload = multer({
     }
   }
 });
+
+const audioUpload = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /mp3|wav|webm|ogg|m4a|aac|flac/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    if (extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only audio files are allowed (mp3, wav, webm, ogg, m4a, aac, flac)'));
+  }
+});
+
+const videoUpload = multer({
+  storage,
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /mp4|mov|avi|mkv|webm/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    if (extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only video files are allowed (mp4, mov, avi, mkv, webm)'));
+  }
+});
+
+// Get video metadata using ffprobe
+function getVideoMetadata(filePath) {
+  const result = spawnSync('ffprobe', [
+    '-v', 'error',
+    '-select_streams', 'v:0',
+    '-show_entries', 'stream=width,height,r_frame_rate,duration',
+    '-show_entries', 'format=duration',
+    '-of', 'json',
+    filePath
+  ], { encoding: 'utf8' });
+
+  if (result.status !== 0) {
+    throw new Error(`ffprobe failed: ${result.stderr}`);
+  }
+
+  const data = JSON.parse(result.stdout);
+  const stream = data.streams?.[0] || {};
+  const format = data.format || {};
+
+  // Parse frame rate (can be "30/1" format)
+  let fps = 30;
+  if (stream.r_frame_rate) {
+    const parts = stream.r_frame_rate.split('/');
+    fps = parts.length === 2 ? parseInt(parts[0]) / parseInt(parts[1]) : parseFloat(stream.r_frame_rate);
+  }
+
+  const durationSeconds = parseFloat(stream.duration || format.duration || '0');
+  const durationFrames = Math.ceil(durationSeconds * 30); // normalize to 30fps
+
+  return {
+    width: parseInt(stream.width) || 0,
+    height: parseInt(stream.height) || 0,
+    fps,
+    durationSeconds,
+    durationFrames,
+  };
+}
+
+// Normalize video clip to project resolution (1920x1080, 30fps, h264+aac)
+function normalizeVideoClip(inputPath, outputPath) {
+  const result = spawnSync('ffmpeg', [
+    '-i', inputPath,
+    '-vf', 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1',
+    '-r', '30',
+    '-c:v', 'libx264',
+    '-preset', 'fast',
+    '-crf', '23',
+    '-c:a', 'aac',
+    '-b:a', '192k',
+    '-y',
+    outputPath
+  ], { encoding: 'utf8', timeout: 300000 });
+
+  if (result.status !== 0) {
+    throw new Error(`FFmpeg normalize failed: ${result.stderr?.slice(-500)}`);
+  }
+}
+
+// Get audio duration in frames (at 30fps) using ffprobe
+function getAudioDurationFrames(filePath) {
+  const result = spawnSync('ffprobe', [
+    '-v', 'error',
+    '-show_entries', 'format=duration',
+    '-of', 'default=noprint_wrappers=1:nokey=1',
+    filePath
+  ], { encoding: 'utf8' });
+
+  if (result.status !== 0) {
+    throw new Error(`ffprobe failed: ${result.stderr}`);
+  }
+
+  const durationSeconds = parseFloat(result.stdout.trim());
+  return Math.ceil(durationSeconds * 30); // 30fps
+}
 
 let serveUrlPromise = null;
 async function getServeUrl() {
@@ -1780,6 +1881,22 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
     const scenePaths = [];
     let completedRenders = 0;
 
+    // Pre-calculate bg_time_offset for scenes sharing a bg_group
+    const bgGroupOffsets = {};
+    for (const scene of scenes) {
+      try {
+        const sd = scene.data ? JSON.parse(scene.data) : {};
+        const group = sd.bg_group;
+        if (group) {
+          if (!bgGroupOffsets[group]) bgGroupOffsets[group] = 0;
+          scene._bgTimeOffset = bgGroupOffsets[group];
+          bgGroupOffsets[group] += (scene.end_frame - scene.start_frame);
+        }
+      } catch (_) {
+        // skip invalid JSON
+      }
+    }
+
     // Render each scene (using cache when possible)
     for (let i = 0; i < scenes.length; i++) {
       const scene = scenes[i];
@@ -1808,6 +1925,10 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
       const inputProps = {};
       if (video.theme_id) {
         inputProps.themeId = video.theme_id;
+      }
+      // Pass bg_time_offset if pre-calculated for this scene's bg_group
+      if (scene._bgTimeOffset !== undefined) {
+        inputProps._bgTimeOffset = scene._bgTimeOffset;
       }
 
       // Render the scene with progress callback
@@ -1848,8 +1969,32 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
     });
 
     // Stitch scenes together
-    const outputPath = path.join(os.tmpdir(), `video-${videoId}-${Date.now()}.mp4`);
-    await stitchScenes(scenePaths, outputPath);
+    const audioClips = audioClipDb.getAllForVideo(videoId);
+    const videoClips = videoClipDb.getAllForVideo(videoId);
+    let outputPath;
+
+    // Step 1: Stitch scenes
+    const stitchedPath = path.join(os.tmpdir(), `video-${videoId}-stitched-${Date.now()}.mp4`);
+    await stitchScenes(scenePaths, stitchedPath);
+    let currentPath = stitchedPath;
+
+    // Step 2: Mux audio if present
+    if (audioClips.length > 0) {
+      const audioMuxedPath = path.join(os.tmpdir(), `video-${videoId}-audiomuxed-${Date.now()}.mp4`);
+      await muxAudio(currentPath, audioClips, audioMuxedPath);
+      await fs.unlink(currentPath).catch(() => {});
+      currentPath = audioMuxedPath;
+    }
+
+    // Step 3: Overlay video clips (B-roll) if present
+    if (videoClips.length > 0) {
+      const overlayPath = path.join(os.tmpdir(), `video-${videoId}-overlay-${Date.now()}.mp4`);
+      await overlayVideoClips(currentPath, videoClips, overlayPath);
+      await fs.unlink(currentPath).catch(() => {});
+      currentPath = overlayPath;
+    }
+
+    outputPath = currentPath;
 
     // Final state: completed
     updateRenderState({
@@ -1897,6 +2042,234 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  }
+});
+
+// =============================
+// Audio Clips API
+// =============================
+
+// List audio clips for a video
+app.get('/api/videos/:videoId/audio-clips', (req, res) => {
+  try {
+    const clips = audioClipDb.getAllForVideo(parseInt(req.params.videoId, 10));
+    res.json(clips);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload audio clip
+app.post('/api/videos/:videoId/audio-clips', audioUpload.single('audio'), (req, res) => {
+  try {
+    const videoId = parseInt(req.params.videoId, 10);
+    const video = videoDb.getById(videoId);
+    if (!video) return res.status(404).json({ error: 'Video not found' });
+
+    if (!req.file) return res.status(400).json({ error: 'No audio file uploaded' });
+
+    const durationFrames = getAudioDurationFrames(req.file.path);
+    const name = req.body.name || req.file.originalname.replace(/\.[^/.]+$/, '');
+    const startFrame = parseInt(req.body.start_frame, 10) || 0;
+
+    const id = audioClipDb.create({
+      video_id: videoId,
+      name,
+      file_path: req.file.path,
+      original_filename: req.file.originalname,
+      mime_type: req.file.mimetype,
+      file_size: req.file.size,
+      start_frame: startFrame,
+      duration_frames: durationFrames,
+      source_duration_frames: durationFrames,
+      volume: parseFloat(req.body.volume) || 1.0,
+    });
+
+    const clip = audioClipDb.getById(id);
+    res.status(201).json(clip);
+  } catch (error) {
+    console.error('[audio-clips] Upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single audio clip
+app.get('/api/audio-clips/:clipId', (req, res) => {
+  try {
+    const clip = audioClipDb.getById(parseInt(req.params.clipId, 10));
+    if (!clip) return res.status(404).json({ error: 'Audio clip not found' });
+    res.json(clip);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update audio clip properties
+app.put('/api/audio-clips/:clipId', (req, res) => {
+  try {
+    const clip = audioClipDb.update(parseInt(req.params.clipId, 10), req.body);
+    if (!clip) return res.status(404).json({ error: 'Audio clip not found' });
+    res.json(clip);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete audio clip
+app.delete('/api/audio-clips/:clipId', async (req, res) => {
+  try {
+    const clipId = parseInt(req.params.clipId, 10);
+    const clip = audioClipDb.getById(clipId);
+    if (!clip) return res.status(404).json({ error: 'Audio clip not found' });
+
+    // Delete the file
+    try {
+      await fs.unlink(clip.file_path);
+    } catch (err) {
+      console.warn('[audio-clips] Failed to delete file:', err.message);
+    }
+
+    audioClipDb.delete(clipId);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve audio clip file for playback
+app.get('/api/audio-clips/:clipId/stream', async (req, res) => {
+  try {
+    const clip = audioClipDb.getById(parseInt(req.params.clipId, 10));
+    if (!clip) return res.status(404).json({ error: 'Audio clip not found' });
+
+    res.setHeader('Content-Type', clip.mime_type || 'audio/mpeg');
+    const fileBuffer = await fs.readFile(clip.file_path);
+    res.send(fileBuffer);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================
+// Video Clips (B-Roll) API
+// =============================
+
+// List video clips for a video
+app.get('/api/videos/:videoId/video-clips', (req, res) => {
+  try {
+    const clips = videoClipDb.getAllForVideo(parseInt(req.params.videoId, 10));
+    res.json(clips);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload video clip
+app.post('/api/videos/:videoId/video-clips', videoUpload.single('video'), async (req, res) => {
+  try {
+    const videoId = parseInt(req.params.videoId, 10);
+    const video = videoDb.getById(videoId);
+    if (!video) return res.status(404).json({ error: 'Video not found' });
+
+    if (!req.file) return res.status(400).json({ error: 'No video file uploaded' });
+
+    // Get source metadata
+    const metadata = getVideoMetadata(req.file.path);
+    const name = req.body.name || req.file.originalname.replace(/\.[^/.]+$/, '');
+    const startFrame = parseInt(req.body.start_frame, 10) || 0;
+
+    // Normalize to project resolution
+    const normalizedFilename = `normalized-${Date.now()}-${Math.round(Math.random() * 1E9)}.mp4`;
+    const normalizedPath = path.join(uploadsDir, normalizedFilename);
+
+    console.log(`[video-clips] Normalizing ${req.file.originalname} to 1920x1080 @ 30fps...`);
+    normalizeVideoClip(req.file.path, normalizedPath);
+
+    // Get normalized duration (may differ slightly due to fps conversion)
+    const normalizedMeta = getVideoMetadata(normalizedPath);
+
+    const id = videoClipDb.create({
+      video_id: videoId,
+      name,
+      file_path: req.file.path,
+      normalized_path: normalizedPath,
+      original_filename: req.file.originalname,
+      mime_type: req.file.mimetype,
+      file_size: req.file.size,
+      source_width: metadata.width,
+      source_height: metadata.height,
+      source_fps: metadata.fps,
+      start_frame: startFrame,
+      duration_frames: normalizedMeta.durationFrames,
+      source_duration_frames: normalizedMeta.durationFrames,
+    });
+
+    const clip = videoClipDb.getById(id);
+    console.log(`[video-clips] Uploaded and normalized: ${name} (${normalizedMeta.durationFrames} frames)`);
+    res.status(201).json(clip);
+  } catch (error) {
+    console.error('[video-clips] Upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single video clip
+app.get('/api/video-clips/:clipId', (req, res) => {
+  try {
+    const clip = videoClipDb.getById(parseInt(req.params.clipId, 10));
+    if (!clip) return res.status(404).json({ error: 'Video clip not found' });
+    res.json(clip);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update video clip properties
+app.put('/api/video-clips/:clipId', (req, res) => {
+  try {
+    const clip = videoClipDb.update(parseInt(req.params.clipId, 10), req.body);
+    if (!clip) return res.status(404).json({ error: 'Video clip not found' });
+    res.json(clip);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete video clip
+app.delete('/api/video-clips/:clipId', async (req, res) => {
+  try {
+    const clipId = parseInt(req.params.clipId, 10);
+    const clip = videoClipDb.getById(clipId);
+    if (!clip) return res.status(404).json({ error: 'Video clip not found' });
+
+    // Delete files (original + normalized)
+    for (const filePath of [clip.file_path, clip.normalized_path]) {
+      if (filePath) {
+        try { await fs.unlink(filePath); } catch (err) {
+          console.warn('[video-clips] Failed to delete file:', err.message);
+        }
+      }
+    }
+
+    videoClipDb.delete(clipId);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve normalized video clip for preview
+app.get('/api/video-clips/:clipId/stream', async (req, res) => {
+  try {
+    const clip = videoClipDb.getById(parseInt(req.params.clipId, 10));
+    if (!clip) return res.status(404).json({ error: 'Video clip not found' });
+
+    const filePath = clip.normalized_path || clip.file_path;
+    res.setHeader('Content-Type', 'video/mp4');
+    const fileBuffer = await fs.readFile(filePath);
+    res.send(fileBuffer);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -1958,6 +2331,22 @@ app.post('/api/videos/:videoId/render-multi', async (req, res) => {
     const serveUrl = await getServeUrl();
     const outputs = {};
 
+    // Pre-calculate bg_time_offset for scenes sharing a bg_group
+    const bgGroupOffsetsMulti = {};
+    for (const scene of scenes) {
+      try {
+        const sd = scene.data ? JSON.parse(scene.data) : {};
+        const group = sd.bg_group;
+        if (group) {
+          if (!bgGroupOffsetsMulti[group]) bgGroupOffsetsMulti[group] = 0;
+          scene._bgTimeOffset = bgGroupOffsetsMulti[group];
+          bgGroupOffsetsMulti[group] += (scene.end_frame - scene.start_frame);
+        }
+      } catch (_) {
+        // skip invalid JSON
+      }
+    }
+
     // Render for each aspect ratio
     for (let arIdx = 0; arIdx < aspectRatiosToRender.length; arIdx++) {
       const aspectRatio = aspectRatiosToRender[arIdx];
@@ -1987,6 +2376,10 @@ app.post('/api/videos/:videoId/render-multi', async (req, res) => {
         if (video.theme_id) {
           inputProps.themeId = video.theme_id;
         }
+        // Pass bg_time_offset if pre-calculated for this scene's bg_group
+        if (scene._bgTimeOffset !== undefined) {
+          inputProps._bgTimeOffset = scene._bgTimeOffset;
+        }
 
         const scenePath = await renderScene(
           scene.id,
@@ -2002,8 +2395,32 @@ app.post('/api/videos/:videoId/render-multi', async (req, res) => {
       }
 
       // Stitch scenes for this aspect ratio
-      const outputPath = path.join(os.tmpdir(), `video-${video.id}-${aspectRatio.replace(':', 'x')}-${Date.now()}.mp4`);
-      await stitchScenes(scenePaths, outputPath);
+      const audioClips = audioClipDb.getAllForVideo(video.id);
+      const videoClips = videoClipDb.getAllForVideo(video.id);
+      const arKey = aspectRatio.replace(':', 'x');
+
+      // Step 1: Stitch
+      const stitchedPath = path.join(os.tmpdir(), `video-${video.id}-${arKey}-stitched-${Date.now()}.mp4`);
+      await stitchScenes(scenePaths, stitchedPath);
+      let currentPath = stitchedPath;
+
+      // Step 2: Mux audio
+      if (audioClips.length > 0) {
+        const audioMuxedPath = path.join(os.tmpdir(), `video-${video.id}-${arKey}-audiomuxed-${Date.now()}.mp4`);
+        await muxAudio(currentPath, audioClips, audioMuxedPath);
+        await fs.unlink(currentPath).catch(() => {});
+        currentPath = audioMuxedPath;
+      }
+
+      // Step 3: Overlay video clips
+      if (videoClips.length > 0) {
+        const overlayPath = path.join(os.tmpdir(), `video-${video.id}-${arKey}-overlay-${Date.now()}.mp4`);
+        await overlayVideoClips(currentPath, videoClips, overlayPath);
+        await fs.unlink(currentPath).catch(() => {});
+        currentPath = overlayPath;
+      }
+
+      const outputPath = currentPath;
 
       // Store output path for each platform with this aspect ratio
       for (const platform of platformsForAspect) {
@@ -2694,11 +3111,26 @@ setInterval(() => {
   cleanCache().catch(console.error);
 }, 60 * 60 * 1000);
 
-app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`Remotion render server listening on http://localhost:${PORT}`);
-  console.log(`Database and API routes initialized`);
-  if (DEBUG) logBinary('ffmpeg', ['-version']);
-});
+export function startServer(port = PORT) {
+  return new Promise((resolve) => {
+    app.listen(port, () => {
+      // eslint-disable-next-line no-console
+      console.log(`Remotion render server listening on http://localhost:${port}`);
+      console.log(`Database and API routes initialized`);
+      if (DEBUG) logBinary('ffmpeg', ['-version']);
+      resolve(app);
+    });
+  });
+}
+
+// Auto-start when run directly (not imported by Electron)
+const isDirectRun = process.argv[1] && (
+  process.argv[1].endsWith('render-server.mjs') ||
+  process.argv[1].endsWith('render-server')
+);
+
+if (isDirectRun) {
+  startServer();
+}
 
 

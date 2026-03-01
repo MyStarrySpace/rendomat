@@ -8,6 +8,15 @@ export interface AnimationParams {
   scale?: number;        // Element size multiplier (default 1.0)
   density?: number;      // Element count multiplier (default 1.0)
   entranceDuration?: number; // Fade-in frames (default 20)
+  // Background continuity
+  timeOffset?: number;       // Frame offset for background continuity (default 0)
+  // Focus zoom
+  focusZoom?: number;        // Target scale for focus zoom (1.0 = none, 1.5 = 50% zoom)
+  focusCenterX?: number;     // Zoom origin X, 0-1 (default 0.5)
+  focusCenterY?: number;     // Zoom origin Y, 0-1 (default 0.5)
+  // Attenuated drift
+  driftDirection?: 'up' | 'down' | 'left' | 'right' | 'none';
+  driftAmount?: number;      // Pixels to drift over scene duration (default 0)
 }
 
 export const DEFAULT_ANIMATION_PARAMS: Required<AnimationParams> = {
@@ -18,6 +27,12 @@ export const DEFAULT_ANIMATION_PARAMS: Required<AnimationParams> = {
   scale: 1,
   density: 1,
   entranceDuration: 20,
+  timeOffset: 0,
+  focusZoom: 1,
+  focusCenterX: 0.5,
+  focusCenterY: 0.5,
+  driftDirection: 'none',
+  driftAmount: 0,
 };
 
 export function resolveParams(params?: AnimationParams): Required<AnimationParams> {

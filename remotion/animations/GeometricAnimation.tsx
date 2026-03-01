@@ -119,9 +119,10 @@ export const GeometricAnimation: React.FC<AnimationProps> = ({
   intensity = 'medium',
   params: rawParams,
 }) => {
-  const frame = useCurrentFrame();
+  const rawFrame = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const p = resolveParams(rawParams);
+  const frame = rawFrame + p.timeOffset;
 
   const baseCount = intensity === 'low' ? 3 : intensity === 'medium' ? 5 : 8;
   const polyCount = Math.round(baseCount * p.density);
@@ -143,7 +144,8 @@ export const GeometricAnimation: React.FC<AnimationProps> = ({
     }));
   }, [polyCount, width, height]);
 
-  const entrance = interpolate(frame, [0, p.entranceDuration], [0, 1], {
+  // Global entrance fade (uses rawFrame so each scene fades in independently)
+  const entrance = interpolate(rawFrame, [0, p.entranceDuration], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   }) * p.opacity;
@@ -176,7 +178,7 @@ export const GeometricAnimation: React.FC<AnimationProps> = ({
           const t = Math.max(0, frame - inst.delay) * 0.02 * p.speed;
 
           const polyEntrance = interpolate(
-            frame,
+            rawFrame,
             [inst.delay, inst.delay + 25],
             [0, 1],
             { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }

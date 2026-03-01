@@ -83,6 +83,11 @@ export async function renderScene(sceneId, serveUrl, compositionId, inputProps, 
     sceneData = {};
   }
 
+  // Inject bg_time_offset if provided via inputProps (set by render-server pre-calc)
+  if (inputProps?._bgTimeOffset !== undefined) {
+    sceneData.bg_time_offset = inputProps._bgTimeOffset;
+  }
+
   // Merge scene-specific props with input props
   const sceneInputProps = {
     ...inputProps,
@@ -173,6 +178,169 @@ export async function stitchScenes(scenePaths, outputPath) {
   }
 
   console.log(`[scene-renderer] Final video stitched: ${outputPath}`);
+  return outputPath;
+}
+
+// Mux audio clips into a stitched video
+export async function muxAudio(videoPath, audioClips, outputPath) {
+  const { spawnSync } = await import('node:child_process');
+
+  if (!audioClips || audioClips.length === 0) {
+    // No audio clips, just copy the file
+    await fs.copyFile(videoPath, outputPath);
+    return outputPath;
+  }
+
+  console.log(`[scene-renderer] Muxing ${audioClips.length} audio clip(s) into video`);
+
+  // Build FFmpeg filter_complex for mixing audio clips
+  // Input 0 = video file
+  const inputs = ['-i', videoPath];
+  const filterParts = [];
+
+  for (let i = 0; i < audioClips.length; i++) {
+    const clip = audioClips[i];
+    inputs.push('-i', clip.file_path);
+
+    const inputIdx = i + 1; // 0 is video
+    const delayMs = Math.round((clip.start_frame / 30) * 1000);
+    const trimStart = (clip.trim_start_frame || 0) / 30;
+    const trimEnd = clip.trim_end_frame ? clip.trim_end_frame / 30 : (clip.source_duration_frames / 30);
+    const volume = clip.volume ?? 1.0;
+
+    // atrim -> adelay -> volume for each clip
+    filterParts.push(
+      `[${inputIdx}:a]atrim=start=${trimStart}:end=${trimEnd},asetpts=PTS-STARTPTS,adelay=${delayMs}|${delayMs},volume=${volume}[a${i}]`
+    );
+  }
+
+  // Mix all audio streams
+  const mixInputs = audioClips.map((_, i) => `[a${i}]`).join('');
+  filterParts.push(`${mixInputs}amix=inputs=${audioClips.length}:duration=first:dropout_transition=0[aout]`);
+
+  const filterComplex = filterParts.join(';');
+
+  const args = [
+    ...inputs,
+    '-filter_complex', filterComplex,
+    '-map', '0:v',
+    '-map', '[aout]',
+    '-c:v', 'copy',
+    '-c:a', 'aac',
+    '-b:a', '192k',
+    '-shortest',
+    '-y',
+    outputPath
+  ];
+
+  const result = spawnSync('ffmpeg', args, { encoding: 'utf8' });
+
+  if (result.status !== 0) {
+    console.error('[scene-renderer] muxAudio ffmpeg stderr:', result.stderr);
+    throw new Error(`FFmpeg audio mux failed: ${result.stderr?.slice(-500)}`);
+  }
+
+  console.log(`[scene-renderer] Audio muxed: ${outputPath}`);
+  return outputPath;
+}
+
+// Overlay video clips (B-roll) on top of a base video
+export async function overlayVideoClips(videoPath, videoClips, outputPath) {
+  const { spawnSync } = await import('node:child_process');
+
+  if (!videoClips || videoClips.length === 0) {
+    await fs.copyFile(videoPath, outputPath);
+    return outputPath;
+  }
+
+  console.log(`[scene-renderer] Overlaying ${videoClips.length} video clip(s) onto video`);
+
+  const inputs = ['-i', videoPath];
+  const filterParts = [];
+  const audioFilterParts = [];
+  let hasClipAudio = false;
+
+  for (let i = 0; i < videoClips.length; i++) {
+    const clip = videoClips[i];
+    const clipPath = clip.normalized_path || clip.file_path;
+    inputs.push('-i', clipPath);
+
+    const inputIdx = i + 1;
+    const trimStartSec = (clip.trim_start_frame || 0) / 30;
+    const trimEndSec = clip.trim_end_frame
+      ? clip.trim_end_frame / 30
+      : clip.source_duration_frames / 30;
+    const startSec = clip.start_frame / 30;
+    const endSec = startSec + (clip.duration_frames / 30);
+
+    // Video: trim the clip, then overlay at the right time
+    filterParts.push(
+      `[${inputIdx}:v]trim=start=${trimStartSec}:end=${trimEndSec},setpts=PTS-STARTPTS[v${i}]`
+    );
+
+    // Audio from clip (if not muted)
+    if (!clip.mute_audio) {
+      const delayMs = Math.round(startSec * 1000);
+      const volume = clip.volume ?? 1.0;
+      audioFilterParts.push(
+        `[${inputIdx}:a]atrim=start=${trimStartSec}:end=${trimEndSec},asetpts=PTS-STARTPTS,adelay=${delayMs}|${delayMs},volume=${volume}[ca${i}]`
+      );
+      hasClipAudio = true;
+    }
+  }
+
+  // Chain overlay filters
+  let prevLabel = '0:v';
+  for (let i = 0; i < videoClips.length; i++) {
+    const clip = videoClips[i];
+    const startSec = clip.start_frame / 30;
+    const endSec = startSec + (clip.duration_frames / 30);
+    const outLabel = i < videoClips.length - 1 ? `tmp${i}` : 'vout';
+
+    filterParts.push(
+      `[${prevLabel}][v${i}]overlay=0:0:enable='between(t,${startSec},${endSec})'[${outLabel}]`
+    );
+    prevLabel = outLabel;
+  }
+
+  // Build final filter complex
+  let filterComplex = filterParts.join(';');
+  const mapArgs = ['-map', '[vout]'];
+
+  if (hasClipAudio) {
+    // Mix clip audio with base audio
+    filterComplex += ';' + audioFilterParts.join(';');
+    const clipAudioLabels = audioFilterParts.map((_, i) => `[ca${i}]`).join('');
+    // Mix base audio with clip audio
+    filterComplex += `;[0:a]${clipAudioLabels}amix=inputs=${audioFilterParts.length + 1}:duration=first:dropout_transition=0[aout]`;
+    mapArgs.push('-map', '[aout]');
+  } else {
+    // Keep base audio as-is
+    mapArgs.push('-map', '0:a?');
+  }
+
+  const args = [
+    ...inputs,
+    '-filter_complex', filterComplex,
+    ...mapArgs,
+    '-c:v', 'libx264',
+    '-preset', 'fast',
+    '-crf', '23',
+    '-c:a', 'aac',
+    '-b:a', '192k',
+    '-shortest',
+    '-y',
+    outputPath
+  ];
+
+  const result = spawnSync('ffmpeg', args, { encoding: 'utf8' });
+
+  if (result.status !== 0) {
+    console.error('[scene-renderer] overlayVideoClips ffmpeg stderr:', result.stderr);
+    throw new Error(`FFmpeg video overlay failed: ${result.stderr?.slice(-500)}`);
+  }
+
+  console.log(`[scene-renderer] Video clips overlaid: ${outputPath}`);
   return outputPath;
 }
 

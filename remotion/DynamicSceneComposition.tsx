@@ -19,6 +19,7 @@ import {
 import { getTheme, Theme } from './themes';
 import { AnimationLayer, AnimationStyleId } from './animations';
 import type { AnimationParams } from './animations/types';
+import { ANIMATION_PRESETS } from './lib/animationPresets';
 
 export interface DynamicSceneProps {
   sceneType: string;
@@ -48,6 +49,17 @@ export const DynamicSceneComposition: React.FC<DynamicSceneProps> = ({
     animationIntensity || data?.animation_intensity || 'medium';
   const effectiveAnimationParams: AnimationParams | undefined =
     animationParams || data?.animation_params;
+
+  // Derive drift direction from text animation preset
+  const presetIn = data?.animation_preset_in || data?.animation_preset || 'smooth';
+  const presetConfig = ANIMATION_PRESETS[presetIn as keyof typeof ANIMATION_PRESETS];
+  const textDirection = presetConfig?.direction || 'up';
+
+  // Auto-drift: background drifts same direction as text, attenuated
+  const autoDriftAmount = 30; // subtle 30px default when bg animation is active
+  const driftDirection = effectiveAnimationStyle !== 'none'
+    ? (textDirection === 'center' || textDirection === 'random' ? 'none' : textDirection)
+    : 'none';
 
   // Render scene content based on type
   const renderScene = () => {
@@ -120,7 +132,15 @@ export const DynamicSceneComposition: React.FC<DynamicSceneProps> = ({
           durationInFrames={durationInFrames}
           theme={theme}
           intensity={effectiveAnimationIntensity}
-          params={effectiveAnimationParams}
+          params={{
+            ...effectiveAnimationParams,
+            timeOffset: data?.bg_time_offset || 0,
+            focusZoom: data?.bg_focus_zoom || 1,
+            focusCenterX: data?.bg_focus_center_x || 0.5,
+            focusCenterY: data?.bg_focus_center_y || 0.5,
+            driftDirection: driftDirection as 'up' | 'down' | 'left' | 'right' | 'none',
+            driftAmount: autoDriftAmount,
+          }}
         />
       )}
       {/* Scene content */}

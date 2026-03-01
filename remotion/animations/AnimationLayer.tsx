@@ -1,5 +1,6 @@
 import React from 'react';
-import { AnimationStyleId, AnimationProps, AnimationParams, Theme } from './types';
+import { useCurrentFrame, interpolate, Easing } from 'remotion';
+import { AnimationStyleId, AnimationProps, AnimationParams, Theme, resolveParams } from './types';
 import { ParticlesAnimation } from './ParticlesAnimation';
 import { FloatingShapesAnimation } from './FloatingShapesAnimation';
 import { WavesAnimation } from './WavesAnimation';
@@ -40,6 +41,8 @@ export const AnimationLayer: React.FC<AnimationLayerProps> = ({
   intensity = 'medium',
   params,
 }) => {
+  const frame = useCurrentFrame();
+
   if (animationStyle === 'none') {
     return null;
   }
@@ -51,13 +54,66 @@ export const AnimationLayer: React.FC<AnimationLayerProps> = ({
     return null;
   }
 
-  return (
+  const p = resolveParams(params);
+
+  // Focus zoom: animate from scale(1) → scale(focusZoom) over 80% of duration
+  const zoomEnd = Math.floor(durationInFrames * 0.8);
+  const currentZoom = p.focusZoom !== 1
+    ? interpolate(frame, [0, zoomEnd], [1, p.focusZoom], {
+        extrapolateLeft: 'clamp',
+        extrapolateRight: 'clamp',
+        easing: Easing.out(Easing.quad),
+      })
+    : 1;
+
+  // Attenuated drift: translate in driftDirection over scene duration
+  let driftX = 0;
+  let driftY = 0;
+  if (p.driftDirection !== 'none' && p.driftAmount > 0) {
+    const driftProgress = interpolate(frame, [0, durationInFrames], [0, 1], {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+      easing: Easing.inOut(Easing.quad),
+    });
+    const drift = driftProgress * p.driftAmount;
+    switch (p.driftDirection) {
+      case 'up':    driftY = -drift; break;
+      case 'down':  driftY = drift;  break;
+      case 'left':  driftX = -drift; break;
+      case 'right': driftX = drift;  break;
+    }
+  }
+
+  const needsWrapper = currentZoom !== 1 || driftX !== 0 || driftY !== 0;
+
+  const content = (
     <AnimationComponent
       durationInFrames={durationInFrames}
       theme={theme}
       intensity={intensity}
       params={params}
     />
+  );
+
+  if (!needsWrapper) {
+    return content;
+  }
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        transform: `translate(${driftX}px, ${driftY}px) scale(${currentZoom})`,
+        transformOrigin: `${p.focusCenterX * 100}% ${p.focusCenterY * 100}%`,
+      }}
+    >
+      {content}
+    </div>
   );
 };
 

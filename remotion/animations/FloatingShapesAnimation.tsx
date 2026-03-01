@@ -25,9 +25,10 @@ export const FloatingShapesAnimation: React.FC<AnimationProps> = ({
   intensity = 'medium',
   params: rawParams,
 }) => {
-  const frame = useCurrentFrame();
+  const rawFrame = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const p = resolveParams(rawParams);
+  const frame = rawFrame + p.timeOffset;
 
   const baseCount = intensity === 'low' ? 8 : intensity === 'medium' ? 15 : 25;
   const shapeCount = Math.round(baseCount * p.density);
@@ -52,8 +53,8 @@ export const FloatingShapesAnimation: React.FC<AnimationProps> = ({
 
   const accentColor = p.colorOverride || theme.colors.accent || '#8B5CF6';
 
-  // Global entrance fade
-  const entrance = interpolate(frame, [0, p.entranceDuration], [0, 1], {
+  // Global entrance fade (uses rawFrame so each scene fades in independently)
+  const entrance = interpolate(rawFrame, [0, p.entranceDuration], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   }) * p.opacity;
@@ -135,9 +136,9 @@ export const FloatingShapesAnimation: React.FC<AnimationProps> = ({
           const x = (shape.x / 100) * width;
           const y = (shape.y / 100) * height + floatOffset;
 
-          // Staggered scale-up entrance per shape
+          // Staggered scale-up entrance per shape (uses rawFrame for per-scene entrance)
           const shapeEntrance = interpolate(
-            frame,
+            rawFrame,
             [shape.delay, shape.delay + 15],
             [0, 1],
             { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }

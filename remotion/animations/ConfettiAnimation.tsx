@@ -33,9 +33,10 @@ export const ConfettiAnimation: React.FC<AnimationProps> = ({
   intensity = 'medium',
   params: rawParams,
 }) => {
-  const frame = useCurrentFrame();
+  const rawFrame = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const p = resolveParams(rawParams);
+  const frame = rawFrame + p.timeOffset;
 
   const baseCount = intensity === 'low' ? 20 : intensity === 'medium' ? 40 : 70;
   const pieceCount = Math.round(baseCount * p.density);
@@ -63,14 +64,14 @@ export const ConfettiAnimation: React.FC<AnimationProps> = ({
     }));
   }, [pieceCount, accentColor]);
 
-  // Global entrance: initial burst then settle
-  const entrance = interpolate(frame, [0, p.entranceDuration], [0, 1], {
+  // Global entrance: initial burst then settle (uses rawFrame so each scene fades in independently)
+  const entrance = interpolate(rawFrame, [0, p.entranceDuration], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   }) * p.opacity;
 
-  // Initial burst - faster fall at start
-  const burstMultiplier = interpolate(frame, [0, 30, 60], [2, 1.2, 1], {
+  // Initial burst - faster fall at start (uses rawFrame for per-scene entrance)
+  const burstMultiplier = interpolate(rawFrame, [0, 30, 60], [2, 1.2, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });

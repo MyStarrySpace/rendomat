@@ -8,9 +8,10 @@ export const GridPulseAnimation: React.FC<AnimationProps> = ({
   intensity = 'medium',
   params: rawParams,
 }) => {
-  const frame = useCurrentFrame();
+  const rawFrame = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const p = resolveParams(rawParams);
+  const frame = rawFrame + p.timeOffset;
 
   const baseGridSize = intensity === 'low' ? 100 : intensity === 'medium' ? 60 : 40;
   const gridSize = Math.round(baseGridSize / p.density);
@@ -36,8 +37,8 @@ export const GridPulseAnimation: React.FC<AnimationProps> = ({
     return points;
   }, [cols, rows, gridSize]);
 
-  // Global entrance fade
-  const entrance = interpolate(frame, [0, p.entranceDuration], [0, 1], {
+  // Global entrance fade (uses rawFrame so each scene fades in independently)
+  const entrance = interpolate(rawFrame, [0, p.entranceDuration], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   }) * p.opacity;
