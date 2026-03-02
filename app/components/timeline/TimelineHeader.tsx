@@ -149,17 +149,6 @@ export function TimelineHeader({
             {hasChangedScenes ? 'Re-render Changed' : 'Render All'}
           </Button>
         )}
-        {onRegenerateFromPrompt && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRegenerateFromPrompt}
-            icon={<Sparkles className="w-4 h-4" />}
-            title="Regenerate all scenes from prompt"
-          >
-            Regenerate
-          </Button>
-        )}
       </div>
 
       {/* Right: Zoom & snap controls */}

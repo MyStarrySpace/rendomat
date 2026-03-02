@@ -3,14 +3,14 @@
  */
 
 export const FPS = 30;
-export const ZOOM_SCALE = 0.2; // Maps UI zoom values to physical pixels-per-second
-export const DEFAULT_ZOOM = 80; // 100% in UI (80 * 0.2 = 16 physical px/s)
-export const MIN_ZOOM = 10;    // ~12% in UI
+export const ZOOM_SCALE = 1; // 1:1 — zoom value = pixels per second
+export const DEFAULT_ZOOM = 80; // 100% in UI (80 px/s)
+export const MIN_ZOOM = 20;    // 25% in UI
 export const MAX_ZOOM = 600;   // 750% in UI
 export const SNAP_GRID_FRAMES = 15; // 0.5 second snap (default)
 
 // Track types for multi-track timeline
-export type TrackType = 'video' | 'audio' | 'background';
+export type TrackType = 'video' | 'b-roll' | 'audio' | 'background';
 
 export interface Track {
   id: TrackType;
@@ -20,6 +20,7 @@ export interface Track {
 
 export const TRACKS: Track[] = [
   { id: 'video', label: 'Video', height: 60 },
+  { id: 'b-roll', label: 'B-Roll', height: 50 },
   { id: 'audio', label: 'Audio', height: 40 },
   { id: 'background', label: 'BG FX', height: 40 },
 ];
@@ -119,29 +120,34 @@ export function generateRulerMarkers(
 ): { frame: number; label: string; isMajor: boolean; isFrame?: boolean }[] {
   const markers: { frame: number; label: string; isMajor: boolean; isFrame?: boolean }[] = [];
 
-  // Determine marker interval based on zoom level
+  // Determine marker interval based on zoom level (pixels per second).
+  // Target: major tick labels spaced ~80-150px apart, minor ticks ~20-40px.
+  const pxPerSec = zoom * ZOOM_SCALE;
   let majorInterval: number;
   let minorInterval: number;
   let showFrames = false;
 
-  if (zoom < 4) {
+  if (pxPerSec < 15) {
     majorInterval = FPS * 30; // Every 30 seconds
     minorInterval = FPS * 10; // Every 10 seconds
-  } else if (zoom < 10) {
+  } else if (pxPerSec < 40) {
     majorInterval = FPS * 10; // Every 10 seconds
     minorInterval = FPS * 5;  // Every 5 seconds
-  } else if (zoom < 20) {
+  } else if (pxPerSec < 80) {
     majorInterval = FPS * 5;  // Every 5 seconds
     minorInterval = FPS;      // Every second
-  } else if (zoom < 40) {
+  } else if (pxPerSec < 160) {
     majorInterval = FPS * 2;  // Every 2 seconds
-    minorInterval = FPS / 2;  // Every 0.5 seconds
-  } else if (zoom < 80) {
+    minorInterval = FPS;      // Every second
+  } else if (pxPerSec < 300) {
     majorInterval = FPS;      // Every second
+    minorInterval = FPS / 2;  // Every 0.5 seconds
+  } else if (pxPerSec < 500) {
+    majorInterval = FPS / 2;  // Every 0.5 seconds
     minorInterval = FPS / 6;  // Every 5 frames
     showFrames = true;
   } else {
-    majorInterval = FPS / 2;  // Every 0.5 seconds
+    majorInterval = FPS / 6;  // Every 5 frames
     minorInterval = 1;        // Every frame
     showFrames = true;
   }

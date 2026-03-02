@@ -2,7 +2,7 @@
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 1086:
+/***/ 8622:
 /***/ ((__unused_webpack_module, __unused_webpack___webpack_exports__, __webpack_require__) => {
 
 
@@ -843,180 +843,6 @@ const UltrahumanVSL = () => {
   return /* @__PURE__ */ react.createElement(react.Fragment, null, /* @__PURE__ */ react.createElement(esm.Sequence, { from: SCENE_0_START, durationInFrames: SCENE_0_END - SCENE_0_START }, /* @__PURE__ */ react.createElement(Scene0, null)), /* @__PURE__ */ react.createElement(esm.Sequence, { from: SCENE_1_START, durationInFrames: SCENE_1_END - SCENE_1_START }, /* @__PURE__ */ react.createElement(Scene1, null)), /* @__PURE__ */ react.createElement(esm.Sequence, { from: SCENE_2_START, durationInFrames: SCENE_2_END - SCENE_2_START }, /* @__PURE__ */ react.createElement(Scene2, null)), /* @__PURE__ */ react.createElement(esm.Sequence, { from: SCENE_3_START, durationInFrames: SCENE_3_END - SCENE_3_START }, /* @__PURE__ */ react.createElement(Scene3, null)), /* @__PURE__ */ react.createElement(esm.Sequence, { from: SCENE_4_START, durationInFrames: SCENE_4_END - SCENE_4_START }, /* @__PURE__ */ react.createElement(Scene4, null)), /* @__PURE__ */ react.createElement(esm.Sequence, { from: SCENE_5_START, durationInFrames: SCENE_5_END - SCENE_5_START }, /* @__PURE__ */ react.createElement(Scene5, null)), /* @__PURE__ */ react.createElement(esm.Sequence, { from: SCENE_6_START, durationInFrames: SCENE_6_END - SCENE_6_START }, /* @__PURE__ */ react.createElement(Scene6, null)), /* @__PURE__ */ react.createElement(esm.Sequence, { from: SCENE_7_START, durationInFrames: SCENE_7_END - SCENE_7_START }, /* @__PURE__ */ react.createElement(Scene7, null)));
 };
 
-;// ./aspect-ratios.ts
-const ASPECT_RATIOS = {
-  "16:9": {
-    width: 1920,
-    height: 1080,
-    platforms: ["YouTube", "Website", "LinkedIn Video"],
-    compositionSuffix: "16x9"
-  },
-  "1:1": {
-    width: 1080,
-    height: 1080,
-    platforms: ["Instagram Feed", "LinkedIn Feed"],
-    compositionSuffix: "1x1"
-  },
-  "9:16": {
-    width: 1080,
-    height: 1920,
-    platforms: ["TikTok", "Instagram Reels", "YouTube Shorts"],
-    compositionSuffix: "9x16"
-  }
-};
-function getAspectRatioFromDimensions(width, height) {
-  const ratio = width / height;
-  if (Math.abs(ratio - 16 / 9) < 0.01) return "16:9";
-  if (Math.abs(ratio - 1) < 0.01) return "1:1";
-  if (Math.abs(ratio - 9 / 16) < 0.01) return "9:16";
-  return "16:9";
-}
-function getCompositionId(baseId, aspectRatio) {
-  const config = ASPECT_RATIOS[aspectRatio];
-  return `${baseId}-${config.compositionSuffix}`;
-}
-function getDimensionsForAspectRatio(aspectRatio) {
-  const config = ASPECT_RATIOS[aspectRatio];
-  return { width: config.width, height: config.height };
-}
-
-;// ./hooks/useResponsiveLayout.ts
-
-
-const BASE_LAYOUT = {
-  padding: 80,
-  gap: 40,
-  titleFontSize: 72,
-  bodyFontSize: 36,
-  statValueFontSize: 96,
-  statLabelFontSize: 28,
-  quoteFontSize: 48,
-  maxWidth: 1e3,
-  imageHeight: "80%",
-  gridColumns: 2
-};
-const TYPOGRAPHY = {
-  // Letter spacing - tighter for large text, looser for body
-  titleLetterSpacing: "-0.02em",
-  bodyLetterSpacing: "0.01em",
-  displayLetterSpacing: "-0.03em",
-  // Font weights
-  displayFontWeight: 900,
-  titleFontWeight: 700,
-  subtitleFontWeight: 600,
-  bodyFontWeight: 400,
-  // Text shadows for legibility
-  titleTextShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
-  bodyTextShadow: "0 1px 4px rgba(0, 0, 0, 0.1)"
-};
-function useResponsiveLayout() {
-  const { width, height } = (0,esm.useVideoConfig)();
-  const aspectRatio = getAspectRatioFromDimensions(width, height);
-  const isVertical = aspectRatio === "9:16";
-  const isSquare = aspectRatio === "1:1";
-  const isLandscape = aspectRatio === "16:9";
-  const scaleFactor = width / 1920;
-  let layout;
-  if (isVertical) {
-    layout = {
-      aspectRatio,
-      isVertical,
-      isSquare,
-      isLandscape,
-      padding: 60,
-      gap: 30,
-      titleFontSize: 64,
-      bodyFontSize: 32,
-      statValueFontSize: 80,
-      statLabelFontSize: 24,
-      quoteFontSize: 40,
-      // Typography
-      titleLetterSpacing: TYPOGRAPHY.titleLetterSpacing,
-      bodyLetterSpacing: TYPOGRAPHY.bodyLetterSpacing,
-      displayLetterSpacing: TYPOGRAPHY.displayLetterSpacing,
-      displayFontWeight: TYPOGRAPHY.displayFontWeight,
-      titleFontWeight: TYPOGRAPHY.titleFontWeight,
-      subtitleFontWeight: TYPOGRAPHY.subtitleFontWeight,
-      bodyFontWeight: TYPOGRAPHY.bodyFontWeight,
-      titleTextShadow: TYPOGRAPHY.titleTextShadow,
-      bodyTextShadow: TYPOGRAPHY.bodyTextShadow,
-      maxWidth: width - 120,
-      // Full width minus padding
-      imageHeight: "45%",
-      stackDirection: "column",
-      gridColumns: 1
-      // Stack vertically in portrait
-    };
-  } else if (isSquare) {
-    layout = {
-      aspectRatio,
-      isVertical,
-      isSquare,
-      isLandscape,
-      padding: 60,
-      gap: 30,
-      titleFontSize: 56,
-      bodyFontSize: 28,
-      statValueFontSize: 72,
-      statLabelFontSize: 22,
-      quoteFontSize: 36,
-      // Typography
-      titleLetterSpacing: TYPOGRAPHY.titleLetterSpacing,
-      bodyLetterSpacing: TYPOGRAPHY.bodyLetterSpacing,
-      displayLetterSpacing: TYPOGRAPHY.displayLetterSpacing,
-      displayFontWeight: TYPOGRAPHY.displayFontWeight,
-      titleFontWeight: TYPOGRAPHY.titleFontWeight,
-      subtitleFontWeight: TYPOGRAPHY.subtitleFontWeight,
-      bodyFontWeight: TYPOGRAPHY.bodyFontWeight,
-      titleTextShadow: TYPOGRAPHY.titleTextShadow,
-      bodyTextShadow: TYPOGRAPHY.bodyTextShadow,
-      maxWidth: width - 120,
-      imageHeight: "70%",
-      stackDirection: "row",
-      gridColumns: 2
-    };
-  } else {
-    layout = {
-      aspectRatio,
-      isVertical,
-      isSquare,
-      isLandscape,
-      padding: Math.round(BASE_LAYOUT.padding * scaleFactor),
-      gap: Math.round(BASE_LAYOUT.gap * scaleFactor),
-      titleFontSize: Math.round(BASE_LAYOUT.titleFontSize * scaleFactor),
-      bodyFontSize: Math.round(BASE_LAYOUT.bodyFontSize * scaleFactor),
-      statValueFontSize: Math.round(BASE_LAYOUT.statValueFontSize * scaleFactor),
-      statLabelFontSize: Math.round(BASE_LAYOUT.statLabelFontSize * scaleFactor),
-      quoteFontSize: Math.round(BASE_LAYOUT.quoteFontSize * scaleFactor),
-      // Typography
-      titleLetterSpacing: TYPOGRAPHY.titleLetterSpacing,
-      bodyLetterSpacing: TYPOGRAPHY.bodyLetterSpacing,
-      displayLetterSpacing: TYPOGRAPHY.displayLetterSpacing,
-      displayFontWeight: TYPOGRAPHY.displayFontWeight,
-      titleFontWeight: TYPOGRAPHY.titleFontWeight,
-      subtitleFontWeight: TYPOGRAPHY.subtitleFontWeight,
-      bodyFontWeight: TYPOGRAPHY.bodyFontWeight,
-      titleTextShadow: TYPOGRAPHY.titleTextShadow,
-      bodyTextShadow: TYPOGRAPHY.bodyTextShadow,
-      maxWidth: Math.round(BASE_LAYOUT.maxWidth * scaleFactor),
-      imageHeight: BASE_LAYOUT.imageHeight,
-      stackDirection: "row",
-      gridColumns: BASE_LAYOUT.gridColumns
-    };
-  }
-  return layout;
-}
-function useChartLayout() {
-  const layout = useResponsiveLayout();
-  return {
-    ...layout,
-    chartHeight: layout.isVertical ? "50%" : layout.isSquare ? "60%" : "70%",
-    legendPosition: layout.isVertical ? "bottom" : "right",
-    barWidth: layout.isVertical ? 40 : layout.isSquare ? 50 : 60,
-    axisFontSize: layout.isVertical ? 14 : layout.isSquare ? 16 : 18
-  };
-}
-
 ;// ./lib/motion.ts
 
 const springConfig = {
@@ -1402,6 +1228,16 @@ function buildTransform(values) {
 
 ;// ./lib/animationPresets.ts
 const ANIMATION_PRESETS = {
+  static: {
+    spring: "smooth",
+    startDelay: 0,
+    staggerDelay: 0,
+    distance: 0,
+    scaleFrom: 1,
+    direction: "up",
+    fadeInFrames: 8,
+    fadeOutFrames: 8
+  },
   minimal: {
     spring: "smooth",
     startDelay: 8,
@@ -1482,16 +1318,14 @@ const ANIMATION_PRESETS = {
     fadeInFrames: 36,
     fadeOutFrames: 24
   },
-  // Lyric video style presets - more dramatic, word-focused animations
-  lyric: {
-    spring: "bouncy",
+  // Spiral animation - custom multi-step choreography (uses SpiralTextAnimation)
+  spiral: {
+    spring: "smooth",
     startDelay: 5,
     staggerDelay: 4,
     distance: 60,
-    // Larger distance for dramatic fly-in
     scaleFrom: 0.9,
-    direction: "random",
-    // Alternating directions
+    direction: "right",
     fadeInFrames: 15,
     fadeOutFrames: 12
   },
@@ -1528,6 +1362,50 @@ const ANIMATION_PRESETS = {
     direction: "center",
     fadeInFrames: 12,
     fadeOutFrames: 10
+  },
+  // Echo animation - handled by custom EchoTextAnimation component
+  echo: {
+    spring: "smooth",
+    startDelay: 0,
+    staggerDelay: 0,
+    distance: 0,
+    scaleFrom: 1,
+    direction: "center",
+    fadeInFrames: 20,
+    fadeOutFrames: 15
+  },
+  // Reveal animation - handled by custom RevealTextAnimation component
+  reveal: {
+    spring: "crisp",
+    startDelay: 0,
+    staggerDelay: 0,
+    distance: 0,
+    scaleFrom: 1,
+    direction: "left",
+    fadeInFrames: 20,
+    fadeOutFrames: 15
+  },
+  // Tracking animation - handled by custom TrackingTextAnimation component
+  tracking: {
+    spring: "gentle",
+    startDelay: 0,
+    staggerDelay: 0,
+    distance: 0,
+    scaleFrom: 1,
+    direction: "center",
+    fadeInFrames: 20,
+    fadeOutFrames: 15
+  },
+  // Flicker animation - handled by custom FlickerTextAnimation component
+  flicker: {
+    spring: "smooth",
+    startDelay: 0,
+    staggerDelay: 0,
+    distance: 0,
+    scaleFrom: 1,
+    direction: "center",
+    fadeInFrames: 20,
+    fadeOutFrames: 15
   }
 };
 const SCENE_PRESETS = {
@@ -1572,8 +1450,8 @@ const SCENE_PRESETS = {
       title: { distance: 15, fadeInFrames: 50 },
       body: { startDelay: 45, fadeInFrames: 40 }
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       title: { distance: 80, staggerDelay: 5 },
       body: { startDelay: 15, distance: 60, staggerDelay: 4 }
     },
@@ -1591,6 +1469,26 @@ const SCENE_PRESETS = {
       ...ANIMATION_PRESETS.burst,
       title: { scaleFrom: 0.2, distance: 50 },
       body: { startDelay: 12, scaleFrom: 0.3, staggerDelay: 3 }
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      title: {},
+      body: { startDelay: 20 }
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      title: {},
+      body: { startDelay: 20 }
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      title: {},
+      body: { startDelay: 20 }
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      title: {},
+      body: { startDelay: 20 }
     }
   },
   "quote": {
@@ -1634,8 +1532,8 @@ const SCENE_PRESETS = {
       title: { fadeInFrames: 60 },
       body: { startDelay: 40 }
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       title: { scaleFrom: 0.5, distance: 40 },
       body: { startDelay: 20, distance: 70, staggerDelay: 5 }
     },
@@ -1653,6 +1551,26 @@ const SCENE_PRESETS = {
       ...ANIMATION_PRESETS.burst,
       title: { scaleFrom: 0.1 },
       body: { startDelay: 15, scaleFrom: 0.4 }
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      title: {},
+      body: { startDelay: 20 }
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      title: {},
+      body: { startDelay: 20 }
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      title: {},
+      body: { startDelay: 20 }
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      title: {},
+      body: { startDelay: 20 }
     }
   },
   "stats": {
@@ -1688,8 +1606,8 @@ const SCENE_PRESETS = {
       ...ANIMATION_PRESETS.cinematic,
       data: { staggerDelay: 20 }
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       data: { staggerDelay: 6, distance: 50 }
     },
     stacking: {
@@ -1703,6 +1621,26 @@ const SCENE_PRESETS = {
     burst: {
       ...ANIMATION_PRESETS.burst,
       data: { staggerDelay: 4, scaleFrom: 0.2 }
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      title: {},
+      data: { staggerDelay: 8 }
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      title: {},
+      data: { staggerDelay: 8 }
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      title: {},
+      data: { staggerDelay: 8 }
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      title: {},
+      data: { staggerDelay: 8 }
     }
   },
   "single-image": {
@@ -1747,8 +1685,8 @@ const SCENE_PRESETS = {
       // Ken Burns zoom out
       title: { startDelay: 50 }
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       image: { scaleFrom: 0.85, distance: 50 },
       title: { startDelay: 25, distance: 60 }
     },
@@ -1766,6 +1704,26 @@ const SCENE_PRESETS = {
       ...ANIMATION_PRESETS.burst,
       image: { scaleFrom: 0.4 },
       title: { startDelay: 20, scaleFrom: 0.3 }
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      image: { scaleFrom: 0.98 },
+      title: {}
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      image: { scaleFrom: 0.98 },
+      title: {}
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      image: { scaleFrom: 0.98 },
+      title: {}
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      image: { scaleFrom: 0.98 },
+      title: {}
     }
   },
   "dual-images": {
@@ -1801,8 +1759,8 @@ const SCENE_PRESETS = {
       ...ANIMATION_PRESETS.cinematic,
       image: { distance: 60, fadeInFrames: 50 }
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       image: { distance: 80, staggerDelay: 6 }
     },
     stacking: {
@@ -1816,6 +1774,22 @@ const SCENE_PRESETS = {
     burst: {
       ...ANIMATION_PRESETS.burst,
       image: { scaleFrom: 0.3, staggerDelay: 4 }
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      image: { distance: 20 }
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      image: { distance: 20 }
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      image: { distance: 20 }
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      image: { distance: 20 }
     }
   },
   "grid": {
@@ -1851,8 +1825,8 @@ const SCENE_PRESETS = {
       ...ANIMATION_PRESETS.cinematic,
       image: { staggerDelay: 15 }
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       image: { staggerDelay: 5, distance: 60 }
     },
     stacking: {
@@ -1866,6 +1840,22 @@ const SCENE_PRESETS = {
     burst: {
       ...ANIMATION_PRESETS.burst,
       image: { staggerDelay: 3, scaleFrom: 0.2 }
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      image: { staggerDelay: 5 }
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      image: { staggerDelay: 5 }
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      image: { staggerDelay: 5 }
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      image: { staggerDelay: 5 }
     }
   },
   "bar-chart": {
@@ -1901,8 +1891,8 @@ const SCENE_PRESETS = {
       ...ANIMATION_PRESETS.cinematic,
       data: { staggerDelay: 18 }
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       data: { staggerDelay: 5, distance: 50 }
     },
     stacking: {
@@ -1916,6 +1906,22 @@ const SCENE_PRESETS = {
     burst: {
       ...ANIMATION_PRESETS.burst,
       data: { staggerDelay: 3, scaleFrom: 0.3 }
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      data: { staggerDelay: 8 }
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      data: { staggerDelay: 8 }
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      data: { staggerDelay: 8 }
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      data: { staggerDelay: 8 }
     }
   },
   "progress-bars": {
@@ -1951,8 +1957,8 @@ const SCENE_PRESETS = {
       ...ANIMATION_PRESETS.cinematic,
       data: { staggerDelay: 20, direction: "left" }
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       data: { staggerDelay: 6, direction: "left", distance: 60 }
     },
     stacking: {
@@ -1966,6 +1972,22 @@ const SCENE_PRESETS = {
     burst: {
       ...ANIMATION_PRESETS.burst,
       data: { staggerDelay: 4, scaleFrom: 0.3 }
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      data: { staggerDelay: 6, direction: "left" }
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      data: { staggerDelay: 6, direction: "left" }
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      data: { staggerDelay: 6, direction: "left" }
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      data: { staggerDelay: 6, direction: "left" }
     }
   },
   "equation": {
@@ -2001,8 +2023,8 @@ const SCENE_PRESETS = {
       ...ANIMATION_PRESETS.cinematic,
       data: { staggerDelay: 25 }
     },
-    lyric: {
-      ...ANIMATION_PRESETS.lyric,
+    spiral: {
+      ...ANIMATION_PRESETS.spiral,
       data: { staggerDelay: 10, distance: 60 }
     },
     stacking: {
@@ -2016,6 +2038,22 @@ const SCENE_PRESETS = {
     burst: {
       ...ANIMATION_PRESETS.burst,
       data: { staggerDelay: 6, scaleFrom: 0.2 }
+    },
+    echo: {
+      ...ANIMATION_PRESETS.echo,
+      data: { staggerDelay: 10 }
+    },
+    reveal: {
+      ...ANIMATION_PRESETS.reveal,
+      data: { staggerDelay: 10 }
+    },
+    tracking: {
+      ...ANIMATION_PRESETS.tracking,
+      data: { staggerDelay: 10 }
+    },
+    flicker: {
+      ...ANIMATION_PRESETS.flicker,
+      data: { staggerDelay: 10 }
     }
   }
 };
@@ -2061,24 +2099,32 @@ const PRESET_LABELS = {
   kinetic: "Kinetic",
   typewriter: "Typewriter",
   cinematic: "Cinematic",
-  lyric: "Lyric",
+  spiral: "Spiral",
   stacking: "Stacking",
   cascade: "Cascade",
-  burst: "Burst"
+  burst: "Burst",
+  echo: "Echo",
+  reveal: "Reveal",
+  tracking: "Tracking",
+  flicker: "Flicker"
 };
 const PRESET_DESCRIPTIONS = {
   minimal: "Subtle, professional animations",
-  smooth: "Gentle, flowing movement",
+  smooth: "Gentle, flowing word entrance",
   energetic: "Bouncy, playful feel",
-  dramatic: "Bold, impactful entrances",
-  elegant: "Refined, sophisticated timing",
+  dramatic: "Heavy slam with blur and rotation",
+  elegant: "Rippling wave of characters",
   kinetic: "Fast, dynamic motion",
   typewriter: "Sequential text reveals",
   cinematic: "Slow, epic atmosphere",
-  lyric: "Words fly in from alternating directions",
-  stacking: "Words fly up and stack into sentences",
-  cascade: "Words cascade down from above",
-  burst: "Words burst in from center with scale"
+  spiral: "Text slides in and rotates in a spiral",
+  stacking: "Matrix-style character scramble",
+  cascade: "Words tumble down with rotation",
+  burst: "Words pop in with elastic scale",
+  echo: "Stacked marquee with scrolling ghost copies",
+  reveal: "Curtain wipe with traveling accent bar",
+  tracking: "Letter-spacing breathes from wide to normal",
+  flicker: "Neon sign power-on with rapid toggling"
 };
 const TEXT_ANIMATION_PRESETS = {
   minimal: {
@@ -2091,9 +2137,9 @@ const TEXT_ANIMATION_PRESETS = {
   },
   smooth: {
     unit: "word",
-    staggerFrames: 1,
+    staggerFrames: 3,
     spring: "gentle",
-    distance: 12,
+    distance: 25,
     direction: "up",
     effects: ["fadeUp"]
   },
@@ -2107,19 +2153,19 @@ const TEXT_ANIMATION_PRESETS = {
   },
   dramatic: {
     unit: "word",
-    staggerFrames: 2,
+    staggerFrames: 4,
     spring: "snappy",
-    distance: 16,
+    distance: 50,
     direction: "up",
-    effects: ["fadeUp"]
+    effects: ["fadeUp", "scaleUp", "blur", "rotate"]
   },
   elegant: {
-    unit: "word",
-    staggerFrames: 2,
+    unit: "character",
+    staggerFrames: 1,
     spring: "smooth",
-    distance: 10,
+    distance: 20,
     direction: "up",
-    effects: ["fadeUp"]
+    effects: ["wave"]
   },
   kinetic: {
     unit: "word",
@@ -2147,23 +2193,22 @@ const TEXT_ANIMATION_PRESETS = {
     direction: "up",
     effects: ["fadeUp"]
   },
-  // Lyric video style text animations - dramatic word-by-word reveals
-  lyric: {
+  // Spiral animation - handled by custom SpiralTextAnimation component
+  spiral: {
     unit: "word",
-    staggerFrames: 4,
-    spring: "bouncy",
-    distance: 60,
-    direction: "left",
-    // Will alternate via special handling
-    effects: ["fadeLeft"]
+    staggerFrames: 3,
+    spring: "smooth",
+    distance: 40,
+    direction: "right",
+    effects: ["fadeUp"]
   },
   stacking: {
-    unit: "word",
-    staggerFrames: 5,
+    unit: "character",
+    staggerFrames: 1,
     spring: "snappy",
-    distance: 80,
+    distance: 0,
     direction: "up",
-    effects: ["fadeUp"]
+    effects: ["scramble"]
   },
   cascade: {
     unit: "word",
@@ -2171,7 +2216,7 @@ const TEXT_ANIMATION_PRESETS = {
     spring: "gentle",
     distance: 50,
     direction: "down",
-    effects: ["fadeDown"]
+    effects: ["fadeDown", "rotate"]
   },
   burst: {
     unit: "word",
@@ -2179,8 +2224,43 @@ const TEXT_ANIMATION_PRESETS = {
     spring: "elastic",
     distance: 40,
     direction: "up",
-    // Combined with scale for burst effect
     effects: ["scaleUp"]
+  },
+  // Echo animation - handled by custom EchoTextAnimation component
+  echo: {
+    unit: "element",
+    staggerFrames: 0,
+    spring: "smooth",
+    distance: 0,
+    direction: "up",
+    effects: ["fadeUp"]
+  },
+  // Reveal animation - handled by custom RevealTextAnimation component
+  reveal: {
+    unit: "element",
+    staggerFrames: 0,
+    spring: "crisp",
+    distance: 0,
+    direction: "left",
+    effects: ["fadeUp"]
+  },
+  // Tracking animation - handled by custom TrackingTextAnimation component
+  tracking: {
+    unit: "element",
+    staggerFrames: 0,
+    spring: "gentle",
+    distance: 0,
+    direction: "up",
+    effects: ["fadeUp"]
+  },
+  // Flicker animation - handled by custom FlickerTextAnimation component
+  flicker: {
+    unit: "element",
+    staggerFrames: 0,
+    spring: "smooth",
+    distance: 0,
+    direction: "up",
+    effects: ["fadeUp"]
   }
 };
 function getTextAnimationPreset(preset) {
@@ -2345,6 +2425,14 @@ function getBaseEffectValues(progress, effects, distance = 30) {
       case "rotate":
         values.rotate = (1 - progress) * 15;
         break;
+      case "snap":
+        values.opacity = progress > 0.01 ? 1 : 0;
+        break;
+      case "wave":
+        values.translateY = (1 - progress) * distance;
+        break;
+      case "scramble":
+        break;
     }
   }
   return values;
@@ -2397,6 +2485,197 @@ function createSplitTextCache() {
   };
 }
 
+;// ./lib/textModifiers.ts
+
+function addTranslateX(existingTransform, dx) {
+  const tx = `translateX(${dx}px)`;
+  if (!existingTransform || existingTransform === "none") return tx;
+  return `${tx} ${existingTransform}`;
+}
+const chromaticModifier = ({ children, progress, baseStyle, keyPrefix, intensity = 1 }) => {
+  const offset = 10 * intensity * (1 - progress);
+  const isAbsolute = baseStyle.position === "absolute";
+  const baseOpacity = baseStyle.opacity;
+  const redStyle = {
+    ...baseStyle,
+    color: "rgba(255, 60, 60, 0.5)",
+    mixBlendMode: "screen",
+    transform: addTranslateX(baseStyle.transform, -offset)
+  };
+  const blueStyle = {
+    ...baseStyle,
+    color: "rgba(60, 120, 255, 0.5)",
+    mixBlendMode: "screen",
+    transform: addTranslateX(baseStyle.transform, offset)
+  };
+  const centerStyle = {
+    ...baseStyle
+  };
+  if (isAbsolute) {
+    return react.createElement(
+      react.Fragment,
+      null,
+      react.createElement("span", { key: `${keyPrefix}-r`, style: redStyle }, children),
+      react.createElement("span", { key: `${keyPrefix}-b`, style: blueStyle }, children),
+      react.createElement("span", { key: `${keyPrefix}-c`, style: centerStyle }, children)
+    );
+  }
+  const containerStyle = {
+    position: "relative",
+    display: "inline-block"
+  };
+  const overlayBase = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    opacity: baseOpacity
+  };
+  return react.createElement(
+    "span",
+    { style: containerStyle },
+    react.createElement("span", {
+      key: `${keyPrefix}-r`,
+      style: { ...overlayBase, color: "rgba(255, 60, 60, 0.5)", mixBlendMode: "screen", transform: `translateX(${-offset}px)` }
+    }, children),
+    react.createElement("span", {
+      key: `${keyPrefix}-b`,
+      style: { ...overlayBase, color: "rgba(60, 120, 255, 0.5)", mixBlendMode: "screen", transform: `translateX(${offset}px)` }
+    }, children),
+    react.createElement("span", {
+      key: `${keyPrefix}-c`,
+      style: { ...baseStyle, position: "relative" }
+    }, children)
+  );
+};
+const blurInModifier = ({ children, progress, baseStyle, keyPrefix, intensity = 1 }) => {
+  const blur = 6 * intensity * (1 - progress);
+  const style = {
+    ...baseStyle,
+    filter: blur > 0.1 ? `blur(${blur}px)` : void 0
+  };
+  return react.createElement("span", { key: `${keyPrefix}-blur`, style }, children);
+};
+const glowModifier = ({ children, progress, baseStyle, keyPrefix, intensity = 1 }) => {
+  const envelope = progress < 0.5 ? progress * 2 : 2 * (1 - progress);
+  const glowRadius = 10 * intensity * envelope;
+  const glowAlpha = 0.6 * Math.min(intensity, 2) * envelope;
+  const style = {
+    ...baseStyle,
+    textShadow: glowRadius > 0.5 ? `0 0 ${glowRadius}px rgba(255, 255, 255, ${glowAlpha}), 0 0 ${glowRadius * 2}px rgba(200, 220, 255, ${glowAlpha * 0.5})` : void 0
+  };
+  return react.createElement("span", { key: `${keyPrefix}-glow`, style }, children);
+};
+function seedFromKey(keyPrefix) {
+  const match = keyPrefix.match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+function snapHash(seed, progress, hold) {
+  const slot = Math.floor(progress * hold);
+  return Math.sin(slot * 7919 + seed * 3571);
+}
+const glitchModifier = ({ children, progress, baseStyle, keyPrefix, intensity = 1 }) => {
+  const isAbsolute = baseStyle.position === "absolute";
+  const baseOpacity = baseStyle.opacity;
+  const seed = seedFromKey(keyPrefix);
+  const inWindow = progress > 0.15 && progress < 0.85;
+  const burstSlot = Math.floor(progress * 20);
+  const burstHash = Math.sin(burstSlot * 7919 + seed * 131);
+  const inBurst = inWindow && Math.abs(burstHash) > 0.75;
+  if (!inBurst) {
+    if (isAbsolute) {
+      return react.createElement("span", { key: `${keyPrefix}-gm`, style: baseStyle }, children);
+    }
+    return react.createElement("span", { key: `${keyPrefix}-gm`, style: baseStyle }, children);
+  }
+  const maxOffset = 3 * intensity;
+  const offset1 = snapHash(seed + 10, progress, 30) * maxOffset;
+  const offset2 = snapHash(seed + 20, progress, 25) * maxOffset;
+  const offsetMain = snapHash(seed + 30, progress, 35) * maxOffset * 0.3;
+  const boundary1 = 25 + snapHash(seed + 40, progress, 22) * 15;
+  const boundary2 = 65 + snapHash(seed + 50, progress, 18) * 15;
+  const slice1Clip = `inset(0% 0 ${100 - boundary1}% 0)`;
+  const slice2Clip = `inset(${boundary2}% 0 0% 0)`;
+  const layer1Style = {
+    ...baseStyle,
+    color: "rgba(255, 40, 40, 0.8)",
+    mixBlendMode: "screen",
+    transform: addTranslateX(baseStyle.transform, offset1),
+    clipPath: slice1Clip
+  };
+  const layer2Style = {
+    ...baseStyle,
+    color: "rgba(40, 220, 255, 0.8)",
+    mixBlendMode: "screen",
+    transform: addTranslateX(baseStyle.transform, offset2),
+    clipPath: slice2Clip
+  };
+  const mainStyle = {
+    ...baseStyle,
+    transform: addTranslateX(baseStyle.transform, offsetMain)
+  };
+  if (isAbsolute) {
+    return react.createElement(
+      react.Fragment,
+      null,
+      react.createElement("span", { key: `${keyPrefix}-g1`, style: layer1Style }, children),
+      react.createElement("span", { key: `${keyPrefix}-g2`, style: layer2Style }, children),
+      react.createElement("span", { key: `${keyPrefix}-gm`, style: mainStyle }, children)
+    );
+  }
+  const containerStyle = {
+    position: "relative",
+    display: "inline-block"
+  };
+  const overlayBase = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    opacity: baseOpacity
+  };
+  return react.createElement(
+    "span",
+    { style: containerStyle },
+    react.createElement("span", {
+      key: `${keyPrefix}-g1`,
+      style: { ...overlayBase, color: "rgba(255, 40, 40, 0.8)", mixBlendMode: "screen", transform: `translateX(${offset1}px)`, clipPath: slice1Clip }
+    }, children),
+    react.createElement("span", {
+      key: `${keyPrefix}-g2`,
+      style: { ...overlayBase, color: "rgba(40, 220, 255, 0.8)", mixBlendMode: "screen", transform: `translateX(${offset2}px)`, clipPath: slice2Clip }
+    }, children),
+    react.createElement("span", {
+      key: `${keyPrefix}-gm`,
+      style: { ...baseStyle, position: "relative", transform: `translateX(${offsetMain}px)` }
+    }, children)
+  );
+};
+function getGlitchWordJitter(frame, wordIndex) {
+  const block = Math.floor(frame / 3);
+  const hash = Math.sin(block * 7919 + wordIndex * 131);
+  if (Math.abs(hash) < 0.94) return void 0;
+  const offset = Math.sin(block * 3571 + wordIndex * 53) * 2;
+  return `translateX(${offset}px)`;
+}
+const TEXT_MODIFIERS = {
+  chromatic: chromaticModifier,
+  "blur-in": blurInModifier,
+  glow: glowModifier,
+  glitch: glitchModifier
+};
+const MODIFIER_LABELS = {
+  chromatic: "Chromatic Aberration",
+  "blur-in": "Blur In",
+  glow: "Glow",
+  glitch: "Glitch"
+};
+function getTextModifier(type) {
+  return TEXT_MODIFIERS[type];
+}
+
 ;// ./components/AnimatedCharacter.tsx
 
 
@@ -2411,7 +2690,9 @@ const AnimatedCharacter = ({
   direction = "up",
   effects = ["fadeUp"],
   isSpace = false,
-  style = {}
+  style = {},
+  modifier,
+  isTypingFront = false
 }) => {
   const frame = (0,esm.useCurrentFrame)();
   const { fps } = (0,esm.useVideoConfig)();
@@ -2428,8 +2709,11 @@ const AnimatedCharacter = ({
   let scaleY = 1;
   let rotate = 0;
   let blur = 0;
+  const isSnap = effects.includes("snap");
   for (const effect of effects) {
     switch (effect) {
+      case "snap":
+        break;
       case "fadeUp":
         translateY = (0,esm.interpolate)(progress, [0, 1], [distance, 0]);
         break;
@@ -2467,9 +2751,17 @@ const AnimatedCharacter = ({
       case "rotate":
         rotate = (0,esm.interpolate)(progress, [0, 1], [15, 0]);
         break;
+      case "wave": {
+        translateY = (0,esm.interpolate)(progress, [0, 1], [distance, 0]);
+        const wavePhase = index * 0.5;
+        const waveAmplitude = distance * 0.3 * (1 - progress);
+        translateY += Math.sin(progress * Math.PI * 3 + wavePhase) * waveAmplitude;
+        break;
+      }
     }
   }
-  if (direction !== "up" && !effects.includes("fadeUp") && !effects.includes("fadeDown") && !effects.includes("fadeLeft") && !effects.includes("fadeRight")) {
+  const resolvedOpacity = isSnap ? adjustedFrame >= 1 ? 1 : 0 : progress;
+  if (!isSnap && direction !== "up" && !effects.includes("fadeUp") && !effects.includes("fadeDown") && !effects.includes("fadeLeft") && !effects.includes("fadeRight") && !effects.includes("wave")) {
     switch (direction) {
       case "up":
         translateY = (0,esm.interpolate)(progress, [0, 1], [distance, 0]);
@@ -2493,34 +2785,62 @@ const AnimatedCharacter = ({
     rotate
   });
   const filter = buildTextFilter(blur);
+  let displayChar = char;
+  if (effects.includes("scramble") && !isSpace) {
+    const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&";
+    if (progress < 0.7) {
+      const slot = Math.floor(adjustedFrame / 2);
+      const ci = Math.abs(Math.floor(
+        Math.sin(slot * 7919 + index * 131) * CHARS.length
+      )) % CHARS.length;
+      displayChar = CHARS[ci];
+    }
+  }
+  const cursorBlink = Math.floor(frame / 16) % 2 === 0;
+  const cursorEl = isTypingFront ? /* @__PURE__ */ react.createElement("span", { style: { display: "inline-block", width: 0, overflow: "visible" } }, /* @__PURE__ */ react.createElement(
+    "span",
+    {
+      style: {
+        display: "inline-block",
+        width: 2,
+        height: "1em",
+        backgroundColor: cursorBlink ? "currentColor" : "transparent",
+        verticalAlign: "text-bottom"
+      }
+    }
+  )) : null;
   if (isSpace) {
-    return /* @__PURE__ */ react.createElement(
+    return /* @__PURE__ */ react.createElement(react.Fragment, null, /* @__PURE__ */ react.createElement(
       "span",
       {
         style: {
           display: "inline-block",
           width: "0.3em",
-          opacity: progress,
+          opacity: resolvedOpacity,
           ...style
         }
       },
       "\xA0"
-    );
+    ), cursorEl);
   }
-  return /* @__PURE__ */ react.createElement(
-    "span",
-    {
-      style: {
-        display: "inline-block",
-        opacity: progress,
-        transform,
-        filter: filter !== "none" ? filter : void 0,
-        willChange: "transform, opacity",
-        ...style
-      }
-    },
-    char
-  );
+  const spanStyle = {
+    display: "inline-block",
+    opacity: resolvedOpacity,
+    transform,
+    filter: filter !== "none" ? filter : void 0,
+    willChange: "transform, opacity",
+    ...style
+  };
+  if (modifier && resolvedOpacity > 0) {
+    return /* @__PURE__ */ react.createElement(react.Fragment, null, modifier({
+      children: displayChar,
+      progress,
+      // spring timeline, NOT resolvedOpacity
+      baseStyle: spanStyle,
+      keyPrefix: `char-${index}`
+    }), cursorEl);
+  }
+  return /* @__PURE__ */ react.createElement(react.Fragment, null, /* @__PURE__ */ react.createElement("span", { style: spanStyle }, displayChar), cursorEl);
 };
 
 ;// ./components/AnimatedWord.tsx
@@ -2537,7 +2857,8 @@ const AnimatedWord = ({
   direction = "up",
   effects = ["fadeUp"],
   style = {},
-  addSpace = true
+  addSpace = true,
+  modifier
 }) => {
   const frame = (0,esm.useCurrentFrame)();
   const { fps } = (0,esm.useVideoConfig)();
@@ -2574,7 +2895,7 @@ const AnimatedWord = ({
         hasDirectionalTranslation = true;
         break;
       case "scaleUp": {
-        const scale = (0,esm.interpolate)(progress, [0, 1], [0.7, 1]);
+        const scale = (0,esm.interpolate)(progress, [0, 1], [0.2, 1]);
         scaleX = scale;
         scaleY = scale;
         break;
@@ -2638,6 +2959,14 @@ const AnimatedWord = ({
       case "rotate":
         rotate = (0,esm.interpolate)(progress, [0, 1], [10, 0]);
         break;
+      case "wave": {
+        translateY = (0,esm.interpolate)(progress, [0, 1], [distance, 0]);
+        const wavePhase = index * 0.8;
+        const waveAmplitude = distance * 0.25 * (1 - progress);
+        translateY += Math.sin(progress * Math.PI * 3 + wavePhase) * waveAmplitude;
+        hasDirectionalTranslation = true;
+        break;
+      }
     }
   }
   if (!hasDirectionalTranslation) {
@@ -2664,26 +2993,31 @@ const AnimatedWord = ({
     rotate
   });
   const filter = buildTextFilter(blur);
-  return /* @__PURE__ */ react.createElement(
-    "span",
-    {
-      style: {
-        display: "inline-block",
-        opacity: progress,
-        transform,
-        filter: filter !== "none" ? filter : void 0,
-        willChange: "transform, opacity",
-        transformOrigin: "center bottom",
-        whiteSpace: "pre",
-        ...style
-      }
-    },
-    word,
-    addSpace ? " " : ""
-  );
+  const spanStyle = {
+    display: "inline-block",
+    opacity: progress,
+    transform,
+    filter: filter !== "none" ? filter : void 0,
+    willChange: "transform, opacity",
+    transformOrigin: "center bottom",
+    whiteSpace: "pre",
+    ...style
+  };
+  const content = /* @__PURE__ */ react.createElement(react.Fragment, null, word, addSpace ? " " : "");
+  if (modifier) {
+    return modifier({
+      children: content,
+      progress,
+      baseStyle: spanStyle,
+      keyPrefix: `word-${index}`
+    });
+  }
+  return /* @__PURE__ */ react.createElement("span", { style: spanStyle }, content);
 };
 
 ;// ./components/AnimatedText.tsx
+
+
 
 
 
@@ -2705,7 +3039,7 @@ const TEXT_ANIMATION_CONFIGS = {
     spring: "gentle",
     distance: 25,
     direction: "up",
-    effects: ["fadeUp", "scaleUp"]
+    effects: ["fadeUp"]
   },
   energetic: {
     unit: "word",
@@ -2721,15 +3055,15 @@ const TEXT_ANIMATION_CONFIGS = {
     spring: "snappy",
     distance: 50,
     direction: "up",
-    effects: ["fadeUp", "anticipation", "followThrough"]
+    effects: ["fadeUp", "scaleUp", "blur", "rotate"]
   },
   elegant: {
-    unit: "word",
-    staggerFrames: 5,
+    unit: "character",
+    staggerFrames: 1,
     spring: "smooth",
     distance: 20,
     direction: "up",
-    effects: ["fadeUp", "scaleUp"]
+    effects: ["wave"]
   },
   kinetic: {
     unit: "character",
@@ -2743,9 +3077,9 @@ const TEXT_ANIMATION_CONFIGS = {
     unit: "character",
     staggerFrames: 2,
     spring: "crisp",
-    distance: 10,
+    distance: 0,
     direction: "up",
-    effects: ["fadeUp"]
+    effects: ["snap"]
   },
   cinematic: {
     unit: "line",
@@ -2755,21 +3089,21 @@ const TEXT_ANIMATION_CONFIGS = {
     direction: "up",
     effects: ["fadeUp", "blur", "anticipation"]
   },
-  lyric: {
+  spiral: {
     unit: "word",
-    staggerFrames: 4,
-    spring: "bouncy",
-    distance: 60,
-    direction: "left",
-    effects: ["fadeLeft"]
+    staggerFrames: 3,
+    spring: "smooth",
+    distance: 40,
+    direction: "right",
+    effects: ["fadeUp"]
   },
   stacking: {
-    unit: "word",
-    staggerFrames: 5,
+    unit: "character",
+    staggerFrames: 1,
     spring: "snappy",
-    distance: 80,
+    distance: 0,
     direction: "up",
-    effects: ["fadeUp"]
+    effects: ["scramble"]
   },
   cascade: {
     unit: "word",
@@ -2777,7 +3111,7 @@ const TEXT_ANIMATION_CONFIGS = {
     spring: "gentle",
     distance: 50,
     direction: "down",
-    effects: ["fadeDown"]
+    effects: ["fadeDown", "rotate"]
   },
   burst: {
     unit: "word",
@@ -2786,6 +3120,38 @@ const TEXT_ANIMATION_CONFIGS = {
     distance: 40,
     direction: "up",
     effects: ["scaleUp"]
+  },
+  echo: {
+    unit: "element",
+    staggerFrames: 0,
+    spring: "smooth",
+    distance: 0,
+    direction: "up",
+    effects: ["fadeUp"]
+  },
+  reveal: {
+    unit: "element",
+    staggerFrames: 0,
+    spring: "crisp",
+    distance: 0,
+    direction: "left",
+    effects: ["fadeUp"]
+  },
+  tracking: {
+    unit: "element",
+    staggerFrames: 0,
+    spring: "gentle",
+    distance: 0,
+    direction: "up",
+    effects: ["fadeUp"]
+  },
+  flicker: {
+    unit: "element",
+    staggerFrames: 0,
+    spring: "smooth",
+    distance: 0,
+    direction: "up",
+    effects: ["fadeUp"]
   }
 };
 const AnimatedText = ({
@@ -2800,9 +3166,11 @@ const AnimatedText = ({
   startDelay = 10,
   style = {},
   segmentStyle = {},
-  className
+  className,
+  modifier
 }) => {
   const text = children ?? "";
+  const modifierFn = modifier ? getTextModifier(modifier) : void 0;
   const config = (0,react.useMemo)(() => {
     const baseConfig = TEXT_ANIMATION_CONFIGS[preset] ?? TEXT_ANIMATION_CONFIGS.smooth;
     return {
@@ -2832,7 +3200,9 @@ const AnimatedText = ({
             segments: splitResult.segments,
             config,
             startDelay,
-            segmentStyle
+            segmentStyle,
+            modifierFn,
+            modifierType: modifier
           }
         );
       case "word":
@@ -2842,7 +3212,8 @@ const AnimatedText = ({
             segments: splitResult.segments,
             config,
             startDelay,
-            segmentStyle
+            segmentStyle,
+            modifierFn
           }
         );
       case "line":
@@ -2852,7 +3223,8 @@ const AnimatedText = ({
             segments: splitResult.segments,
             config,
             startDelay,
-            segmentStyle
+            segmentStyle,
+            modifierFn
           }
         );
       case "element":
@@ -2862,7 +3234,8 @@ const AnimatedText = ({
           {
             text: children,
             config,
-            startDelay
+            startDelay,
+            modifierFn
           }
         );
     }
@@ -2873,33 +3246,103 @@ const CharacterAnimation = ({
   segments,
   config,
   startDelay,
-  segmentStyle
+  segmentStyle,
+  modifierFn,
+  modifierType
 }) => {
-  return /* @__PURE__ */ react.createElement(react.Fragment, null, segments.map((segment, idx) => /* @__PURE__ */ react.createElement(
-    AnimatedCharacter,
-    {
-      key: `char-${idx}`,
-      char: segment.text,
-      index: idx,
-      startFrame: getSegmentStartFrame(idx, {
+  const frame = (0,esm.useCurrentFrame)();
+  const isTypewriter = config.effects.includes("snap");
+  let typingFrontIdx = -1;
+  if (isTypewriter) {
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const sf = getSegmentStartFrame(i, {
         startDelay,
         staggerFrames: config.staggerFrames,
         totalSegments: segments.length
-      }),
-      spring: config.spring,
-      distance: config.distance,
-      direction: config.direction,
-      effects: config.effects,
-      isSpace: segment.isSpace,
-      style: segmentStyle
+      });
+      if (frame >= sf + 1) {
+        typingFrontIdx = i;
+        break;
+      }
     }
-  )));
+  }
+  const lastCharStart = getSegmentStartFrame(segments.length - 1, {
+    startDelay,
+    staggerFrames: config.staggerFrames,
+    totalSegments: segments.length
+  });
+  const allTyped = typingFrontIdx === segments.length - 1;
+  const cursorHidden = allTyped && frame > lastCharStart + 20;
+  const showCursorAtFront = isTypewriter && typingFrontIdx >= 0 && !cursorHidden;
+  const wordGroups = [];
+  let currentWordIndex = -1;
+  for (let idx = 0; idx < segments.length; idx++) {
+    const segment = segments[idx];
+    const wi = segment.wordIndex ?? 0;
+    if (segment.isSpace) {
+      wordGroups.push({ wordIndex: -1, chars: [{ segment, idx }] });
+    } else if (wi !== currentWordIndex) {
+      currentWordIndex = wi;
+      wordGroups.push({ wordIndex: wi, chars: [{ segment, idx }] });
+    } else {
+      wordGroups[wordGroups.length - 1].chars.push({ segment, idx });
+    }
+  }
+  return /* @__PURE__ */ react.createElement(react.Fragment, null, wordGroups.map((group, gi) => {
+    if (group.chars.length === 1 && group.chars[0].segment.isSpace) {
+      const { segment, idx } = group.chars[0];
+      return /* @__PURE__ */ react.createElement(
+        AnimatedCharacter,
+        {
+          key: `char-${idx}`,
+          char: segment.text,
+          index: idx,
+          startFrame: getSegmentStartFrame(idx, {
+            startDelay,
+            staggerFrames: config.staggerFrames,
+            totalSegments: segments.length
+          }),
+          spring: config.spring,
+          distance: config.distance,
+          direction: config.direction,
+          effects: config.effects,
+          isSpace: true,
+          style: segmentStyle,
+          modifier: modifierFn,
+          isTypingFront: showCursorAtFront && idx === typingFrontIdx
+        }
+      );
+    }
+    const wordJitter = modifierType === "glitch" ? getGlitchWordJitter(frame, group.wordIndex) : void 0;
+    return /* @__PURE__ */ react.createElement("span", { key: `word-${gi}`, style: { whiteSpace: "nowrap", transform: wordJitter, display: wordJitter ? "inline-block" : void 0 } }, group.chars.map(({ segment, idx }) => /* @__PURE__ */ react.createElement(
+      AnimatedCharacter,
+      {
+        key: `char-${idx}`,
+        char: segment.text,
+        index: idx,
+        startFrame: getSegmentStartFrame(idx, {
+          startDelay,
+          staggerFrames: config.staggerFrames,
+          totalSegments: segments.length
+        }),
+        spring: config.spring,
+        distance: config.distance,
+        direction: config.direction,
+        effects: config.effects,
+        isSpace: segment.isSpace,
+        style: segmentStyle,
+        modifier: modifierFn,
+        isTypingFront: showCursorAtFront && idx === typingFrontIdx
+      }
+    )));
+  }));
 };
 const WordAnimation = ({
   segments,
   config,
   startDelay,
-  segmentStyle
+  segmentStyle,
+  modifierFn
 }) => {
   return /* @__PURE__ */ react.createElement(react.Fragment, null, segments.map((segment, idx) => /* @__PURE__ */ react.createElement(
     AnimatedWord,
@@ -2917,7 +3360,8 @@ const WordAnimation = ({
       direction: config.direction,
       effects: config.effects,
       addSpace: idx < segments.length - 1,
-      style: segmentStyle
+      style: segmentStyle,
+      modifier: modifierFn
     }
   )));
 };
@@ -2925,7 +3369,8 @@ const LineAnimation = ({
   segments,
   config,
   startDelay,
-  segmentStyle
+  segmentStyle,
+  modifierFn
 }) => {
   const frame = (0,esm.useCurrentFrame)();
   const { fps } = (0,esm.useVideoConfig)();
@@ -2966,18 +3411,27 @@ const LineAnimation = ({
     }
     const transform = buildTextTransform({ translateX, translateY });
     const filter = buildTextFilter(blur);
+    const spanStyle = {
+      display: "block",
+      opacity: progress,
+      transform,
+      filter: filter !== "none" ? filter : void 0,
+      willChange: "transform, opacity",
+      ...segmentStyle
+    };
+    if (modifierFn) {
+      return /* @__PURE__ */ react.createElement(react.Fragment, { key: `line-${idx}` }, modifierFn({
+        children: segment.text,
+        progress,
+        baseStyle: spanStyle,
+        keyPrefix: `line-${idx}`
+      }));
+    }
     return /* @__PURE__ */ react.createElement(
       "span",
       {
         key: `line-${idx}`,
-        style: {
-          display: "block",
-          opacity: progress,
-          transform,
-          filter: filter !== "none" ? filter : void 0,
-          willChange: "transform, opacity",
-          ...segmentStyle
-        }
+        style: spanStyle
       },
       segment.text
     );
@@ -2986,7 +3440,8 @@ const LineAnimation = ({
 const ElementAnimation = ({
   text,
   config,
-  startDelay
+  startDelay,
+  modifierFn
 }) => {
   const frame = (0,esm.useCurrentFrame)();
   const { fps } = (0,esm.useVideoConfig)();
@@ -3030,20 +3485,780 @@ const ElementAnimation = ({
     scaleY: scale
   });
   const filter = buildTextFilter(blur);
+  const spanStyle = {
+    display: "inline-block",
+    opacity: progress,
+    transform,
+    filter: filter !== "none" ? filter : void 0,
+    willChange: "transform, opacity"
+  };
+  if (modifierFn) {
+    return modifierFn({
+      children: text,
+      progress,
+      baseStyle: spanStyle,
+      keyPrefix: "element-0"
+    });
+  }
+  return /* @__PURE__ */ react.createElement("span", { style: spanStyle }, text);
+};
+
+;// ./components/EchoTextAnimation.tsx
+
+
+
+const SEPARATOR = "   \xB7   ";
+const REPEATS = 4;
+const EchoTextAnimation = ({
+  text,
+  fontSize = 56,
+  fontFamily = "sans-serif",
+  fontWeight = 700,
+  color = "#ffffff",
+  echoRows = 3,
+  rowGap = 0.8,
+  scrollSpeed = 1.5,
+  ghostOpacity = 0.15,
+  style
+}) => {
+  const frame = (0,esm.useCurrentFrame)();
+  const { fps } = (0,esm.useVideoConfig)();
+  const ghostText = (0,react.useMemo)(() => {
+    const parts = [];
+    for (let i = 0; i < REPEATS; i++) {
+      parts.push(text);
+    }
+    return parts.join(SEPARATOR);
+  }, [text]);
+  const measureRef = (0,react.useRef)(null);
+  const [repeatWidth, setRepeatWidth] = (0,react.useState)(0);
+  (0,react.useLayoutEffect)(() => {
+    if (measureRef.current) {
+      setRepeatWidth(measureRef.current.getBoundingClientRect().width);
+    }
+  }, [ghostText, fontSize, fontFamily, fontWeight]);
+  const heroProgress = (0,esm.spring)({
+    frame,
+    fps,
+    config: springConfig.smooth,
+    durationInFrames: 45
+  });
+  const rowSpacing = fontSize * rowGap;
+  const rows = (0,react.useMemo)(() => {
+    const result = [];
+    for (let d = echoRows; d >= 1; d--) {
+      result.push({
+        distance: -d,
+        directionSign: d % 2 === 1 ? -1 : 1,
+        opacity: ghostOpacity / d,
+        speed: scrollSpeed * d
+      });
+    }
+    result.push({ distance: 0, directionSign: 0, opacity: 1, speed: 0 });
+    for (let d = 1; d <= echoRows; d++) {
+      result.push({
+        distance: d,
+        directionSign: d % 2 === 1 ? 1 : -1,
+        opacity: ghostOpacity / d,
+        speed: scrollSpeed * d
+      });
+    }
+    return result;
+  }, [echoRows, ghostOpacity, scrollSpeed]);
+  const unitWidth = repeatWidth / REPEATS;
   return /* @__PURE__ */ react.createElement(
-    "span",
+    "div",
     {
       style: {
-        display: "inline-block",
-        opacity: progress,
-        transform,
-        filter: filter !== "none" ? filter : void 0,
-        willChange: "transform, opacity"
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        ...style
       }
     },
-    text
+    /* @__PURE__ */ react.createElement(
+      "span",
+      {
+        ref: measureRef,
+        style: {
+          position: "absolute",
+          visibility: "hidden",
+          whiteSpace: "nowrap",
+          fontSize,
+          fontFamily,
+          fontWeight,
+          lineHeight: 1
+        }
+      },
+      ghostText
+    ),
+    rows.map((row, i) => {
+      const yOffset = row.distance * rowSpacing;
+      if (row.distance === 0) {
+        return /* @__PURE__ */ react.createElement(
+          "div",
+          {
+            key: "hero",
+            style: {
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: `translate(-50%, -50%) translateY(${yOffset}px)`,
+              whiteSpace: "nowrap",
+              fontSize,
+              fontFamily,
+              fontWeight,
+              color,
+              opacity: heroProgress,
+              lineHeight: 1,
+              zIndex: 1
+            }
+          },
+          text
+        );
+      }
+      const rawOffset = frame * row.speed * row.directionSign;
+      const wrappedOffset = unitWidth > 0 ? (rawOffset % unitWidth + unitWidth) % unitWidth : rawOffset;
+      return /* @__PURE__ */ react.createElement(
+        "div",
+        {
+          key: `echo-${i}`,
+          style: {
+            position: "absolute",
+            top: "50%",
+            left: 0,
+            whiteSpace: "nowrap",
+            fontSize,
+            fontFamily,
+            fontWeight,
+            color,
+            opacity: row.opacity,
+            lineHeight: 1,
+            transform: `translateY(calc(-50% + ${yOffset}px)) translateX(${wrappedOffset - unitWidth}px)`,
+            willChange: "transform"
+          }
+        },
+        ghostText,
+        SEPARATOR,
+        ghostText
+      );
+    })
   );
 };
+
+;// ./components/RevealTextAnimation.tsx
+
+
+
+const RevealTextAnimation = ({
+  text,
+  fontSize = 56,
+  fontFamily = "sans-serif",
+  fontWeight = 700,
+  color = "#ffffff",
+  direction = "left",
+  accentColor,
+  style
+}) => {
+  const frame = (0,esm.useCurrentFrame)();
+  const { fps } = (0,esm.useVideoConfig)();
+  const progress = (0,esm.spring)({
+    frame,
+    fps,
+    config: springConfig.crisp,
+    durationInFrames: 50
+  });
+  let clipPath;
+  let barStyle;
+  const barThickness = 3;
+  const barColor = accentColor ?? color;
+  const barOpacity = (0,esm.interpolate)(progress, [0, 0.8, 1], [1, 1, 0]);
+  switch (direction) {
+    case "left":
+      clipPath = `inset(0 ${(1 - progress) * 100}% 0 0)`;
+      barStyle = {
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        left: `${progress * 100}%`,
+        width: barThickness,
+        backgroundColor: barColor,
+        opacity: barOpacity
+      };
+      break;
+    case "right":
+      clipPath = `inset(0 0 0 ${(1 - progress) * 100}%)`;
+      barStyle = {
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        right: `${progress * 100}%`,
+        width: barThickness,
+        backgroundColor: barColor,
+        opacity: barOpacity
+      };
+      break;
+    case "up":
+      clipPath = `inset(0 0 ${(1 - progress) * 100}% 0)`;
+      barStyle = {
+        position: "absolute",
+        left: 0,
+        right: 0,
+        top: `${progress * 100}%`,
+        height: barThickness,
+        backgroundColor: barColor,
+        opacity: barOpacity
+      };
+      break;
+    case "down":
+      clipPath = `inset(${(1 - progress) * 100}% 0 0 0)`;
+      barStyle = {
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: `${progress * 100}%`,
+        height: barThickness,
+        backgroundColor: barColor,
+        opacity: barOpacity
+      };
+      break;
+  }
+  return /* @__PURE__ */ react.createElement(
+    "div",
+    {
+      style: {
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+        ...style
+      }
+    },
+    /* @__PURE__ */ react.createElement(
+      "div",
+      {
+        style: {
+          position: "relative",
+          display: "inline-block"
+        }
+      },
+      /* @__PURE__ */ react.createElement(
+        "span",
+        {
+          style: {
+            fontSize,
+            fontFamily,
+            fontWeight,
+            color,
+            whiteSpace: "nowrap",
+            lineHeight: 1.2,
+            clipPath,
+            willChange: "clip-path",
+            display: "inline-block"
+          }
+        },
+        text
+      ),
+      /* @__PURE__ */ react.createElement("div", { style: barStyle })
+    )
+  );
+};
+
+;// ./components/TrackingTextAnimation.tsx
+
+
+
+const TrackingTextAnimation = ({
+  text,
+  fontSize = 56,
+  fontFamily = "sans-serif",
+  fontWeight = 700,
+  color = "#ffffff",
+  startSpacing = 0.5,
+  endSpacing = 0,
+  style
+}) => {
+  const frame = (0,esm.useCurrentFrame)();
+  const { fps } = (0,esm.useVideoConfig)();
+  const progress = (0,esm.spring)({
+    frame,
+    fps,
+    config: springConfig.gentle,
+    durationInFrames: 60
+  });
+  const letterSpacing = (0,esm.interpolate)(progress, [0, 1], [startSpacing, endSpacing]);
+  return /* @__PURE__ */ react.createElement(
+    "div",
+    {
+      style: {
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+        ...style
+      }
+    },
+    /* @__PURE__ */ react.createElement(
+      "span",
+      {
+        style: {
+          fontSize,
+          fontFamily,
+          fontWeight,
+          color,
+          whiteSpace: "nowrap",
+          lineHeight: 1.2,
+          letterSpacing: `${letterSpacing}em`,
+          opacity: progress,
+          willChange: "letter-spacing, opacity"
+        }
+      },
+      text
+    )
+  );
+};
+
+;// ./components/FlickerTextAnimation.tsx
+
+
+function getFlickerOpacity(frame, flickerFrames) {
+  if (frame >= flickerFrames) return 1;
+  if (frame < 0) return 0;
+  const t = frame / flickerFrames;
+  const signal = Math.sin(frame * 2.7) * Math.cos(frame * 1.3);
+  let threshold;
+  if (t < 0.3) {
+    threshold = 0.6;
+  } else if (t < 0.7) {
+    threshold = 0;
+  } else {
+    threshold = -0.5;
+  }
+  return signal > threshold ? 1 : 0;
+}
+const FlickerTextAnimation = ({
+  text,
+  fontSize = 56,
+  fontFamily = "sans-serif",
+  fontWeight = 700,
+  color = "#ffffff",
+  flickerFrames = 30,
+  style
+}) => {
+  const frame = (0,esm.useCurrentFrame)();
+  const opacity = getFlickerOpacity(frame, flickerFrames);
+  return /* @__PURE__ */ react.createElement(
+    "div",
+    {
+      style: {
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+        ...style
+      }
+    },
+    /* @__PURE__ */ react.createElement(
+      "span",
+      {
+        style: {
+          fontSize,
+          fontFamily,
+          fontWeight,
+          color,
+          whiteSpace: "nowrap",
+          lineHeight: 1.2,
+          opacity
+        }
+      },
+      text
+    )
+  );
+};
+
+;// ./aspect-ratios.ts
+const ASPECT_RATIOS = {
+  "16:9": {
+    width: 1920,
+    height: 1080,
+    platforms: ["YouTube", "Website", "LinkedIn Video"],
+    compositionSuffix: "16x9"
+  },
+  "1:1": {
+    width: 1080,
+    height: 1080,
+    platforms: ["Instagram Feed", "LinkedIn Feed"],
+    compositionSuffix: "1x1"
+  },
+  "9:16": {
+    width: 1080,
+    height: 1920,
+    platforms: ["TikTok", "Instagram Reels", "YouTube Shorts"],
+    compositionSuffix: "9x16"
+  }
+};
+function getAspectRatioFromDimensions(width, height) {
+  const ratio = width / height;
+  if (Math.abs(ratio - 16 / 9) < 0.01) return "16:9";
+  if (Math.abs(ratio - 1) < 0.01) return "1:1";
+  if (Math.abs(ratio - 9 / 16) < 0.01) return "9:16";
+  return "16:9";
+}
+function getCompositionId(baseId, aspectRatio) {
+  const config = ASPECT_RATIOS[aspectRatio];
+  return `${baseId}-${config.compositionSuffix}`;
+}
+function getDimensionsForAspectRatio(aspectRatio) {
+  const config = ASPECT_RATIOS[aspectRatio];
+  return { width: config.width, height: config.height };
+}
+
+;// ./hooks/useResponsiveLayout.ts
+
+
+const BASE_LAYOUT = {
+  padding: 80,
+  gap: 40,
+  titleFontSize: 72,
+  bodyFontSize: 36,
+  statValueFontSize: 96,
+  statLabelFontSize: 28,
+  quoteFontSize: 48,
+  maxWidth: 1e3,
+  imageHeight: "80%",
+  gridColumns: 2
+};
+const TYPOGRAPHY = {
+  // Letter spacing - tighter for large text, looser for body
+  titleLetterSpacing: "-0.02em",
+  bodyLetterSpacing: "0.01em",
+  displayLetterSpacing: "-0.03em",
+  // Font weights
+  displayFontWeight: 900,
+  titleFontWeight: 700,
+  subtitleFontWeight: 600,
+  bodyFontWeight: 400,
+  // Text shadows for legibility
+  titleTextShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+  bodyTextShadow: "0 1px 4px rgba(0, 0, 0, 0.1)"
+};
+function useResponsiveLayout() {
+  const { width, height } = (0,esm.useVideoConfig)();
+  const aspectRatio = getAspectRatioFromDimensions(width, height);
+  const isVertical = aspectRatio === "9:16";
+  const isSquare = aspectRatio === "1:1";
+  const isLandscape = aspectRatio === "16:9";
+  const scaleFactor = width / 1920;
+  let layout;
+  if (isVertical) {
+    layout = {
+      aspectRatio,
+      isVertical,
+      isSquare,
+      isLandscape,
+      padding: 60,
+      gap: 30,
+      titleFontSize: 64,
+      bodyFontSize: 32,
+      statValueFontSize: 80,
+      statLabelFontSize: 24,
+      quoteFontSize: 40,
+      // Typography
+      titleLetterSpacing: TYPOGRAPHY.titleLetterSpacing,
+      bodyLetterSpacing: TYPOGRAPHY.bodyLetterSpacing,
+      displayLetterSpacing: TYPOGRAPHY.displayLetterSpacing,
+      displayFontWeight: TYPOGRAPHY.displayFontWeight,
+      titleFontWeight: TYPOGRAPHY.titleFontWeight,
+      subtitleFontWeight: TYPOGRAPHY.subtitleFontWeight,
+      bodyFontWeight: TYPOGRAPHY.bodyFontWeight,
+      titleTextShadow: TYPOGRAPHY.titleTextShadow,
+      bodyTextShadow: TYPOGRAPHY.bodyTextShadow,
+      maxWidth: width - 120,
+      // Full width minus padding
+      imageHeight: "45%",
+      stackDirection: "column",
+      gridColumns: 1
+      // Stack vertically in portrait
+    };
+  } else if (isSquare) {
+    layout = {
+      aspectRatio,
+      isVertical,
+      isSquare,
+      isLandscape,
+      padding: 60,
+      gap: 30,
+      titleFontSize: 56,
+      bodyFontSize: 28,
+      statValueFontSize: 72,
+      statLabelFontSize: 22,
+      quoteFontSize: 36,
+      // Typography
+      titleLetterSpacing: TYPOGRAPHY.titleLetterSpacing,
+      bodyLetterSpacing: TYPOGRAPHY.bodyLetterSpacing,
+      displayLetterSpacing: TYPOGRAPHY.displayLetterSpacing,
+      displayFontWeight: TYPOGRAPHY.displayFontWeight,
+      titleFontWeight: TYPOGRAPHY.titleFontWeight,
+      subtitleFontWeight: TYPOGRAPHY.subtitleFontWeight,
+      bodyFontWeight: TYPOGRAPHY.bodyFontWeight,
+      titleTextShadow: TYPOGRAPHY.titleTextShadow,
+      bodyTextShadow: TYPOGRAPHY.bodyTextShadow,
+      maxWidth: width - 120,
+      imageHeight: "70%",
+      stackDirection: "row",
+      gridColumns: 2
+    };
+  } else {
+    layout = {
+      aspectRatio,
+      isVertical,
+      isSquare,
+      isLandscape,
+      padding: Math.round(BASE_LAYOUT.padding * scaleFactor),
+      gap: Math.round(BASE_LAYOUT.gap * scaleFactor),
+      titleFontSize: Math.round(BASE_LAYOUT.titleFontSize * scaleFactor),
+      bodyFontSize: Math.round(BASE_LAYOUT.bodyFontSize * scaleFactor),
+      statValueFontSize: Math.round(BASE_LAYOUT.statValueFontSize * scaleFactor),
+      statLabelFontSize: Math.round(BASE_LAYOUT.statLabelFontSize * scaleFactor),
+      quoteFontSize: Math.round(BASE_LAYOUT.quoteFontSize * scaleFactor),
+      // Typography
+      titleLetterSpacing: TYPOGRAPHY.titleLetterSpacing,
+      bodyLetterSpacing: TYPOGRAPHY.bodyLetterSpacing,
+      displayLetterSpacing: TYPOGRAPHY.displayLetterSpacing,
+      displayFontWeight: TYPOGRAPHY.displayFontWeight,
+      titleFontWeight: TYPOGRAPHY.titleFontWeight,
+      subtitleFontWeight: TYPOGRAPHY.subtitleFontWeight,
+      bodyFontWeight: TYPOGRAPHY.bodyFontWeight,
+      titleTextShadow: TYPOGRAPHY.titleTextShadow,
+      bodyTextShadow: TYPOGRAPHY.bodyTextShadow,
+      maxWidth: Math.round(BASE_LAYOUT.maxWidth * scaleFactor),
+      imageHeight: BASE_LAYOUT.imageHeight,
+      stackDirection: "row",
+      gridColumns: BASE_LAYOUT.gridColumns
+    };
+  }
+  return layout;
+}
+function useChartLayout() {
+  const layout = useResponsiveLayout();
+  return {
+    ...layout,
+    chartHeight: layout.isVertical ? "50%" : layout.isSquare ? "60%" : "70%",
+    legendPosition: layout.isVertical ? "bottom" : "right",
+    barWidth: layout.isVertical ? 40 : layout.isSquare ? 50 : 60,
+    axisFontSize: layout.isVertical ? 14 : layout.isSquare ? 16 : 18
+  };
+}
+
+;// ./lib/textLayouts.ts
+const TEXT_LAYOUTS = {
+  centered: () => ({
+    container: {
+      justifyContent: "center",
+      alignItems: "center"
+    },
+    content: {
+      textAlign: "center"
+    },
+    title: {},
+    body: {}
+  }),
+  "bottom-left": (ar) => ({
+    container: {
+      justifyContent: "flex-end",
+      alignItems: "flex-start"
+    },
+    content: {
+      textAlign: "left"
+    },
+    title: {},
+    body: {},
+    maxWidth: ar === "16:9" ? 900 : ar === "1:1" ? 800 : void 0
+  }),
+  "lower-third": (ar) => ({
+    container: {
+      justifyContent: "flex-end",
+      alignItems: "flex-start",
+      paddingBottom: ar === "9:16" ? 120 : 60
+    },
+    content: {
+      textAlign: "left"
+    },
+    title: {},
+    body: {},
+    titleScale: 0.7,
+    bodyScale: 0.85,
+    maxWidth: ar === "9:16" ? "90%" : ar === "1:1" ? "85%" : "60%"
+  }),
+  split: (ar) => {
+    if (ar === "9:16") {
+      return {
+        container: {
+          justifyContent: "center",
+          alignItems: "flex-start"
+        },
+        content: {
+          textAlign: "left",
+          display: "flex",
+          flexDirection: "column",
+          gap: 30
+        },
+        title: {},
+        body: {}
+      };
+    }
+    return {
+      container: {
+        justifyContent: "center",
+        alignItems: "center"
+      },
+      content: {
+        textAlign: "left",
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: ar === "1:1" ? 40 : 60
+      },
+      title: {
+        flex: "0 0 55%"
+      },
+      body: {
+        flex: "0 0 40%"
+      },
+      maxWidth: ar === "1:1" ? "95%" : "90%"
+    };
+  },
+  "top-right": (ar) => ({
+    container: {
+      justifyContent: "flex-start",
+      alignItems: "flex-end"
+    },
+    content: {
+      textAlign: "right"
+    },
+    title: {},
+    body: {},
+    maxWidth: ar === "16:9" ? 900 : ar === "1:1" ? 800 : void 0
+  }),
+  "full-bleed": (ar) => ({
+    container: {
+      justifyContent: "center",
+      alignItems: "center"
+    },
+    content: {
+      textAlign: "center",
+      position: "relative"
+    },
+    title: {},
+    body: {
+      position: "absolute",
+      bottom: ar === "9:16" ? -120 : -80,
+      right: 0,
+      textAlign: "right",
+      maxWidth: ar === "16:9" ? 400 : 300
+    },
+    titleScale: ar === "9:16" ? 1.4 : 2,
+    bodyScale: 0.8,
+    maxWidth: "95%"
+  }),
+  stacked: (ar) => ({
+    container: {
+      justifyContent: "flex-end",
+      alignItems: "flex-start"
+    },
+    content: {
+      textAlign: "left"
+    },
+    title: {
+      lineHeight: 0.95
+    },
+    body: {
+      marginTop: ar === "9:16" ? 16 : 24
+    },
+    titleScale: 1.3,
+    maxWidth: "100%"
+  }),
+  offset: (ar) => ({
+    container: {
+      justifyContent: "flex-start",
+      alignItems: "flex-start",
+      paddingTop: ar === "9:16" ? 200 : ar === "1:1" ? 160 : 140
+    },
+    content: {
+      textAlign: "left"
+    },
+    title: {},
+    body: {
+      paddingLeft: ar === "9:16" ? 20 : 40
+    },
+    maxWidth: ar === "16:9" ? "55%" : ar === "1:1" ? "70%" : "85%"
+  }),
+  diagonal: (ar) => ({
+    container: {
+      justifyContent: "center",
+      alignItems: "flex-start"
+    },
+    content: {
+      textAlign: "left"
+    },
+    title: {},
+    body: {
+      paddingLeft: ar === "9:16" ? 60 : ar === "1:1" ? 100 : 140
+    },
+    titleScale: 1.1,
+    diagonalLineOffset: ar === "9:16" ? 30 : ar === "1:1" ? 50 : 70,
+    maxWidth: "90%"
+  })
+};
+function getTextLayout(preset, aspectRatio) {
+  const key = preset ?? "centered";
+  const resolver = TEXT_LAYOUTS[key] ?? TEXT_LAYOUTS.centered;
+  return resolver(aspectRatio);
+}
+const LAYOUT_LABELS = {
+  centered: "Centered",
+  "bottom-left": "Bottom Left",
+  "lower-third": "Lower Third",
+  split: "Split",
+  "top-right": "Top Right",
+  "full-bleed": "Full Bleed",
+  stacked: "Stacked",
+  offset: "Offset",
+  diagonal: "Diagonal"
+};
+const LAYOUT_DESCRIPTIONS = {
+  centered: "Classic centered text",
+  "bottom-left": "Editorial magazine anchored bottom-left",
+  "lower-third": "Broadcast-style bottom strip",
+  split: "Title and body side by side",
+  "top-right": "Unexpected top-right float",
+  "full-bleed": "Oversized title, body in corner",
+  stacked: "Brutalist poster with tight leading",
+  offset: "Rule-of-thirds composition",
+  diagonal: "Progressive line offset staircase"
+};
+
+;// ./hooks/useTextLayout.ts
+
+
+function useTextLayout(preset) {
+  const layout = useResponsiveLayout();
+  const textLayout = getTextLayout(preset, layout.aspectRatio);
+  return { layout, textLayout };
+}
 
 ;// ./scenes/TextOnlyScene.tsx
 
@@ -3052,31 +4267,102 @@ const ElementAnimation = ({
 
 
 
+
+
+
+
 const TextOnlyScene = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
-  const layout = useResponsiveLayout();
+  const { layout, textLayout } = useTextLayout(data.text_layout);
   const preset = data.animation_preset || "energetic";
   const titleConfig = getElementConfig("text-only", preset, "title");
   const bodyConfig = getElementConfig("text-only", preset, "body");
   const sceneFade = usePresetSceneFade(titleConfig, durationInFrames, skipFadeOut);
+  const titleFontSize = layout.titleFontSize * (textLayout.titleScale ?? 1);
+  const bodyFontSize = layout.bodyFontSize * (textLayout.bodyScale ?? 1);
+  const titleLines = textLayout.diagonalLineOffset && data.title ? data.title.split("\n") : null;
+  if (preset === "echo" && data.title) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      ...textLayout.container,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      opacity: sceneFade
+    } }, /* @__PURE__ */ react.createElement(
+      EchoTextAnimation,
+      {
+        text: data.title,
+        fontSize: titleFontSize,
+        fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+        fontWeight: layout.titleFontWeight,
+        color: theme.colors.textPrimary
+      }
+    ));
+  }
+  if (preset === "reveal" && data.title) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      ...textLayout.container,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      opacity: sceneFade
+    } }, /* @__PURE__ */ react.createElement(
+      RevealTextAnimation,
+      {
+        text: data.title,
+        fontSize: titleFontSize,
+        fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+        fontWeight: layout.titleFontWeight,
+        color: theme.colors.textPrimary
+      }
+    ));
+  }
+  if (preset === "tracking" && data.title) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      ...textLayout.container,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      opacity: sceneFade
+    } }, /* @__PURE__ */ react.createElement(
+      TrackingTextAnimation,
+      {
+        text: data.title,
+        fontSize: titleFontSize,
+        fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+        fontWeight: layout.titleFontWeight,
+        color: theme.colors.textPrimary
+      }
+    ));
+  }
+  if (preset === "flicker" && data.title) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      ...textLayout.container,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      opacity: sceneFade
+    } }, /* @__PURE__ */ react.createElement(
+      FlickerTextAnimation,
+      {
+        text: data.title,
+        fontSize: titleFontSize,
+        fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+        fontWeight: layout.titleFontWeight,
+        color: theme.colors.textPrimary
+      }
+    ));
+  }
   return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+    ...textLayout.container,
     background: theme.colors.backgroundGradient || theme.colors.background,
-    justifyContent: "center",
-    alignItems: "center",
     padding: layout.padding,
     opacity: sceneFade
   } }, /* @__PURE__ */ react.createElement("div", { style: {
-    textAlign: "center",
-    maxWidth: layout.maxWidth,
+    ...textLayout.content,
+    maxWidth: textLayout.maxWidth ?? layout.maxWidth,
     fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
-  } }, data.title && /* @__PURE__ */ react.createElement("div", { style: {
-    fontSize: layout.titleFontSize,
+  } }, data.title && !titleLines && /* @__PURE__ */ react.createElement("div", { style: {
+    fontSize: titleFontSize,
     fontWeight: layout.titleFontWeight,
     color: theme.colors.textPrimary,
     marginBottom: layout.gap,
-    lineHeight: 1.2,
+    lineHeight: textLayout.title.lineHeight ?? 1.2,
     letterSpacing: layout.titleLetterSpacing,
     textShadow: layout.titleTextShadow,
-    fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
+    fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+    ...textLayout.title
   } }, /* @__PURE__ */ react.createElement(
     AnimatedText,
     {
@@ -3085,13 +4371,41 @@ const TextOnlyScene = ({ data, durationInFrames, theme, skipFadeOut = false }) =
       distance: titleConfig.distance
     },
     data.title
-  )), data.body_text && /* @__PURE__ */ react.createElement("div", { style: {
-    fontSize: layout.bodyFontSize,
+  )), titleLines && /* @__PURE__ */ react.createElement("div", { style: {
+    marginBottom: layout.gap,
+    fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+    ...textLayout.title
+  } }, titleLines.map((line, index) => /* @__PURE__ */ react.createElement(
+    "div",
+    {
+      key: index,
+      style: {
+        fontSize: titleFontSize,
+        fontWeight: layout.titleFontWeight,
+        color: theme.colors.textPrimary,
+        lineHeight: textLayout.title.lineHeight ?? 1.2,
+        letterSpacing: layout.titleLetterSpacing,
+        textShadow: layout.titleTextShadow,
+        paddingLeft: index * (textLayout.diagonalLineOffset ?? 0)
+      }
+    },
+    /* @__PURE__ */ react.createElement(
+      AnimatedText,
+      {
+        preset,
+        startDelay: titleConfig.startDelay + index * 4,
+        distance: titleConfig.distance
+      },
+      line
+    )
+  ))), data.body_text && /* @__PURE__ */ react.createElement("div", { style: {
+    fontSize: bodyFontSize,
     fontWeight: layout.bodyFontWeight,
     color: theme.colors.textSecondary,
     lineHeight: 1.5,
     letterSpacing: layout.bodyLetterSpacing,
-    textShadow: layout.bodyTextShadow
+    textShadow: layout.bodyTextShadow,
+    ...textLayout.body
   } }, /* @__PURE__ */ react.createElement(
     AnimatedText,
     {
@@ -3346,8 +4660,12 @@ const GridImage = ({ index, src, config }) => {
 
 
 
+
+
+
+
 const QuoteScene = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
-  const layout = useResponsiveLayout();
+  const { layout, textLayout } = useTextLayout(data.text_layout);
   const preset = data.animation_preset || "dramatic";
   const quoteMarkConfig = getElementConfig("quote", preset, "title");
   const quoteTextConfig = getElementConfig("quote", preset, "body");
@@ -3355,14 +4673,81 @@ const QuoteScene = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const sceneFade = usePresetSceneFade(quoteMarkConfig, durationInFrames, skipFadeOut);
   const quoteMarkAnim = usePresetAnimation(quoteMarkConfig, 0);
   const authorAnim = usePresetAnimation(authorConfig, 2);
+  const quoteFontSize = layout.quoteFontSize * (textLayout.titleScale ?? 1);
+  if (preset === "echo" && data.quote) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      ...textLayout.container,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      opacity: sceneFade
+    } }, /* @__PURE__ */ react.createElement(
+      EchoTextAnimation,
+      {
+        text: data.quote,
+        fontSize: quoteFontSize,
+        fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+        fontWeight: layout.bodyFontWeight,
+        color: theme.colors.textPrimary
+      }
+    ));
+  }
+  if (preset === "reveal" && data.quote) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      ...textLayout.container,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      opacity: sceneFade
+    } }, /* @__PURE__ */ react.createElement(
+      RevealTextAnimation,
+      {
+        text: data.quote,
+        fontSize: quoteFontSize,
+        fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+        fontWeight: layout.bodyFontWeight,
+        color: theme.colors.textPrimary
+      }
+    ));
+  }
+  if (preset === "tracking" && data.quote) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      ...textLayout.container,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      opacity: sceneFade
+    } }, /* @__PURE__ */ react.createElement(
+      TrackingTextAnimation,
+      {
+        text: data.quote,
+        fontSize: quoteFontSize,
+        fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+        fontWeight: layout.bodyFontWeight,
+        color: theme.colors.textPrimary
+      }
+    ));
+  }
+  if (preset === "flicker" && data.quote) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      ...textLayout.container,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      opacity: sceneFade
+    } }, /* @__PURE__ */ react.createElement(
+      FlickerTextAnimation,
+      {
+        text: data.quote,
+        fontSize: quoteFontSize,
+        fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+        fontWeight: layout.bodyFontWeight,
+        color: theme.colors.textPrimary
+      }
+    ));
+  }
   return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+    ...textLayout.container,
     background: theme.colors.backgroundGradient || theme.colors.background,
-    justifyContent: "center",
-    alignItems: "center",
     padding: layout.padding * 1.5,
     fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
     opacity: sceneFade
-  } }, /* @__PURE__ */ react.createElement("div", { style: { maxWidth: layout.maxWidth, textAlign: "center" } }, /* @__PURE__ */ react.createElement("div", { style: {
+  } }, /* @__PURE__ */ react.createElement("div", { style: {
+    ...textLayout.content,
+    maxWidth: textLayout.maxWidth ?? layout.maxWidth
+  } }, /* @__PURE__ */ react.createElement("div", { style: {
     fontSize: layout.isVertical ? 80 : 100,
     color: theme.colors.accent,
     opacity: quoteMarkAnim.opacity,
@@ -3373,15 +4758,16 @@ const QuoteScene = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
     marginBottom: layout.gap * 0.5,
     lineHeight: 0.5,
     fontFamily: "Georgia, serif"
-  } }, '"'), data.quote && /* @__PURE__ */ react.createElement("div", { style: {
-    fontSize: layout.quoteFontSize,
+  } }, "\u201C"), data.quote && /* @__PURE__ */ react.createElement("div", { style: {
+    fontSize: quoteFontSize,
     fontWeight: layout.bodyFontWeight,
     color: theme.colors.textPrimary,
     lineHeight: 1.4,
     fontStyle: "italic",
     marginBottom: layout.gap * 1.5,
     letterSpacing: layout.bodyLetterSpacing,
-    textShadow: layout.bodyTextShadow
+    textShadow: layout.bodyTextShadow,
+    ...textLayout.title
   } }, /* @__PURE__ */ react.createElement(
     AnimatedText,
     {
@@ -3399,7 +4785,8 @@ const QuoteScene = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
       translateX: authorAnim.translateX,
       translateY: authorAnim.translateY
     }),
-    letterSpacing: "0.05em"
+    letterSpacing: "0.05em",
+    ...textLayout.body
   } }, "\u2014 ", data.author)));
 };
 
@@ -3410,8 +4797,12 @@ const QuoteScene = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
 
 
 
+
+
+
+
 const StatsScene = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
-  const layout = useResponsiveLayout();
+  const { layout, textLayout } = useTextLayout(data.text_layout);
   const preset = data.animation_preset || "energetic";
   const titleConfig = getElementConfig("stats", preset, "title");
   const dataConfig = getElementConfig("stats", preset, "data");
@@ -3421,50 +4812,168 @@ const StatsScene = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
     return { value, label };
   }) : [];
   const shouldStackVertically = layout.isVertical || stats.length > 3;
+  const isSplit = data.text_layout === "split" && !layout.isVertical;
+  const titleFontSize = (layout.isVertical ? 44 : layout.isSquare ? 48 : 56) * (textLayout.titleScale ?? 1);
+  if (preset === "echo" && data.title) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      ...textLayout.container,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      opacity: sceneFade
+    } }, /* @__PURE__ */ react.createElement(
+      EchoTextAnimation,
+      {
+        text: data.title,
+        fontSize: titleFontSize,
+        fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+        fontWeight: layout.titleFontWeight,
+        color: theme.colors.textPrimary
+      }
+    ));
+  }
+  if (preset === "reveal" && data.title) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      ...textLayout.container,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      opacity: sceneFade
+    } }, /* @__PURE__ */ react.createElement(
+      RevealTextAnimation,
+      {
+        text: data.title,
+        fontSize: titleFontSize,
+        fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+        fontWeight: layout.titleFontWeight,
+        color: theme.colors.textPrimary
+      }
+    ));
+  }
+  if (preset === "tracking" && data.title) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      ...textLayout.container,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      opacity: sceneFade
+    } }, /* @__PURE__ */ react.createElement(
+      TrackingTextAnimation,
+      {
+        text: data.title,
+        fontSize: titleFontSize,
+        fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+        fontWeight: layout.titleFontWeight,
+        color: theme.colors.textPrimary
+      }
+    ));
+  }
+  if (preset === "flicker" && data.title) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      ...textLayout.container,
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      opacity: sceneFade
+    } }, /* @__PURE__ */ react.createElement(
+      FlickerTextAnimation,
+      {
+        text: data.title,
+        fontSize: titleFontSize,
+        fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+        fontWeight: layout.titleFontWeight,
+        color: theme.colors.textPrimary
+      }
+    ));
+  }
   return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+    ...textLayout.container,
     background: theme.colors.backgroundGradient || theme.colors.background,
     fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
     padding: layout.padding * 1.5,
     opacity: sceneFade
-  } }, data.title && /* @__PURE__ */ react.createElement("div", { style: {
-    fontSize: layout.isVertical ? 44 : layout.isSquare ? 48 : 56,
-    fontWeight: layout.titleFontWeight,
-    color: theme.colors.textPrimary,
-    textAlign: "center",
-    marginBottom: layout.gap * 2,
-    letterSpacing: layout.titleLetterSpacing,
-    textShadow: layout.titleTextShadow,
-    fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
-  } }, /* @__PURE__ */ react.createElement(
-    AnimatedText,
-    {
-      preset,
-      startDelay: titleConfig.startDelay,
-      distance: titleConfig.distance
-    },
-    data.title
-  )), /* @__PURE__ */ react.createElement("div", { style: {
-    display: "flex",
-    flexDirection: shouldStackVertically ? "column" : "row",
-    flexWrap: "wrap",
-    gap: layout.gap * 1.5,
-    justifyContent: "center",
-    alignItems: "center",
-    flex: 1
-  } }, stats.map((stat, idx) => /* @__PURE__ */ react.createElement(
-    StatItem,
-    {
-      key: idx,
-      index: idx,
-      stat,
-      theme,
-      layout,
-      config: dataConfig,
-      preset
-    }
-  ))));
+  } }, isSplit ? (
+    /* Split layout: title left, stats right */
+    /* @__PURE__ */ react.createElement("div", { style: {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: layout.isSquare ? 40 : 60,
+      maxWidth: textLayout.maxWidth ?? "90%",
+      width: "100%"
+    } }, data.title && /* @__PURE__ */ react.createElement("div", { style: {
+      flex: "0 0 45%",
+      fontSize: titleFontSize,
+      fontWeight: layout.titleFontWeight,
+      color: theme.colors.textPrimary,
+      textAlign: "left",
+      letterSpacing: layout.titleLetterSpacing,
+      textShadow: layout.titleTextShadow,
+      fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+      ...textLayout.title
+    } }, /* @__PURE__ */ react.createElement(
+      AnimatedText,
+      {
+        preset,
+        startDelay: titleConfig.startDelay,
+        distance: titleConfig.distance
+      },
+      data.title
+    )), /* @__PURE__ */ react.createElement("div", { style: {
+      flex: 1,
+      display: "flex",
+      flexDirection: "column",
+      gap: layout.gap * 1.5,
+      alignItems: "flex-start"
+    } }, stats.map((stat, idx) => /* @__PURE__ */ react.createElement(
+      StatItem,
+      {
+        key: idx,
+        index: idx,
+        stat,
+        theme,
+        layout,
+        config: dataConfig,
+        preset,
+        align: "left"
+      }
+    ))))
+  ) : (
+    /* Default/other layouts */
+    /* @__PURE__ */ react.createElement(react.Fragment, null, data.title && /* @__PURE__ */ react.createElement("div", { style: {
+      fontSize: titleFontSize,
+      fontWeight: layout.titleFontWeight,
+      color: theme.colors.textPrimary,
+      textAlign: textLayout.content.textAlign ?? "center",
+      marginBottom: layout.gap * 2,
+      letterSpacing: layout.titleLetterSpacing,
+      textShadow: layout.titleTextShadow,
+      fontFamily: `'${theme.fonts.heading}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
+      ...textLayout.title
+    } }, /* @__PURE__ */ react.createElement(
+      AnimatedText,
+      {
+        preset,
+        startDelay: titleConfig.startDelay,
+        distance: titleConfig.distance
+      },
+      data.title
+    )), /* @__PURE__ */ react.createElement("div", { style: {
+      display: "flex",
+      flexDirection: shouldStackVertically ? "column" : "row",
+      flexWrap: "wrap",
+      gap: layout.gap * 1.5,
+      justifyContent: "center",
+      alignItems: textLayout.content.textAlign === "left" ? "flex-start" : textLayout.content.textAlign === "right" ? "flex-end" : "center",
+      flex: 1
+    } }, stats.map((stat, idx) => /* @__PURE__ */ react.createElement(
+      StatItem,
+      {
+        key: idx,
+        index: idx,
+        stat,
+        theme,
+        layout,
+        config: dataConfig,
+        preset,
+        align: textLayout.content.textAlign ?? "center"
+      }
+    ))))
+  ));
 };
-const StatItem = ({ index, stat, theme, layout, config, preset }) => {
+const StatItem = ({ index, stat, theme, layout, config, preset, align = "center" }) => {
   const anim = usePresetAnimation(config, index);
   const valueStartDelay = config.startDelay + index * config.staggerDelay;
   const labelStartDelay = valueStartDelay + 8;
@@ -3478,7 +4987,7 @@ const StatItem = ({ index, stat, theme, layout, config, preset }) => {
           translateY: anim.translateY,
           scale: anim.scale
         }),
-        textAlign: "center",
+        textAlign: align,
         minWidth: layout.isVertical ? 200 : 300
       }
     },
@@ -22928,7 +24437,552 @@ const EquationIndicators = ({
   }));
 };
 
+;// ./components/SpotlightMarker.tsx
+
+
+const DEFAULT_SIZE = 80;
+const DRAW_DURATION = 20;
+const SpotlightMarker = ({
+  type,
+  theme,
+  opacity,
+  segmentFrame,
+  cardDelayFrames,
+  screenWidth,
+  screenHeight,
+  cardX,
+  cardY,
+  cardOnRight,
+  cardOnBottom,
+  markerWidth = DEFAULT_SIZE,
+  markerHeight: markerHeightProp
+}) => {
+  const { fps } = (0,esm.useVideoConfig)();
+  const accentColor = theme.colors.accent || "#d4a843";
+  const drawStartFrame = cardDelayFrames - 10;
+  const drawFrame = Math.max(0, segmentFrame - drawStartFrame);
+  const mW = markerWidth;
+  const mH = markerHeightProp ?? markerWidth;
+  const halfW = mW / 2;
+  const halfH = mH / 2;
+  const drawProgress = (0,esm.interpolate)(drawFrame, [0, DRAW_DURATION], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  });
+  const iconFrame = Math.max(0, drawFrame - DRAW_DURATION);
+  const iconScale = (0,esm.spring)({
+    frame: iconFrame,
+    fps,
+    config: { damping: 14, stiffness: 200 }
+  });
+  const cx = screenWidth / 2;
+  const cy = screenHeight / 2;
+  const strokeStyle = {
+    fill: "none",
+    stroke: accentColor,
+    strokeWidth: 3,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  };
+  const renderMarker = () => {
+    switch (type) {
+      case "circle": {
+        const rx = mW / 2 - 4;
+        const ry = mH / 2 - 4;
+        const circumference = Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
+        const dashOffset = circumference * (1 - drawProgress);
+        return /* @__PURE__ */ react.createElement(
+          "svg",
+          {
+            width: mW,
+            height: mH,
+            viewBox: `0 0 ${mW} ${mH}`,
+            style: { position: "absolute", left: cx - halfW, top: cy - halfH }
+          },
+          /* @__PURE__ */ react.createElement(
+            "ellipse",
+            {
+              cx: halfW,
+              cy: halfH,
+              rx,
+              ry,
+              ...strokeStyle,
+              strokeDasharray: circumference,
+              strokeDashoffset: dashOffset
+            }
+          )
+        );
+      }
+      case "rectangle": {
+        const pad = 4;
+        const w = mW - pad * 2;
+        const h = mH - pad * 2;
+        const perimeter = 2 * (w + h);
+        const dashOffset = perimeter * (1 - drawProgress);
+        return /* @__PURE__ */ react.createElement(
+          "svg",
+          {
+            width: mW,
+            height: mH,
+            viewBox: `0 0 ${mW} ${mH}`,
+            style: { position: "absolute", left: cx - halfW, top: cy - halfH }
+          },
+          /* @__PURE__ */ react.createElement(
+            "rect",
+            {
+              x: pad,
+              y: pad,
+              width: w,
+              height: h,
+              ...strokeStyle,
+              strokeDasharray: perimeter,
+              strokeDashoffset: dashOffset
+            }
+          )
+        );
+      }
+      case "x-circle": {
+        const rx = mW / 2 - 4;
+        const ry = mH / 2 - 4;
+        const circumference = Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
+        const dashOffset = circumference * (1 - drawProgress);
+        const xFrame1 = Math.max(0, drawFrame - DRAW_DURATION);
+        const xFrame2 = Math.max(0, drawFrame - DRAW_DURATION - 5);
+        const xProgress1 = (0,esm.interpolate)(xFrame1, [0, 10], [0, 1], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp"
+        });
+        const xProgress2 = (0,esm.interpolate)(xFrame2, [0, 10], [0, 1], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp"
+        });
+        const xInset = 0.35;
+        const x1 = halfW - rx * xInset;
+        const y1 = halfH - ry * xInset;
+        const x2 = halfW + rx * xInset;
+        const y2 = halfH + ry * xInset;
+        const line1Len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        const line2Len = Math.sqrt((x1 - x2) ** 2 + (y2 - y1) ** 2);
+        return /* @__PURE__ */ react.createElement(
+          "svg",
+          {
+            width: mW,
+            height: mH,
+            viewBox: `0 0 ${mW} ${mH}`,
+            style: { position: "absolute", left: cx - halfW, top: cy - halfH }
+          },
+          /* @__PURE__ */ react.createElement(
+            "ellipse",
+            {
+              cx: halfW,
+              cy: halfH,
+              rx,
+              ry,
+              ...strokeStyle,
+              strokeDasharray: circumference,
+              strokeDashoffset: dashOffset
+            }
+          ),
+          /* @__PURE__ */ react.createElement(
+            "line",
+            {
+              x1,
+              y1,
+              x2,
+              y2,
+              ...strokeStyle,
+              strokeDasharray: line1Len,
+              strokeDashoffset: line1Len * (1 - xProgress1)
+            }
+          ),
+          /* @__PURE__ */ react.createElement(
+            "line",
+            {
+              x1: x2,
+              y1,
+              x2: x1,
+              y2,
+              ...strokeStyle,
+              strokeDasharray: line2Len,
+              strokeDashoffset: line2Len * (1 - xProgress2)
+            }
+          )
+        );
+      }
+      case "alert": {
+        const rx = mW / 2 - 4;
+        const ry = mH / 2 - 4;
+        const circumference = Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
+        const dashOffset = circumference * (1 - drawProgress);
+        return /* @__PURE__ */ react.createElement(
+          "svg",
+          {
+            width: mW,
+            height: mH,
+            viewBox: `0 0 ${mW} ${mH}`,
+            style: { position: "absolute", left: cx - halfW, top: cy - halfH }
+          },
+          /* @__PURE__ */ react.createElement(
+            "ellipse",
+            {
+              cx: halfW,
+              cy: halfH,
+              rx,
+              ry,
+              ...strokeStyle,
+              strokeDasharray: circumference,
+              strokeDashoffset: dashOffset
+            }
+          ),
+          /* @__PURE__ */ react.createElement(
+            "g",
+            {
+              style: {
+                transformOrigin: `${halfW}px ${halfH}px`,
+                transform: `scale(${iconScale})`
+              }
+            },
+            /* @__PURE__ */ react.createElement(
+              "rect",
+              {
+                x: halfW - 2,
+                y: halfH - 16,
+                width: 4,
+                height: 20,
+                rx: 2,
+                fill: accentColor
+              }
+            ),
+            /* @__PURE__ */ react.createElement("circle", { cx: halfW, cy: halfH + 12, r: 3, fill: accentColor })
+          )
+        );
+      }
+      case "question": {
+        const rx = mW / 2 - 4;
+        const ry = mH / 2 - 4;
+        const circumference = Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
+        const dashOffset = circumference * (1 - drawProgress);
+        return /* @__PURE__ */ react.createElement(
+          "svg",
+          {
+            width: mW,
+            height: mH,
+            viewBox: `0 0 ${mW} ${mH}`,
+            style: { position: "absolute", left: cx - halfW, top: cy - halfH }
+          },
+          /* @__PURE__ */ react.createElement(
+            "ellipse",
+            {
+              cx: halfW,
+              cy: halfH,
+              rx,
+              ry,
+              ...strokeStyle,
+              strokeDasharray: circumference,
+              strokeDashoffset: dashOffset
+            }
+          ),
+          /* @__PURE__ */ react.createElement(
+            "text",
+            {
+              x: halfW,
+              y: halfH + 10,
+              textAnchor: "middle",
+              fill: accentColor,
+              fontSize: 32,
+              fontWeight: 700,
+              fontFamily: "system-ui, sans-serif",
+              style: {
+                transformOrigin: `${halfW}px ${halfH}px`,
+                transform: `scale(${iconScale})`
+              }
+            },
+            "?"
+          )
+        );
+      }
+      case "marker":
+      default: {
+        const dotOpacity = (0,esm.interpolate)(drawFrame, [0, 10], [0, 1], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp"
+        });
+        const pulseScale = (0,esm.interpolate)(
+          drawFrame % 30,
+          [0, 15, 30],
+          [1, 1.8, 1]
+        );
+        const cardEdgeX = cardOnRight ? cardX : cardX + screenWidth * 0.38;
+        const cardEdgeY = cardOnBottom ? cardY : cardY + screenHeight * 0.4;
+        const lineProgress = (0,esm.interpolate)(drawFrame, [5, DRAW_DURATION], [0, 1], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp"
+        });
+        const lineEndX = cx + (cardEdgeX - cx) * lineProgress;
+        const lineEndY = cy + (cardEdgeY - cy) * lineProgress;
+        return /* @__PURE__ */ react.createElement(react.Fragment, null, /* @__PURE__ */ react.createElement(
+          "svg",
+          {
+            width: screenWidth,
+            height: screenHeight,
+            style: { position: "absolute", left: 0, top: 0, pointerEvents: "none" }
+          },
+          /* @__PURE__ */ react.createElement(
+            "line",
+            {
+              x1: cx,
+              y1: cy,
+              x2: lineEndX,
+              y2: lineEndY,
+              stroke: accentColor,
+              strokeWidth: 1.5,
+              strokeOpacity: 0.5,
+              strokeDasharray: "6 4"
+            }
+          )
+        ), /* @__PURE__ */ react.createElement(
+          "svg",
+          {
+            width: mW,
+            height: mH,
+            viewBox: `0 0 ${mW} ${mH}`,
+            style: { position: "absolute", left: cx - halfW, top: cy - halfH }
+          },
+          /* @__PURE__ */ react.createElement(
+            "circle",
+            {
+              cx: halfW,
+              cy: halfH,
+              r: 16,
+              fill: "none",
+              stroke: accentColor,
+              strokeWidth: 1.5,
+              strokeOpacity: 0.4,
+              style: {
+                transformOrigin: `${halfW}px ${halfH}px`,
+                transform: `scale(${pulseScale})`
+              }
+            }
+          ),
+          /* @__PURE__ */ react.createElement(
+            "circle",
+            {
+              cx: halfW,
+              cy: halfH,
+              r: 6,
+              fill: accentColor,
+              opacity: dotOpacity
+            }
+          )
+        ));
+      }
+    }
+  };
+  return /* @__PURE__ */ react.createElement("div", { style: { position: "absolute", inset: 0, pointerEvents: "none", opacity } }, renderMarker());
+};
+
+;// ./scenes/SpotlightsScene.tsx
+
+
+
+
+const SpotlightsScene = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
+  const frame = (0,esm.useCurrentFrame)();
+  const { fps, width, height } = (0,esm.useVideoConfig)();
+  const points = data.spotlights || [];
+  const imageUrl = data.spotlight_image_url || data.image_url;
+  const preset = data.animation_preset || "smooth";
+  if (!imageUrl || points.length === 0) {
+    return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+      background: theme.colors.backgroundGradient || theme.colors.background,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontFamily: `'${theme.fonts.body}', system-ui, sans-serif`,
+      color: theme.colors.textPrimary,
+      fontSize: 48
+    } }, /* @__PURE__ */ react.createElement("div", null, !imageUrl ? "No base image set" : "No spotlight points set"));
+  }
+  const numPoints = points.length;
+  const framesPerPoint = Math.floor(durationInFrames / numPoints);
+  const transitionFrames = Math.floor(framesPerPoint * 0.2);
+  const cardFadeOutFrames = Math.floor(framesPerPoint * 0.1);
+  const cardDelayFrames = Math.floor(framesPerPoint * 0.3);
+  const sceneFadeIn = (0,esm.interpolate)(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
+  const sceneFadeOut = skipFadeOut ? 1 : (0,esm.interpolate)(
+    frame,
+    [durationInFrames - 15, durationInFrames],
+    [1, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+  );
+  const sceneOpacity = sceneFadeIn * sceneFadeOut;
+  const currentSegmentRaw = frame / framesPerPoint;
+  const currentSegment = Math.min(Math.floor(currentSegmentRaw), numPoints - 1);
+  const segmentFrame = frame - currentSegment * framesPerPoint;
+  const currentPoint = points[currentSegment];
+  const prevPoint = currentSegment > 0 ? points[currentSegment - 1] : currentPoint;
+  const imgW = width * 4;
+  const imgH = height * 4;
+  const getCameraTarget = (pt) => ({
+    scale: pt.zoom,
+    translateX: -(pt.x * imgW - width / 2),
+    translateY: -(pt.y * imgH - height / 2)
+  });
+  const prevCamera = getCameraTarget(prevPoint);
+  const currCamera = getCameraTarget(currentPoint);
+  const cameraProgress = currentSegment === 0 && segmentFrame < transitionFrames ? (0,esm.spring)({ frame: segmentFrame, fps, config: { damping: 80, stiffness: 100 }, durationInFrames: transitionFrames }) : segmentFrame < transitionFrames ? (0,esm.spring)({ frame: segmentFrame, fps, config: { damping: 80, stiffness: 100 }, durationInFrames: transitionFrames }) : 1;
+  const camScale = currentSegment === 0 ? (0,esm.interpolate)(
+    (0,esm.spring)({ frame: Math.min(frame, transitionFrames), fps, config: { damping: 80, stiffness: 100 }, durationInFrames: transitionFrames }),
+    [0, 1],
+    [1, currCamera.scale]
+  ) : (0,esm.interpolate)(cameraProgress, [0, 1], [prevCamera.scale, currCamera.scale]);
+  const camTX = currentSegment === 0 ? (0,esm.interpolate)(
+    (0,esm.spring)({ frame: Math.min(frame, transitionFrames), fps, config: { damping: 80, stiffness: 100 }, durationInFrames: transitionFrames }),
+    [0, 1],
+    [-(points[0].x * imgW - width / 2), currCamera.translateX]
+  ) : (0,esm.interpolate)(cameraProgress, [0, 1], [prevCamera.translateX, currCamera.translateX]);
+  const camTY = currentSegment === 0 ? (0,esm.interpolate)(
+    (0,esm.spring)({ frame: Math.min(frame, transitionFrames), fps, config: { damping: 80, stiffness: 100 }, durationInFrames: transitionFrames }),
+    [0, 1],
+    [-(points[0].y * imgH - height / 2), currCamera.translateY]
+  ) : (0,esm.interpolate)(cameraProgress, [0, 1], [prevCamera.translateY, currCamera.translateY]);
+  const cardFadeIn = (0,esm.interpolate)(
+    segmentFrame,
+    [cardDelayFrames, cardDelayFrames + 15],
+    [0, 1],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+  );
+  const cardFadeOut = (0,esm.interpolate)(
+    segmentFrame,
+    [framesPerPoint - cardFadeOutFrames, framesPerPoint],
+    [1, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+  );
+  const cardOpacity = cardFadeIn * cardFadeOut;
+  const cardSlideY = (0,esm.interpolate)(
+    segmentFrame,
+    [cardDelayFrames, cardDelayFrames + 20],
+    [20, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+  );
+  const cardOnRight = currentPoint.x < 0.5;
+  const cardOnBottom = currentPoint.y < 0.5;
+  const cardX = cardOnRight ? width * 0.55 : width * 0.05;
+  const cardY = cardOnBottom ? height * 0.55 : height * 0.05;
+  const cardWidth = width * 0.38;
+  return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
+    background: theme.colors.background,
+    overflow: "hidden",
+    opacity: sceneOpacity
+  } }, /* @__PURE__ */ react.createElement("div", { style: {
+    position: "absolute",
+    width: imgW,
+    height: imgH,
+    transformOrigin: "0 0",
+    transform: `translate(${camTX}px, ${camTY}px) scale(${camScale})`,
+    willChange: "transform"
+  } }, /* @__PURE__ */ react.createElement(
+    esm.Img,
+    {
+      src: imageUrl,
+      style: {
+        width: "100%",
+        height: "100%",
+        objectFit: "cover"
+      }
+    }
+  )), /* @__PURE__ */ react.createElement("div", { style: {
+    position: "absolute",
+    inset: 0,
+    background: "radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.4) 100%)",
+    pointerEvents: "none"
+  } }), (currentPoint.title || currentPoint.description || currentPoint.image_url) && /* @__PURE__ */ react.createElement("div", { style: {
+    position: "absolute",
+    left: cardX,
+    top: cardY,
+    width: cardWidth,
+    opacity: cardOpacity,
+    transform: `translateY(${cardSlideY}px)`,
+    background: theme.colors.surface || "rgba(10, 10, 10, 0.85)",
+    border: `1px solid ${theme.colors.accent || "rgba(255,255,255,0.15)"}`,
+    padding: 24,
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    fontFamily: `'${theme.fonts.body}', system-ui, sans-serif`
+  } }, currentPoint.badge && /* @__PURE__ */ react.createElement("div", { style: {
+    position: "absolute",
+    top: -16,
+    left: cardOnRight ? -16 : void 0,
+    right: cardOnRight ? void 0 : -16,
+    width: 40,
+    height: 40,
+    background: theme.colors.accent || "#d4a843",
+    color: theme.colors.background || "#0a0a0a",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 18,
+    fontWeight: 700
+  } }, currentPoint.badge), currentPoint.image_url && /* @__PURE__ */ react.createElement(
+    esm.Img,
+    {
+      src: currentPoint.image_url,
+      style: {
+        width: "100%",
+        height: 120,
+        objectFit: "cover"
+      }
+    }
+  ), currentPoint.title && /* @__PURE__ */ react.createElement("div", { style: {
+    fontSize: 32,
+    fontWeight: 700,
+    color: theme.colors.textPrimary,
+    fontFamily: `'${theme.fonts.heading}', serif`,
+    letterSpacing: "-0.02em"
+  } }, /* @__PURE__ */ react.createElement(
+    AnimatedText,
+    {
+      preset,
+      startDelay: cardDelayFrames + 5,
+      distance: 15
+    },
+    currentPoint.title
+  )), currentPoint.description && /* @__PURE__ */ react.createElement("div", { style: {
+    fontSize: 20,
+    lineHeight: 1.4,
+    color: theme.colors.textSecondary || theme.colors.textPrimary,
+    opacity: 0.85
+  } }, /* @__PURE__ */ react.createElement(
+    AnimatedText,
+    {
+      preset,
+      startDelay: cardDelayFrames + 15,
+      distance: 10
+    },
+    currentPoint.description
+  ))), /* @__PURE__ */ react.createElement(
+    SpotlightMarker,
+    {
+      type: currentPoint.markerType || "marker",
+      theme,
+      opacity: cardOpacity,
+      segmentFrame,
+      cardDelayFrames,
+      screenWidth: width,
+      screenHeight: height,
+      cardX,
+      cardY,
+      cardOnRight,
+      cardOnBottom,
+      markerWidth: currentPoint.markerWidth,
+      markerHeight: currentPoint.markerHeight
+    }
+  ));
+};
+
 ;// ./scenes/index.ts
+
 
 
 
@@ -24569,6 +26623,8 @@ const DynamicSceneComposition = ({
         return /* @__PURE__ */ react.createElement(ImageGalleryScene, { data, durationInFrames, theme });
       case "equation":
         return /* @__PURE__ */ react.createElement(EquationScene, { data, durationInFrames, theme });
+      case "spotlights":
+        return /* @__PURE__ */ react.createElement(SpotlightsScene, { data, durationInFrames, theme });
       default:
         return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: {
           backgroundColor: "#0a0a0a",
@@ -24667,6 +26723,34 @@ const TRANSITION_PRESETS = {
   "morph": {
     durationFrames: 30,
     easing: "spring"
+  },
+  "flash": {
+    durationFrames: 12,
+    easing: "ease-in-out"
+  },
+  "spin": {
+    durationFrames: 24,
+    easing: "ease-in-out"
+  },
+  "flip": {
+    durationFrames: 24,
+    easing: "ease-in-out"
+  },
+  "pixelate": {
+    durationFrames: 20,
+    easing: "ease-in-out"
+  },
+  "iris-close": {
+    durationFrames: 24,
+    easing: "ease-in-out"
+  },
+  "clock-wipe": {
+    durationFrames: 24,
+    easing: "ease-out"
+  },
+  "push-left": {
+    durationFrames: 20,
+    easing: "spring"
   }
 };
 const TRANSITION_LABELS = {
@@ -24686,7 +26770,14 @@ const TRANSITION_LABELS = {
   "zoom-out": "Zoom Out",
   "blur": "Blur",
   "glitch": "Glitch",
-  "morph": "Morph"
+  "morph": "Morph",
+  "flash": "Flash",
+  "spin": "Spin",
+  "flip": "Flip",
+  "pixelate": "Pixelate",
+  "iris-close": "Iris Close",
+  "clock-wipe": "Clock Wipe",
+  "push-left": "Push Left"
 };
 const TRANSITION_DESCRIPTIONS = {
   "none": "Instant cut with no transition effect",
@@ -24705,13 +26796,21 @@ const TRANSITION_DESCRIPTIONS = {
   "zoom-out": "New scene zooms out into view",
   "blur": "Blur transition between scenes",
   "glitch": "Digital glitch effect",
-  "morph": "Organic shape morphing"
+  "morph": "Organic shape morphing",
+  "flash": "Bright white flash at midpoint",
+  "spin": "Scene rotates and shrinks, then grows back",
+  "flip": "3D card flip between scenes",
+  "pixelate": "Crossfade with pixelation effect",
+  "iris-close": "Shrinking circle reveals new scene",
+  "clock-wipe": "Radial sweep revealing new scene",
+  "push-left": "Both scenes slide left together"
 };
 const TRANSITION_CATEGORIES = {
   "Basic": ["none", "crossfade", "fade-black", "fade-white"],
   "Slide": ["slide-left", "slide-right", "slide-up", "slide-down"],
   "Wipe": ["wipe-left", "wipe-right", "wipe-up", "wipe-down"],
-  "Cinematic": ["zoom-in", "zoom-out", "blur", "glitch", "morph"]
+  "Cinematic": ["zoom-in", "zoom-out", "blur", "glitch", "morph"],
+  "Dynamic": ["flash", "spin", "flip", "pixelate", "iris-close", "clock-wipe", "push-left"]
 };
 function getTransitionConfig(type, overrides) {
   const preset = TRANSITION_PRESETS[type];
@@ -24895,6 +26994,84 @@ const Transition = ({
           sceneBColor
         }
       );
+    case "flash":
+      return /* @__PURE__ */ react.createElement(
+        FlashTransition,
+        {
+          progress,
+          sceneASnapshot,
+          sceneBSnapshot,
+          sceneAColor,
+          sceneBColor
+        }
+      );
+    case "spin":
+      return /* @__PURE__ */ react.createElement(
+        SpinTransition,
+        {
+          progress,
+          sceneASnapshot,
+          sceneBSnapshot,
+          sceneAColor,
+          sceneBColor
+        }
+      );
+    case "flip":
+      return /* @__PURE__ */ react.createElement(
+        FlipTransition,
+        {
+          progress,
+          sceneASnapshot,
+          sceneBSnapshot,
+          sceneAColor,
+          sceneBColor
+        }
+      );
+    case "pixelate":
+      return /* @__PURE__ */ react.createElement(
+        PixelateTransition,
+        {
+          progress,
+          sceneASnapshot,
+          sceneBSnapshot,
+          sceneAColor,
+          sceneBColor
+        }
+      );
+    case "iris-close":
+      return /* @__PURE__ */ react.createElement(
+        IrisCloseTransition,
+        {
+          progress,
+          sceneASnapshot,
+          sceneBSnapshot,
+          sceneAColor,
+          sceneBColor
+        }
+      );
+    case "clock-wipe":
+      return /* @__PURE__ */ react.createElement(
+        ClockWipeTransition,
+        {
+          progress,
+          sceneASnapshot,
+          sceneBSnapshot,
+          sceneAColor,
+          sceneBColor
+        }
+      );
+    case "push-left":
+      return /* @__PURE__ */ react.createElement(
+        PushTransition,
+        {
+          progress,
+          sceneASnapshot,
+          sceneBSnapshot,
+          sceneAColor,
+          sceneBColor,
+          width
+        }
+      );
     default:
       return /* @__PURE__ */ react.createElement(CutTransition, { sceneBSnapshot, sceneBColor });
   }
@@ -24922,27 +27099,22 @@ const FadeColorTransition = ({ progress, color, sceneASnapshot, sceneBSnapshot, 
   return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, null, /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: { background: color } }), /* @__PURE__ */ react.createElement(SceneLayer, { snapshot: sceneASnapshot, color: sceneAColor, style: { opacity: sceneAOpacity } }), /* @__PURE__ */ react.createElement(SceneLayer, { snapshot: sceneBSnapshot, color: sceneBColor, style: { opacity: sceneBOpacity } }));
 };
 const SlideTransition = ({ progress, direction, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor, width, height }) => {
-  let sceneATransform = "";
   let sceneBTransform = "";
   switch (direction) {
     case "left":
-      sceneATransform = `translateX(${-progress * width}px)`;
       sceneBTransform = `translateX(${(1 - progress) * width}px)`;
       break;
     case "right":
-      sceneATransform = `translateX(${progress * width}px)`;
       sceneBTransform = `translateX(${-(1 - progress) * width}px)`;
       break;
     case "up":
-      sceneATransform = `translateY(${-progress * height}px)`;
       sceneBTransform = `translateY(${(1 - progress) * height}px)`;
       break;
     case "down":
-      sceneATransform = `translateY(${progress * height}px)`;
       sceneBTransform = `translateY(${-(1 - progress) * height}px)`;
       break;
   }
-  return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, null, /* @__PURE__ */ react.createElement(SceneLayer, { snapshot: sceneASnapshot, color: sceneAColor, style: { transform: sceneATransform } }), /* @__PURE__ */ react.createElement(SceneLayer, { snapshot: sceneBSnapshot, color: sceneBColor, style: { transform: sceneBTransform } }));
+  return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, null, /* @__PURE__ */ react.createElement(SceneLayer, { snapshot: sceneASnapshot, color: sceneAColor }), /* @__PURE__ */ react.createElement(SceneLayer, { snapshot: sceneBSnapshot, color: sceneBColor, style: { transform: sceneBTransform } }));
 };
 const WipeTransition = ({ progress, direction, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor, width, height }) => {
   let clipPath = "";
@@ -25060,6 +27232,117 @@ const MorphTransition = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor
   const clipPath = `circle(${radius}% at 50% 50%)`;
   return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, null, /* @__PURE__ */ react.createElement(SceneLayer, { snapshot: sceneASnapshot, color: sceneAColor }), /* @__PURE__ */ react.createElement(SceneLayer, { snapshot: sceneBSnapshot, color: sceneBColor, style: { clipPath } }));
 };
+const FlashTransition = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor }) => {
+  const flashOpacity = Math.sin(progress * Math.PI);
+  return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, null, progress < 0.5 ? /* @__PURE__ */ react.createElement(SceneLayer, { snapshot: sceneASnapshot, color: sceneAColor }) : /* @__PURE__ */ react.createElement(SceneLayer, { snapshot: sceneBSnapshot, color: sceneBColor }), /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: { background: "#ffffff", opacity: flashOpacity } }));
+};
+const SpinTransition = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor }) => /* @__PURE__ */ react.createElement(esm.AbsoluteFill, null, /* @__PURE__ */ react.createElement(
+  SceneLayer,
+  {
+    snapshot: sceneASnapshot,
+    color: sceneAColor,
+    style: {
+      transform: `rotate(${progress * 180}deg) scale(${1 - progress * 0.5})`,
+      opacity: 1 - progress
+    }
+  }
+), /* @__PURE__ */ react.createElement(
+  SceneLayer,
+  {
+    snapshot: sceneBSnapshot,
+    color: sceneBColor,
+    style: {
+      transform: `rotate(${(1 - progress) * -180}deg) scale(${0.5 + progress * 0.5})`,
+      opacity: progress
+    }
+  }
+));
+const FlipTransition = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor }) => /* @__PURE__ */ react.createElement(esm.AbsoluteFill, { style: { perspective: "1200px" } }, progress < 0.5 ? /* @__PURE__ */ react.createElement(
+  SceneLayer,
+  {
+    snapshot: sceneASnapshot,
+    color: sceneAColor,
+    style: {
+      transform: `rotateY(${progress * 180}deg)`,
+      backfaceVisibility: "hidden"
+    }
+  }
+) : /* @__PURE__ */ react.createElement(
+  SceneLayer,
+  {
+    snapshot: sceneBSnapshot,
+    color: sceneBColor,
+    style: {
+      transform: `rotateY(${(1 - progress) * -180}deg)`,
+      backfaceVisibility: "hidden"
+    }
+  }
+));
+const PixelateTransition = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor }) => {
+  const radius = Math.sin(progress * Math.PI) * 8;
+  const filterId = "pixelate-filter";
+  return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, null, /* @__PURE__ */ react.createElement("svg", { style: { position: "absolute", width: 0, height: 0 } }, /* @__PURE__ */ react.createElement("defs", null, /* @__PURE__ */ react.createElement("filter", { id: filterId }, /* @__PURE__ */ react.createElement("feMorphology", { operator: "dilate", radius })))), /* @__PURE__ */ react.createElement(
+    SceneLayer,
+    {
+      snapshot: sceneASnapshot,
+      color: sceneAColor,
+      style: {
+        opacity: 1 - progress,
+        filter: `url(#${filterId})`
+      }
+    }
+  ), /* @__PURE__ */ react.createElement(
+    SceneLayer,
+    {
+      snapshot: sceneBSnapshot,
+      color: sceneBColor,
+      style: {
+        opacity: progress,
+        filter: `url(#${filterId})`
+      }
+    }
+  ));
+};
+const IrisCloseTransition = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor }) => {
+  const radius = (1 - progress) * 150;
+  return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, null, /* @__PURE__ */ react.createElement(SceneLayer, { snapshot: sceneBSnapshot, color: sceneBColor }), /* @__PURE__ */ react.createElement(
+    SceneLayer,
+    {
+      snapshot: sceneASnapshot,
+      color: sceneAColor,
+      style: { clipPath: `circle(${radius}% at 50% 50%)` }
+    }
+  ));
+};
+const ClockWipeTransition = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor }) => {
+  const angle = progress * 360;
+  return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, null, /* @__PURE__ */ react.createElement(SceneLayer, { snapshot: sceneASnapshot, color: sceneAColor }), /* @__PURE__ */ react.createElement(
+    SceneLayer,
+    {
+      snapshot: sceneBSnapshot,
+      color: sceneBColor,
+      style: {
+        WebkitMaskImage: `conic-gradient(from 0deg, black ${angle}deg, transparent ${angle}deg)`,
+        maskImage: `conic-gradient(from 0deg, black ${angle}deg, transparent ${angle}deg)`
+      }
+    }
+  ));
+};
+const PushTransition = ({ progress, sceneASnapshot, sceneBSnapshot, sceneAColor, sceneBColor, width }) => /* @__PURE__ */ react.createElement(esm.AbsoluteFill, null, /* @__PURE__ */ react.createElement(
+  SceneLayer,
+  {
+    snapshot: sceneASnapshot,
+    color: sceneAColor,
+    style: { transform: `translateX(${-progress * width}px)` }
+  }
+), /* @__PURE__ */ react.createElement(
+  SceneLayer,
+  {
+    snapshot: sceneBSnapshot,
+    color: sceneBColor,
+    style: { transform: `translateX(${(1 - progress) * width}px)` }
+  }
+));
 /* harmony default export */ const components_Transition = ((/* unused pure expression or super */ null && (Transition)));
 
 ;// ./TransitionPreviewComposition.tsx
@@ -25141,7 +27424,655 @@ const AnimationPreviewComposition = ({
   );
 };
 
+;// ./components/SpiralTextAnimation.tsx
+
+
+
+
+const SLIDE_FRAMES = 18;
+const ROTATE_FRAMES = 17;
+const STEP_FRAMES = SLIDE_FRAMES + ROTATE_FRAMES;
+function chunkText(text, target) {
+  const words = text.split(/\s+/).filter(Boolean);
+  const chunks = [];
+  let current = "";
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (current && candidate.length > target) {
+      chunks.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+const SpiralTextAnimation = ({
+  text,
+  targetCharsPerChunk = 30,
+  fontSize = 32,
+  fontFamily = "sans-serif",
+  fontWeight = 700,
+  color = "#ffffff",
+  modifier
+}) => {
+  const frame = (0,esm.useCurrentFrame)();
+  const { fps, width: viewportW, height: viewportH } = (0,esm.useVideoConfig)();
+  const chunks = (0,react.useMemo)(
+    () => chunkText(text, targetCharsPerChunk),
+    [text, targetCharsPerChunk]
+  );
+  const measureRefs = (0,react.useRef)(/* @__PURE__ */ new Map());
+  const [dims, setDims] = (0,react.useState)([]);
+  (0,react.useLayoutEffect)(() => {
+    const next = [];
+    for (let i = 0; i < chunks.length; i++) {
+      const el = measureRefs.current.get(i);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        next.push({ w: rect.width, h: rect.height });
+      }
+    }
+    if (next.length === chunks.length) setDims(next);
+  }, [chunks, fontSize, fontFamily, fontWeight]);
+  const measured = dims.length === chunks.length;
+  const junctionGap = fontSize * 0.8;
+  const spiralCenters = (0,react.useMemo)(() => {
+    if (!measured) return [];
+    const pos = [{ x: 0, y: 0 }];
+    for (let i = 1; i < chunks.length; i++) {
+      const prev = pos[i - 1];
+      const prevW = dims[i - 1].w;
+      const prevAngle = (i - 1) * Math.PI / 2;
+      const currW = dims[i].w;
+      const currAngle = i * Math.PI / 2;
+      const jx = prev.x + (prevW / 2 + junctionGap) * Math.cos(prevAngle);
+      const jy = prev.y + (prevW / 2 + junctionGap) * Math.sin(prevAngle);
+      pos.push({
+        x: jx + (currW / 2 + junctionGap) * Math.cos(currAngle),
+        y: jy + (currW / 2 + junctionGap) * Math.sin(currAngle)
+      });
+    }
+    return pos;
+  }, [measured, dims, chunks.length, junctionGap]);
+  const currentStep = Math.min(
+    Math.floor(frame / STEP_FRAMES),
+    chunks.length - 1
+  );
+  let containerRotation = 0;
+  for (let s = 0; s < chunks.length - 1; s++) {
+    const rotStart = s * STEP_FRAMES + SLIDE_FRAMES;
+    if (frame >= rotStart) {
+      const local = frame - rotStart;
+      const p = (0,esm.spring)({
+        frame: Math.min(local, ROTATE_FRAMES),
+        fps,
+        config: springConfig.smooth,
+        durationInFrames: ROTATE_FRAMES
+      });
+      containerRotation -= 90 * p;
+    }
+  }
+  let focusX = 0;
+  let focusY = 0;
+  if (spiralCenters.length > 0) {
+    let focusIdx = 0;
+    for (let s = 0; s < chunks.length - 1; s++) {
+      const rotStart = s * STEP_FRAMES + SLIDE_FRAMES;
+      if (frame >= rotStart) {
+        const rotLocal = frame - rotStart;
+        const t = (0,esm.spring)({
+          frame: Math.min(rotLocal, ROTATE_FRAMES),
+          fps,
+          config: springConfig.smooth,
+          durationInFrames: ROTATE_FRAMES
+        });
+        focusIdx = s + t;
+      }
+    }
+    const fl = Math.floor(focusIdx);
+    const fc = Math.min(fl + 1, spiralCenters.length - 1);
+    const frac = focusIdx - fl;
+    focusX = spiralCenters[fl].x + (spiralCenters[fc].x - spiralCenters[fl].x) * frac;
+    focusY = spiralCenters[fl].y + (spiralCenters[fc].y - spiralCenters[fl].y) * frac;
+  }
+  const modifierFn = modifier ? getTextModifier(modifier) : void 0;
+  const layers = [];
+  for (let i = 0; i < chunks.length; i++) {
+    const stepStart = i * STEP_FRAMES;
+    const localFrame = frame - stepStart;
+    if (localFrame < 0) continue;
+    const dist = currentStep - i;
+    if (dist > 2) continue;
+    const slideProgress = (0,esm.spring)({
+      frame: Math.min(localFrame, SLIDE_FRAMES),
+      fps,
+      config: springConfig.snappy,
+      durationInFrames: SLIDE_FRAMES
+    });
+    const slideX = (0,esm.interpolate)(slideProgress, [0, 1], [viewportW * 0.6, 0]);
+    const chunkRotation = i * 90 + (0,esm.interpolate)(slideProgress, [0, 1], [90, 0]);
+    let opacity = slideProgress;
+    if (dist >= 2) {
+      const fadeStart = (i + 2) * STEP_FRAMES;
+      const fadeLocal = frame - fadeStart;
+      if (fadeLocal >= 0) {
+        const fp = (0,esm.spring)({
+          frame: Math.min(fadeLocal, SLIDE_FRAMES),
+          fps,
+          config: springConfig.smooth,
+          durationInFrames: SLIDE_FRAMES
+        });
+        opacity = (0,esm.interpolate)(fp, [0, 1], [1, 0]);
+      }
+    } else if (dist === 1) {
+      const fadeStart = (i + 1) * STEP_FRAMES + SLIDE_FRAMES * 0.5;
+      const fadeLocal = frame - fadeStart;
+      if (fadeLocal > 0) {
+        const fp = Math.min(fadeLocal / (STEP_FRAMES * 1.5), 1);
+        opacity = (0,esm.interpolate)(fp, [0, 1], [1, 0.35]);
+      }
+    }
+    const posX = spiralCenters.length > i ? spiralCenters[i].x - focusX : 0;
+    const posY = spiralCenters.length > i ? spiralCenters[i].y - focusY : 0;
+    const w = measured ? dims[i].w : 0;
+    const base = {
+      position: "absolute",
+      left: posX - w / 2,
+      top: posY - fontSize / 2,
+      whiteSpace: "nowrap",
+      fontSize,
+      fontFamily,
+      fontWeight,
+      lineHeight: 1,
+      transformOrigin: "center center",
+      willChange: "transform, opacity"
+    };
+    const postGlitch = modifier === "glitch" && slideProgress > 0.95 ? getGlitchWordJitter(frame, i) : void 0;
+    const glitchOffset = postGlitch ? postGlitch.replace("translateX(", "").replace("px)", "") : "0";
+    const chunkStyle = {
+      ...base,
+      color,
+      opacity,
+      transform: `translateX(${slideX + Number(glitchOffset)}px) rotate(${chunkRotation}deg)`
+    };
+    if (modifierFn) {
+      layers.push(
+        /* @__PURE__ */ react.createElement(react.Fragment, { key: `chunk-${i}` }, modifierFn({
+          children: chunks[i],
+          progress: slideProgress,
+          baseStyle: chunkStyle,
+          keyPrefix: `chunk-${i}`,
+          intensity: 3.5
+        }))
+      );
+    } else {
+      layers.push(
+        /* @__PURE__ */ react.createElement("span", { key: `w-${i}`, style: chunkStyle }, chunks[i])
+      );
+    }
+  }
+  return /* @__PURE__ */ react.createElement(
+    "div",
+    {
+      style: {
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+        backgroundColor: "transparent"
+      }
+    },
+    chunks.map((chunk, i) => /* @__PURE__ */ react.createElement(
+      "span",
+      {
+        key: `m-${i}`,
+        ref: (el) => {
+          if (el) measureRefs.current.set(i, el);
+        },
+        style: {
+          position: "absolute",
+          visibility: "hidden",
+          whiteSpace: "nowrap",
+          fontSize,
+          fontFamily,
+          fontWeight,
+          lineHeight: 1
+        }
+      },
+      chunk
+    )),
+    measured && spiralCenters.length > 0 && /* @__PURE__ */ react.createElement(
+      "div",
+      {
+        style: {
+          position: "absolute",
+          left: 0,
+          top: 0,
+          transform: `translate(${viewportW / 2}px, ${viewportH / 2}px) rotate(${containerRotation}deg)`
+        }
+      },
+      layers
+    )
+  );
+};
+
+;// ./TextAnimationPreviewComposition.tsx
+
+
+
+
+
+
+
+
+const SPIRAL_TEXT = "Rendomat generates stunning video sales letters with AI-powered scenes and animations that captivate your audience and drive conversions like never before seen in the industry";
+const TextAnimationPreviewComposition = ({
+  preset,
+  durationFrames = 90,
+  modifier
+}) => {
+  if (preset === "echo") {
+    return /* @__PURE__ */ react.createElement(
+      esm.AbsoluteFill,
+      {
+        style: {
+          backgroundColor: "#0a0a0a"
+        }
+      },
+      /* @__PURE__ */ react.createElement(
+        "div",
+        {
+          style: {
+            position: "absolute",
+            top: 20,
+            left: 24,
+            color: "rgba(255,255,255,0.35)",
+            fontFamily: "sans-serif",
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            zIndex: 10
+          }
+        },
+        modifier ? `${preset} + ${modifier}` : preset
+      ),
+      /* @__PURE__ */ react.createElement(
+        EchoTextAnimation,
+        {
+          text: "Rendomat",
+          fontSize: 56,
+          fontFamily: "sans-serif",
+          fontWeight: 700,
+          color: "#ffffff"
+        }
+      )
+    );
+  }
+  if (preset === "spiral") {
+    return /* @__PURE__ */ react.createElement(
+      esm.AbsoluteFill,
+      {
+        style: {
+          backgroundColor: "#0a0a0a"
+        }
+      },
+      /* @__PURE__ */ react.createElement(
+        "div",
+        {
+          style: {
+            position: "absolute",
+            top: 20,
+            left: 24,
+            color: "rgba(255,255,255,0.35)",
+            fontFamily: "sans-serif",
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            zIndex: 10
+          }
+        },
+        modifier ? `${preset} + ${modifier}` : preset
+      ),
+      /* @__PURE__ */ react.createElement(
+        SpiralTextAnimation,
+        {
+          text: SPIRAL_TEXT,
+          fontSize: 36,
+          fontFamily: "sans-serif",
+          fontWeight: 700,
+          color: "#ffffff",
+          modifier
+        }
+      )
+    );
+  }
+  if (preset === "reveal") {
+    return /* @__PURE__ */ react.createElement(
+      esm.AbsoluteFill,
+      {
+        style: {
+          backgroundColor: "#0a0a0a"
+        }
+      },
+      /* @__PURE__ */ react.createElement(
+        "div",
+        {
+          style: {
+            position: "absolute",
+            top: 20,
+            left: 24,
+            color: "rgba(255,255,255,0.35)",
+            fontFamily: "sans-serif",
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            zIndex: 10
+          }
+        },
+        modifier ? `${preset} + ${modifier}` : preset
+      ),
+      /* @__PURE__ */ react.createElement(
+        RevealTextAnimation,
+        {
+          text: "Rendomat",
+          fontSize: 56,
+          fontFamily: "sans-serif",
+          fontWeight: 700,
+          color: "#ffffff"
+        }
+      )
+    );
+  }
+  if (preset === "tracking") {
+    return /* @__PURE__ */ react.createElement(
+      esm.AbsoluteFill,
+      {
+        style: {
+          backgroundColor: "#0a0a0a"
+        }
+      },
+      /* @__PURE__ */ react.createElement(
+        "div",
+        {
+          style: {
+            position: "absolute",
+            top: 20,
+            left: 24,
+            color: "rgba(255,255,255,0.35)",
+            fontFamily: "sans-serif",
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            zIndex: 10
+          }
+        },
+        modifier ? `${preset} + ${modifier}` : preset
+      ),
+      /* @__PURE__ */ react.createElement(
+        TrackingTextAnimation,
+        {
+          text: "Rendomat",
+          fontSize: 56,
+          fontFamily: "sans-serif",
+          fontWeight: 700,
+          color: "#ffffff"
+        }
+      )
+    );
+  }
+  if (preset === "flicker") {
+    return /* @__PURE__ */ react.createElement(
+      esm.AbsoluteFill,
+      {
+        style: {
+          backgroundColor: "#0a0a0a"
+        }
+      },
+      /* @__PURE__ */ react.createElement(
+        "div",
+        {
+          style: {
+            position: "absolute",
+            top: 20,
+            left: 24,
+            color: "rgba(255,255,255,0.35)",
+            fontFamily: "sans-serif",
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            zIndex: 10
+          }
+        },
+        modifier ? `${preset} + ${modifier}` : preset
+      ),
+      /* @__PURE__ */ react.createElement(
+        FlickerTextAnimation,
+        {
+          text: "Rendomat",
+          fontSize: 56,
+          fontFamily: "sans-serif",
+          fontWeight: 700,
+          color: "#ffffff"
+        }
+      )
+    );
+  }
+  return /* @__PURE__ */ react.createElement(
+    esm.AbsoluteFill,
+    {
+      style: {
+        backgroundColor: "#0a0a0a",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 40
+      }
+    },
+    /* @__PURE__ */ react.createElement(
+      "div",
+      {
+        style: {
+          position: "absolute",
+          top: 20,
+          left: 24,
+          color: "rgba(255,255,255,0.35)",
+          fontFamily: "sans-serif",
+          fontSize: 14,
+          fontWeight: 600,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase"
+        }
+      },
+      modifier ? `${preset} + ${modifier}` : preset
+    ),
+    /* @__PURE__ */ react.createElement(
+      AnimatedText,
+      {
+        preset,
+        startDelay: 8,
+        modifier,
+        style: {
+          color: "#ffffff",
+          fontFamily: "sans-serif",
+          fontSize: 36,
+          fontWeight: 700,
+          lineHeight: 1.2,
+          textAlign: "center",
+          marginBottom: 16
+        }
+      },
+      "Rendomat"
+    ),
+    /* @__PURE__ */ react.createElement(
+      AnimatedText,
+      {
+        preset,
+        startDelay: 25,
+        modifier,
+        style: {
+          color: "rgba(255,255,255,0.6)",
+          fontFamily: "sans-serif",
+          fontSize: 18,
+          fontWeight: 400,
+          lineHeight: 1.5,
+          textAlign: "center",
+          maxWidth: 480,
+          overflowWrap: "break-word"
+        }
+      },
+      "Generate stunning video sales letters with AI-powered scenes and animations"
+    )
+  );
+};
+
+;// ./TextLayoutPreviewComposition.tsx
+
+
+
+
+
+const TITLE_TEXT = "The Future\nof Video";
+const BODY_TEXT = "Generate stunning video sales letters with AI-powered scenes and animations that captivate your audience.";
+const TextLayoutPreviewComposition = ({
+  layout,
+  durationFrames = 120,
+  themeId = "tech-dark"
+}) => {
+  const theme = getTheme(themeId);
+  return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, null, /* @__PURE__ */ react.createElement(
+    TextOnlyScene,
+    {
+      data: {
+        title: TITLE_TEXT,
+        body_text: BODY_TEXT,
+        text_layout: layout,
+        animation_preset: "minimal"
+      },
+      durationInFrames: durationFrames,
+      theme
+    }
+  ), /* @__PURE__ */ react.createElement(
+    "div",
+    {
+      style: {
+        position: "absolute",
+        top: 16,
+        right: 20,
+        color: "rgba(255,255,255,0.35)",
+        fontFamily: "sans-serif",
+        fontSize: 14,
+        fontWeight: 600,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        zIndex: 10
+      }
+    },
+    LAYOUT_LABELS[layout] ?? layout
+  ));
+};
+
+;// ./ThemePreviewComposition.tsx
+
+
+
+
+const SCENE_DURATION = 75;
+const ThemePreviewComposition = ({
+  themeId,
+  durationFrames = 300
+}) => {
+  const theme = getTheme(themeId);
+  const fontNames = [theme.fonts.heading, theme.fonts.body];
+  const uniqueFonts = [...new Set(fontNames)];
+  const fontIds = uniqueFonts.map((name) => {
+    const match = GOOGLE_FONTS.find(
+      (f) => f.name.toLowerCase() === name.toLowerCase()
+    );
+    return match == null ? void 0 : match.id;
+  }).filter(Boolean);
+  const fontsUrl = fontIds.length > 0 ? getGoogleFontsUrl(fontIds) : null;
+  return /* @__PURE__ */ react.createElement(esm.AbsoluteFill, null, fontsUrl && /* @__PURE__ */ react.createElement("link", { rel: "stylesheet", href: fontsUrl }), /* @__PURE__ */ react.createElement(esm.Sequence, { from: 0, durationInFrames: SCENE_DURATION }, /* @__PURE__ */ react.createElement(
+    TextOnlyScene,
+    {
+      data: {
+        title: "Professional Videos",
+        body_text: "Create stunning content that captivates your audience and drives results.",
+        animation_preset: "static"
+      },
+      durationInFrames: SCENE_DURATION,
+      theme,
+      skipFadeOut: true
+    }
+  )), /* @__PURE__ */ react.createElement(esm.Sequence, { from: SCENE_DURATION, durationInFrames: SCENE_DURATION }, /* @__PURE__ */ react.createElement(
+    QuoteScene,
+    {
+      data: {
+        quote: "Design is intelligence made visible.",
+        author: "Alina Wheeler",
+        animation_preset: "static"
+      },
+      durationInFrames: SCENE_DURATION,
+      theme,
+      skipFadeOut: true
+    }
+  )), /* @__PURE__ */ react.createElement(esm.Sequence, { from: SCENE_DURATION * 2, durationInFrames: SCENE_DURATION }, /* @__PURE__ */ react.createElement(
+    StatsScene,
+    {
+      data: {
+        stats_text: "85% | Client Satisfaction\n10K+ | Videos Created",
+        animation_preset: "static"
+      },
+      durationInFrames: SCENE_DURATION,
+      theme,
+      skipFadeOut: true
+    }
+  )), /* @__PURE__ */ react.createElement(esm.Sequence, { from: SCENE_DURATION * 3, durationInFrames: durationFrames - SCENE_DURATION * 3 }, /* @__PURE__ */ react.createElement(
+    BarChartScene,
+    {
+      data: {
+        title: "Growth Metrics",
+        chart_data: JSON.stringify({
+          labels: ["Q1", "Q2", "Q3", "Q4"],
+          values: [35, 52, 68, 89]
+        }),
+        animation_preset: "static"
+      },
+      durationInFrames: durationFrames - SCENE_DURATION * 3,
+      theme,
+      skipFadeOut: true
+    }
+  )), /* @__PURE__ */ react.createElement(
+    "div",
+    {
+      style: {
+        position: "absolute",
+        top: 16,
+        left: 20,
+        color: "rgba(255,255,255,0.35)",
+        fontFamily: "sans-serif",
+        fontSize: 14,
+        fontWeight: 600,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        zIndex: 10
+      }
+    },
+    theme.name
+  ));
+};
+
 ;// ./Root.tsx
+
+
+
 
 
 
@@ -25326,6 +28257,59 @@ const RemotionRoot = () => {
       },
       calculateMetadata: ({ props }) => ({
         durationInFrames: props.durationFrames || 90
+      })
+    }
+  ), /* @__PURE__ */ react.createElement(
+    esm.Composition,
+    {
+      id: "TextAnimationPreview",
+      component: TextAnimationPreviewComposition,
+      durationInFrames: 300,
+      fps: 30,
+      width: 640,
+      height: 360,
+      defaultProps: {
+        preset: "energetic",
+        durationFrames: 300,
+        modifier: void 0
+      },
+      calculateMetadata: ({ props }) => ({
+        durationInFrames: props.durationFrames || 180
+      })
+    }
+  ), /* @__PURE__ */ react.createElement(
+    esm.Composition,
+    {
+      id: "TextLayoutPreview",
+      component: TextLayoutPreviewComposition,
+      durationInFrames: 120,
+      fps: 30,
+      width: 640,
+      height: 360,
+      defaultProps: {
+        layout: "centered",
+        durationFrames: 120,
+        themeId: "tech-dark"
+      },
+      calculateMetadata: ({ props }) => ({
+        durationInFrames: props.durationFrames || 120
+      })
+    }
+  ), /* @__PURE__ */ react.createElement(
+    esm.Composition,
+    {
+      id: "ThemePreview",
+      component: ThemePreviewComposition,
+      durationInFrames: 300,
+      fps: 30,
+      width: 640,
+      height: 360,
+      defaultProps: {
+        themeId: "tech-dark",
+        durationFrames: 300
+      },
+      calculateMetadata: ({ props }) => ({
+        durationInFrames: props.durationFrames || 300
       })
     }
   ));
@@ -52541,7 +55525,7 @@ var NoReactInternals = {
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module is referenced by other modules so it can't be inlined
 /******/ 	__webpack_require__(4255);
-/******/ 	__webpack_require__(1086);
+/******/ 	__webpack_require__(8622);
 /******/ 	__webpack_require__(3902);
 /******/ 	var __webpack_exports__ = __webpack_require__(1640);
 /******/ 	

@@ -5,11 +5,13 @@ import { ResponsiveLayout } from '../hooks/useResponsiveLayout';
 import {
   usePresetAnimation,
   usePresetSceneFade,
+  useSceneBlur,
   buildTransform,
 } from '../lib/motion';
 import {
   AnimationPreset,
   getElementConfig,
+  resolvePresets,
   PresetConfig,
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
@@ -24,7 +26,8 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
   const { layout, textLayout } = useTextLayout(data.text_layout as TextLayoutPreset | undefined);
 
   // Get animation preset from data or default to 'energetic'
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'energetic';
+  const { presetIn, presetOut } = resolvePresets(data, 'energetic');
+  const preset = presetIn;
 
   // Get element-specific configs
   const titleConfig = getElementConfig('stats', preset, 'title');
@@ -32,6 +35,9 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
 
   // Scene fade (skip fade-out when using external transitions)
   const sceneFade = usePresetSceneFade(titleConfig, durationInFrames, skipFadeOut);
+  const sceneBlur = useSceneBlur(titleConfig, durationInFrames, skipFadeOut);
+  const exitConfig = presetOut ? getElementConfig('stats', presetOut, 'title') : null;
+  const exitFade = exitConfig ? usePresetSceneFade(exitConfig, durationInFrames, false) : 1;
 
   // Parse stats from stats_text format: "75% | Description"
   const stats = data.stats_text
@@ -53,7 +59,8 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
       <AbsoluteFill style={{
         ...textLayout.container,
         background: theme.colors.backgroundGradient || theme.colors.background,
-        opacity: sceneFade,
+        opacity: sceneFade * exitFade,
+        filter: sceneBlur || undefined,
       }}>
         <EchoTextAnimation
           text={data.title}
@@ -71,7 +78,8 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
       <AbsoluteFill style={{
         ...textLayout.container,
         background: theme.colors.backgroundGradient || theme.colors.background,
-        opacity: sceneFade,
+        opacity: sceneFade * exitFade,
+        filter: sceneBlur || undefined,
       }}>
         <RevealTextAnimation
           text={data.title}
@@ -89,7 +97,8 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
       <AbsoluteFill style={{
         ...textLayout.container,
         background: theme.colors.backgroundGradient || theme.colors.background,
-        opacity: sceneFade,
+        opacity: sceneFade * exitFade,
+        filter: sceneBlur || undefined,
       }}>
         <TrackingTextAnimation
           text={data.title}
@@ -107,7 +116,8 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
       <AbsoluteFill style={{
         ...textLayout.container,
         background: theme.colors.backgroundGradient || theme.colors.background,
-        opacity: sceneFade,
+        opacity: sceneFade * exitFade,
+        filter: sceneBlur || undefined,
       }}>
         <FlickerTextAnimation
           text={data.title}
@@ -126,7 +136,8 @@ export const StatsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme
       background: theme.colors.backgroundGradient || theme.colors.background,
       fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
       padding: layout.padding * 1.5,
-      opacity: sceneFade,
+      opacity: sceneFade * exitFade,
+      filter: sceneBlur || undefined,
     }}>
       {isSplit ? (
         /* Split layout: title left, stats right */

@@ -4,11 +4,13 @@ import { SceneProps } from './types';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import {
   usePresetSceneFade,
+  useSceneBlur,
   springConfig,
 } from '../lib/motion';
 import {
   AnimationPreset,
   getElementConfig,
+  resolvePresets,
   PresetConfig,
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
@@ -16,15 +18,21 @@ import { AnimatedText } from '../components/AnimatedText';
 export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const layout = useResponsiveLayout();
 
-  // Get animation preset from data or default to 'energetic'
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'energetic';
+  // Resolve entrance/exit presets
+  const { presetIn, presetOut } = resolvePresets(data, 'energetic');
+  const preset = presetIn;
 
   // Get element-specific configs
   const titleConfig = getElementConfig('progress-bars', preset, 'title');
   const dataConfig = getElementConfig('progress-bars', preset, 'data');
 
-  // Scene fade (skip fade-out when using external transitions)
+  // Scene fade + blur (skip fade-out when using external transitions)
   const sceneFade = usePresetSceneFade(titleConfig, durationInFrames, skipFadeOut);
+  const sceneBlur = useSceneBlur(titleConfig, durationInFrames, skipFadeOut);
+
+  // Exit animation: if presetOut is set, compute exit fade
+  const exitConfig = presetOut ? getElementConfig('progress-bars', presetOut, 'title') : null;
+  const exitFade = exitConfig ? usePresetSceneFade(exitConfig, durationInFrames, false) : 1;
 
   // Parse from stats_text format: "75 | Label"
   const bars = data.stats_text
@@ -43,7 +51,8 @@ export const ProgressBarsScene: React.FC<SceneProps> = ({ data, durationInFrames
       fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
       padding: layout.padding * 1.5,
       justifyContent: 'center',
-      opacity: sceneFade,
+      opacity: sceneFade * exitFade,
+      filter: sceneBlur || undefined,
     }}>
       {data.title && (
         <div style={{

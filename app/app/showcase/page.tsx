@@ -79,7 +79,7 @@ export default function ShowcasePage() {
           <div className="space-y-8">
             <div>
               <p className="text-xs text-[hsl(var(--foreground-subtle))] mb-2 font-mono">
-                headline / Instrument Serif
+                headline / Playfair Display
               </p>
               <p className="headline text-4xl text-[hsl(var(--foreground))]">
                 The quick brown fox jumps over the lazy dog

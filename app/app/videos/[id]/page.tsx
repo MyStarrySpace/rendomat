@@ -28,15 +28,18 @@ import {
   RefreshCw,
   ArrowDownUp,
   Plus,
-  Minus
+  Minus,
+  Cloud,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { videoApi, sceneApi, clientApi, platformApi, personaApi, transitionApi, Video, Scene, Client, EffectivePersonas, Transition, TransitionType, API_BASE } from "@/lib/api";
+import { useSession } from "next-auth/react";
+import { videoApi, sceneApi, clientApi, platformApi, personaApi, transitionApi, audioClipApi, videoClipApi, cloudRenderApi, Video, Scene, Client, EffectivePersonas, Transition, TransitionType, AudioClip, VideoClip, RenderCapabilities, API_BASE } from "@/lib/api";
 import { calculateSceneDuration } from "@/lib/scene-duration";
 import { TimelineEditor } from "@/components/timeline";
 import { THEMES } from "@/lib/themes";
 import { AnimationPicker } from "@/components/ui/AnimationPicker";
+import { ThemePicker } from "@/components/ui/ThemePicker";
 import StockImageBrowser from "../../components/StockImageBrowser";
 import { SpotlightsEditor } from "@/components/timeline/SpotlightsEditor";
 import PersonaSelector from "@/components/PersonaSelector";
@@ -104,6 +107,17 @@ export default function VideoDetailPage() {
   const [editPersonas, setEditPersonas] = useState<string[]>([]);
   const [editBehaviorOverrides, setEditBehaviorOverrides] = useState<Record<string, string | string[]>>({});
 
+  // Audio clips state
+  const [audioClips, setAudioClips] = useState<AudioClip[]>([]);
+
+  // Video clips (B-roll) state
+  const [videoClips, setVideoClips] = useState<VideoClip[]>([]);
+
+  // Cloud render state
+  const { data: session } = useSession();
+  const [renderMode, setRenderMode] = useState<'local' | 'cloud'>('local');
+  const [renderCapabilities, setRenderCapabilities] = useState<RenderCapabilities | null>(null);
+
   // Transition state
   const [transitions, setTransitions] = useState<Transition[]>([]);
   const [transitionTypes, setTransitionTypes] = useState<TransitionType[]>([]);
@@ -111,6 +125,9 @@ export default function VideoDetailPage() {
   const [showTransitions, setShowTransitions] = useState(true);
 
   const mainVideoRef = useRef<HTMLVideoElement>(null);
+  const sidePanelRef = useRef<HTMLDivElement>(null);
+  const [sidePanelMounted, setSidePanelMounted] = useState(false);
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
 
   // Build per-scene render progress map from SSE progress data
   const sceneRenderProgress = useMemo(() => {
@@ -143,6 +160,28 @@ export default function VideoDetailPage() {
         setProgressData(progress);
 
         // Update progress text based on stage
+        if (progress.renderMode === 'cloud') {
+          if (progress.stage === 'starting') {
+            setRenderProgress('Starting cloud render...');
+          } else if (progress.stage === 'rendering') {
+            setRenderProgress(`Cloud rendering: ${progress.progress || 0}%`);
+          } else if (progress.stage === 'complete') {
+            setRenderProgress('Cloud render complete!');
+            setTimeout(() => {
+              setRenderProgress('');
+              setRendering(false);
+              loadData();
+            }, 2000);
+          } else if (progress.stage === 'error') {
+            setRenderProgress(`Cloud render failed: ${progress.error}`);
+            setTimeout(() => {
+              setRenderProgress('');
+              setRendering(false);
+            }, 5000);
+          }
+          return;
+        }
+
         if (progress.stage === 'bundling') {
           setRenderProgress('Bundling Remotion project...');
         } else if (progress.stage === 'stitching') {
@@ -177,16 +216,20 @@ export default function VideoDetailPage() {
 
   async function loadData() {
     try {
-      const [videoData, scenesData, transitionsData, transitionTypesData] = await Promise.all([
+      const [videoData, scenesData, transitionsData, transitionTypesData, audioClipsData, videoClipsData] = await Promise.all([
         videoApi.getById(videoId),
         sceneApi.getAllForVideo(videoId),
         transitionApi.getAllForVideo(videoId),
         transitionApi.getTypes(),
+        audioClipApi.getAllForVideo(videoId),
+        videoClipApi.getAllForVideo(videoId),
       ]);
       setVideo(videoData);
       setScenes(scenesData);
       setTransitions(transitionsData);
       setTransitionTypes(transitionTypesData);
+      setAudioClips(audioClipsData);
+      setVideoClips(videoClipsData);
 
       if (videoData.client_id) {
         const clientData = await clientApi.getById(videoData.client_id);
@@ -201,6 +244,13 @@ export default function VideoDetailPage() {
       } catch (error) {
         console.error("Failed to load personas:", error);
       }
+
+      try {
+        const caps = await cloudRenderApi.getCapabilities();
+        setRenderCapabilities(caps);
+      } catch {
+        // Cloud render check failed, local only
+      }
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
@@ -212,10 +262,10 @@ export default function VideoDetailPage() {
     setRendering(true);
     setRenderProgress("Preparing to render...");
     setProgressData({
-      rendered_scenes: 0,
+      completed_scenes: 0,
       total_scenes: scenes.length,
-      current_scene: 0,
-      percentage: 0
+      current_scene_index: 0,
+      overall_progress: 0
     });
 
     try {
@@ -243,6 +293,27 @@ export default function VideoDetailPage() {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       setRenderProgress(`Render failed: ${errorMessage}`);
       setProgressData(null);
+      setTimeout(() => {
+        setRenderProgress("");
+        setRendering(false);
+      }, 5000);
+    }
+  }
+
+  async function handleCloudRender() {
+    if (!session) return;
+    setRendering(true);
+    setRenderProgress("Starting cloud render...");
+    setProgressData({ stage: 'starting', progress: 0, renderMode: 'cloud' });
+
+    try {
+      const token = (session as any).accessToken;
+      await cloudRenderApi.startCloudRender(videoId, token);
+      // Progress will come through SSE
+    } catch (error) {
+      console.error("Cloud render failed:", error);
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      setRenderProgress(`Cloud render failed: ${msg}`);
       setTimeout(() => {
         setRenderProgress("");
         setRendering(false);
@@ -642,14 +713,31 @@ export default function VideoDetailPage() {
                 Export
               </Button>
             </motion.div>
+            {renderCapabilities?.cloud && session && (
+              <div className="flex items-center border border-[hsl(var(--border))] h-8 text-xs">
+                <button
+                  onClick={() => setRenderMode('local')}
+                  className={`px-2 h-full transition-colors ${renderMode === 'local' ? 'bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))]' : 'text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))]'}`}
+                >
+                  Local
+                </button>
+                <button
+                  onClick={() => setRenderMode('cloud')}
+                  className={`px-2 h-full flex items-center gap-1 transition-colors ${renderMode === 'cloud' ? 'bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))]' : 'text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))]'}`}
+                >
+                  <Cloud className="w-3 h-3" />
+                  Cloud
+                </button>
+              </div>
+            )}
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Button
-                onClick={handleRender}
+                onClick={renderMode === 'cloud' ? handleCloudRender : handleRender}
                 disabled={rendering}
                 loading={rendering}
-                icon={<Zap className="w-4 h-4" />}
+                icon={renderMode === 'cloud' ? <Cloud className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
               >
-                {rendering ? "Rendering..." : "Render Video"}
+                {rendering ? "Rendering..." : renderMode === 'cloud' ? "Cloud Render" : "Render Video"}
               </Button>
             </motion.div>
           </div>
@@ -657,7 +745,10 @@ export default function VideoDetailPage() {
       </motion.nav>
 
       {/* Content */}
-      <div className="pt-32 pb-24 px-6">
+      <div
+        className="pt-32 pb-24 px-6 transition-[margin] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        style={{ marginRight: sidePanelOpen ? 320 : 0 }}
+      >
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <motion.div
@@ -688,15 +779,13 @@ export default function VideoDetailPage() {
                 <Database className="w-4 h-4" />
                 Cache: {cachePercentage}%
               </span>
-              {video.theme_id && THEMES[video.theme_id] && (
-                <span className="flex items-center gap-1">
-                  <div
-                    className="w-4 h-4"
-                    style={{ background: THEMES[video.theme_id].colors.backgroundGradient || THEMES[video.theme_id].colors.background }}
-                  />
-                  {THEMES[video.theme_id].name}
-                </span>
-              )}
+              <ThemePicker
+                value={video.theme_id || 'tech-dark'}
+                onChange={async (themeId) => {
+                  await videoApi.update(video.id, { theme_id: themeId });
+                  loadData();
+                }}
+              />
             </motion.div>
           </motion.div>
 
@@ -715,14 +804,14 @@ export default function VideoDetailPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm text-[hsl(var(--foreground-muted))]">
                     <span>
-                      Scene {progressData.rendered_scenes + 1} of {progressData.total_scenes}
+                      Scene {(progressData.completed_scenes ?? progressData.rendered_scenes ?? 0) + 1} of {progressData.total_scenes}
                     </span>
-                    <span className="font-mono">{progressData.percentage}%</span>
+                    <span className="font-mono">{progressData.overall_progress ?? progressData.percentage ?? 0}%</span>
                   </div>
                   <div className="w-full bg-[hsl(var(--background))] h-2 overflow-hidden">
                     <div
                       className="bg-[hsl(var(--accent))] h-full transition-all duration-300"
-                      style={{ width: `${progressData.percentage}%` }}
+                      style={{ width: `${progressData.overall_progress ?? progressData.percentage ?? 0}%` }}
                     />
                   </div>
                 </div>
@@ -842,70 +931,92 @@ export default function VideoDetailPage() {
             )}
           </div>
 
-          {/* Output Video */}
-          {video.output_path && (
-            <div className="mb-12">
-              <p className="caption mb-4">Output Video</p>
-              <div className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-4">
-                <div className="max-w-4xl mx-auto">
-                  <video
-                    ref={mainVideoRef}
-                    className="w-full"
-                    style={{ aspectRatio: video.aspect_ratio || '16/9' }}
-                    src={`${API_BASE}/api/videos/${videoId}/preview`}
-                  >
-                    Your browser does not support the video tag.
-                  </video>
+          {/* Video + Timeline */}
+          <div>
+            <div>
+              {/* Output Video */}
+              <div className="mb-12">
+                <p className="caption mb-4">Output Video</p>
+                <div className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-4">
+                  <div className="max-w-4xl mx-auto">
+                    {video.output_path ? (
+                      <video
+                        ref={mainVideoRef}
+                        className="w-full"
+                        style={{ aspectRatio: video.aspect_ratio || '16/9' }}
+                        src={`${API_BASE}/api/videos/${videoId}/preview`}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    ) : (
+                      <div
+                        className="w-full flex flex-col items-center justify-center gap-4 text-[hsl(var(--foreground)/0.4)]"
+                        style={{ aspectRatio: video.aspect_ratio || '16/9' }}
+                      >
+                        <Film className="w-12 h-12" />
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-[hsl(var(--foreground)/0.6)]">No video rendered yet</p>
+                          <p className="text-xs mt-1">Use the <span className="text-[hsl(var(--accent))]">Render All Scenes</span> button below to generate your video</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Timeline Editor */}
-          <motion.div
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            style={{ transformOrigin: "left" }}
-            className="divider mb-8"
-          />
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, ...spring.gentle }}
-            className="flex items-center justify-between mb-6"
-          >
-            <p className="caption">Timeline</p>
-            <div className="flex items-center gap-3">
-              {transitions.length === 0 && scenes.length > 1 && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleCreateDefaultTransitions}
-                  icon={<Plus className="w-4 h-4" />}
-                >
-                  Add Transitions
-                </Button>
-              )}
-            </div>
-          </motion.div>
+              {/* Timeline Editor */}
+              <motion.div
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                style={{ transformOrigin: "left" }}
+                className="divider mb-8"
+              />
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, ...spring.gentle }}
+                className="flex items-center justify-between mb-6"
+              >
+                <p className="caption">Timeline</p>
+                <div className="flex items-center gap-3">
+                  {transitions.length === 0 && scenes.length > 1 && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleCreateDefaultTransitions}
+                      icon={<Plus className="w-4 h-4" />}
+                    >
+                      Add Transitions
+                    </Button>
+                  )}
+                </div>
+              </motion.div>
 
-          <TimelineEditor
-            video={video}
-            scenes={scenes}
-            transitions={transitions}
-            transitionTypes={transitionTypes}
-            onScenesChange={async () => { const s = await sceneApi.getAllForVideo(videoId); setScenes(s); }}
-            onTransitionsChange={async () => { const t = await transitionApi.getAllForVideo(videoId); setTransitions(t); }}
-            onOpenStockBrowser={(fieldName) => {
-              setCurrentImageField(fieldName);
-              setShowStockBrowser(true);
-            }}
-            onRenderVideo={handleRender}
-            onRegenerateFromPrompt={handleRegenerateFromPrompt}
-            videoRef={mainVideoRef}
-            sceneRenderProgress={sceneRenderProgress}
-          />
+              <TimelineEditor
+                video={video}
+                scenes={scenes}
+                transitions={transitions}
+                transitionTypes={transitionTypes}
+                audioClips={audioClips}
+                videoClips={videoClips}
+                onScenesChange={async () => { const s = await sceneApi.getAllForVideo(videoId); setScenes(s); }}
+                onTransitionsChange={async () => { const t = await transitionApi.getAllForVideo(videoId); setTransitions(t); }}
+                onAudioClipsChange={async () => { const a = await audioClipApi.getAllForVideo(videoId); setAudioClips(a); }}
+                onVideoClipsChange={async () => { const v = await videoClipApi.getAllForVideo(videoId); setVideoClips(v); }}
+                onOpenStockBrowser={(fieldName) => {
+                  setCurrentImageField(fieldName);
+                  setShowStockBrowser(true);
+                }}
+                onRenderVideo={handleRender}
+                onRegenerateFromPrompt={handleRegenerateFromPrompt}
+                videoRef={mainVideoRef}
+                sceneRenderProgress={sceneRenderProgress}
+                sidePanelContainer={sidePanelRef}
+                onSidePanelToggle={setSidePanelOpen}
+              />
+            </div>
+          </div>
 
           {/* Legacy scene cards for detailed editing - collapsible */}
           <details className="mt-8">
@@ -1116,8 +1227,8 @@ export default function VideoDetailPage() {
                                   <option value="kinetic">Kinetic - Fast, dynamic</option>
                                   <option value="typewriter">Typewriter - Sequential reveals</option>
                                 </optgroup>
-                                <optgroup label="Lyric Video Style">
-                                  <option value="lyric">Lyric - Words fly in from alternating directions</option>
+                                <optgroup label="Specialty Style">
+                                  <option value="spiral">Spiral - Text slides in and rotates</option>
                                   <option value="stacking">Stacking - Words fly up and stack</option>
                                   <option value="cascade">Cascade - Words drop from above</option>
                                   <option value="burst">Burst - Words burst in from center</option>
@@ -1425,17 +1536,15 @@ export default function VideoDetailPage() {
 
                         {editingScene !== scene.id && (
                           <div className="flex items-center gap-2">
-                            {/* Preview button - only show if cached */}
-                            {scene.cache_path && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setPreviewSceneId(scene.id)}
-                                icon={<Eye className="w-4 h-4" />}
-                              >
-                                Preview
-                              </Button>
-                            )}
+                            {/* Preview button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setPreviewSceneId(scene.id)}
+                              icon={<Eye className="w-4 h-4" />}
+                            >
+                              Preview
+                            </Button>
 
                             {/* Render scene button */}
                             <Button
@@ -1726,16 +1835,18 @@ export default function VideoDetailPage() {
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleRenderScene(previewSceneId, true)}
-                    disabled={renderingSceneId === previewSceneId}
-                    loading={renderingSceneId === previewSceneId}
-                    icon={<RefreshCw className="w-4 h-4" />}
-                  >
-                    Re-render
-                  </Button>
+                  {scenes.find(s => s.id === previewSceneId)?.cache_path && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleRenderScene(previewSceneId, true)}
+                      disabled={renderingSceneId === previewSceneId}
+                      loading={renderingSceneId === previewSceneId}
+                      icon={<RefreshCw className="w-4 h-4" />}
+                    >
+                      Re-render
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1747,13 +1858,33 @@ export default function VideoDetailPage() {
                 </div>
               </div>
               <div className="aspect-video bg-black">
-                <video
-                  key={previewSceneId}
-                  src={sceneApi.getPreviewUrl(previewSceneId)}
-                  controls
-                  autoPlay
-                  className="w-full h-full"
-                />
+                {scenes.find(s => s.id === previewSceneId)?.cache_path ? (
+                  <video
+                    key={previewSceneId}
+                    src={sceneApi.getPreviewUrl(previewSceneId)}
+                    controls
+                    autoPlay
+                    className="w-full h-full"
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-white/40">
+                    <Film className="w-12 h-12" />
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-white/60">Scene not rendered yet</p>
+                      <p className="text-xs mt-1">Click <span className="text-[hsl(var(--accent))]">Render</span> to generate a preview for this scene</p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleRenderScene(previewSceneId, false)}
+                      disabled={renderingSceneId === previewSceneId}
+                      loading={renderingSceneId === previewSceneId}
+                      icon={<Zap className="w-4 h-4" />}
+                    >
+                      {renderingSceneId === previewSceneId ? 'Rendering...' : 'Render Scene'}
+                    </Button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>
@@ -1773,6 +1904,13 @@ export default function VideoDetailPage() {
           }
         }}
         initialQuery={editData.title || "business"}
+      />
+
+      {/* Side panel — fixed to right viewport edge */}
+      <div
+        ref={(el) => { sidePanelRef.current = el; if (el && !sidePanelMounted) setSidePanelMounted(true); }}
+        className="fixed top-0 right-0 h-screen z-40 overflow-y-auto"
+        style={{ paddingTop: 65 }}
       />
     </div>
   );

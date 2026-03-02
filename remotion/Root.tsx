@@ -9,6 +9,9 @@ import { ASPECT_RATIOS, type AspectRatioKey } from './aspect-ratios';
 import { TransitionPreviewComposition, TransitionPreviewProps } from './TransitionPreviewComposition';
 import { AnimationPreviewComposition, AnimationPreviewProps } from './AnimationPreviewComposition';
 import { TextAnimationPreviewComposition, TextAnimationPreviewProps } from './TextAnimationPreviewComposition';
+import { TextLayoutPreviewComposition, TextLayoutPreviewProps } from './TextLayoutPreviewComposition';
+import { ThemePreviewComposition, ThemePreviewProps } from './ThemePreviewComposition';
+import { FullVideoComposition, FullVideoProps, calculateFullVideoMetadata } from './FullVideoComposition';
 import type { PolicyWrappedRenderProps, CivicProfileRenderProps, ClassProfileRenderProps } from './types';
 
 const defaultDynamicSceneProps: DynamicSceneProps = {
@@ -195,6 +198,66 @@ export const RemotionRoot: React.FC = () => {
           durationInFrames: props.durationFrames || 180,
         })}
       />
+      <Composition
+        id="TextLayoutPreview"
+        component={TextLayoutPreviewComposition}
+        durationInFrames={120}
+        fps={30}
+        width={640}
+        height={360}
+        defaultProps={{
+          layout: 'centered' as const,
+          durationFrames: 120,
+          themeId: 'tech-dark',
+        }}
+        calculateMetadata={({ props }: { props: TextLayoutPreviewProps }) => ({
+          durationInFrames: props.durationFrames || 120,
+        })}
+      />
+
+      <Composition
+        id="ThemePreview"
+        component={ThemePreviewComposition}
+        durationInFrames={300}
+        fps={30}
+        width={640}
+        height={360}
+        defaultProps={{
+          themeId: 'tech-dark',
+          durationFrames: 300,
+        }}
+        calculateMetadata={({ props }: { props: ThemePreviewProps }) => ({
+          durationInFrames: props.durationFrames || 300,
+        })}
+      />
+
+      {/* FullVideo compositions for Lambda cloud rendering */}
+      {(['16x9', '1x1', '9x16'] as const).map((ar) => {
+        const dims = {
+          '16x9': { width: 1920, height: 1080 },
+          '1x1': { width: 1080, height: 1080 },
+          '9x16': { width: 1080, height: 1920 },
+        }[ar];
+        const defaultFullVideoProps: FullVideoProps = {
+          scenes: [{ sceneType: 'text-only', data: { title: 'Loading...' }, durationInFrames: 300 }],
+          transitions: [],
+          totalDurationInFrames: 300,
+          themeId: 'tech-dark',
+        };
+        return (
+          <Composition
+            key={`FullVideo-${ar}`}
+            id={`FullVideo-${ar}`}
+            component={FullVideoComposition}
+            durationInFrames={300}
+            fps={30}
+            width={dims.width}
+            height={dims.height}
+            defaultProps={defaultFullVideoProps}
+            calculateMetadata={calculateFullVideoMetadata}
+          />
+        );
+      })}
     </>
   );
 };

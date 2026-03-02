@@ -89,7 +89,7 @@ export const AnimatedWord: React.FC<AnimatedWordProps> = ({
         hasDirectionalTranslation = true;
         break;
       case 'scaleUp': {
-        const scale = interpolate(progress, [0, 1], [0.7, 1]);
+        const scale = interpolate(progress, [0, 1], [0.2, 1]);
         scaleX = scale;
         scaleY = scale;
         break;
@@ -158,6 +158,14 @@ export const AnimatedWord: React.FC<AnimatedWordProps> = ({
       case 'rotate':
         rotate = interpolate(progress, [0, 1], [10, 0]);
         break;
+      case 'wave': {
+        translateY = interpolate(progress, [0, 1], [distance, 0]);
+        const wavePhase = index * 0.8;
+        const waveAmplitude = distance * 0.25 * (1 - progress);
+        translateY += Math.sin(progress * Math.PI * 3 + wavePhase) * waveAmplitude;
+        hasDirectionalTranslation = true;
+        break;
+      }
     }
   }
 

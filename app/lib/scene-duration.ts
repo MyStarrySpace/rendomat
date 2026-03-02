@@ -80,7 +80,7 @@ export function calculateSceneDuration(slide: SlideData): number {
   // Animation preset adjustments
   let animationMultiplier = 1;
   switch (preset) {
-    case 'lyric':
+    case 'spiral':
     case 'stacking':
     case 'cascade':
       animationMultiplier = 1.4;
@@ -94,6 +94,13 @@ export function calculateSceneDuration(slide: SlideData): number {
     case 'typewriter':
       animationMultiplier = 1.2;
       break;
+    case 'blur-in':
+    case 'blur-out':
+      animationMultiplier = 1.1;
+      break;
+    case 'blur-through':
+      animationMultiplier = 1.2;
+      break;
     case 'minimal':
     case 'smooth':
     default:
@@ -105,6 +112,11 @@ export function calculateSceneDuration(slide: SlideData): number {
 
   // Add entrance/exit animation time
   totalSeconds += 1;
+
+  // Add extra time when explicit exit animation is set
+  if (data?.animation_preset_out) {
+    totalSeconds += 0.5;
+  }
 
   // Clamp between min and max
   totalSeconds = Math.max(MIN_DURATION, Math.min(MAX_DURATION, totalSeconds));

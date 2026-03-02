@@ -277,7 +277,9 @@ export type TextEffect =
   | 'followThrough'
   | 'blur'
   | 'rotate'
-  | 'snap';
+  | 'snap'
+  | 'wave'
+  | 'scramble';
 
 export interface EffectValues {
   opacity: number;
@@ -335,6 +337,13 @@ export function getBaseEffectValues(
         break;
       case 'snap':
         values.opacity = progress > 0.01 ? 1 : 0;
+        break;
+      case 'wave':
+        // Base translateY same as fadeUp — sine ripple handled in components where index is available
+        values.translateY = (1 - progress) * distance;
+        break;
+      case 'scramble':
+        // Opacity only — character substitution handled in AnimatedCharacter
         break;
       // squashStretch, anticipation, followThrough are handled by hooks
     }

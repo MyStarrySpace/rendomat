@@ -27,7 +27,11 @@ export type AnimationPreset =
   | 'echo'         // Stacked marquee - ghost copies scroll above/below hero text
   | 'reveal'       // Curtain wipe via clip-path with traveling accent bar
   | 'tracking'     // Letter-spacing breathes from ultra-wide to normal + fade-in
-  | 'flicker';     // Neon sign power-on with deterministic rapid opacity toggling
+  | 'flicker'      // Neon sign power-on with deterministic rapid opacity toggling
+  | 'blur-in'      // Focus pull — elements emerge from defocus
+  | 'blur-out'     // Defocus — elements blur away
+  | 'blur-through' // Depth pass — blur in, hold sharp
+  | 'static';      // No motion - instant appear with quick fade only
 
 export interface PresetConfig {
   /** Spring configuration key */
@@ -48,7 +52,7 @@ export interface PresetConfig {
   fadeOutFrames: number;
   /** Extra effects */
   effects?: {
-    blur?: boolean;
+    blur?: boolean | number;
     rotate?: number;
     skew?: number;
   };
@@ -64,6 +68,17 @@ export interface PresetConfig {
 // - Tight stagger timing (1-3 frames)
 // - Single primary effect per element
 export const ANIMATION_PRESETS: Record<AnimationPreset, PresetConfig> = {
+  static: {
+    spring: 'smooth',
+    startDelay: 0,
+    staggerDelay: 0,
+    distance: 0,
+    scaleFrom: 1,
+    direction: 'up',
+    fadeInFrames: 8,
+    fadeOutFrames: 8,
+  },
+
   minimal: {
     spring: 'smooth',
     startDelay: 8,
@@ -244,6 +259,45 @@ export const ANIMATION_PRESETS: Record<AnimationPreset, PresetConfig> = {
     fadeInFrames: 20,
     fadeOutFrames: 15,
   },
+
+  // Blur-in: elements emerge from defocus (focus pull)
+  'blur-in': {
+    spring: 'smooth',
+    startDelay: 6,
+    staggerDelay: 2,
+    distance: 6,
+    scaleFrom: 0.97,
+    direction: 'center',
+    fadeInFrames: 20,
+    fadeOutFrames: 15,
+    effects: { blur: 12 },
+  },
+
+  // Blur-out: elements start sharp, blur away
+  'blur-out': {
+    spring: 'smooth',
+    startDelay: 6,
+    staggerDelay: 2,
+    distance: 8,
+    scaleFrom: 1,
+    direction: 'down',
+    fadeInFrames: 18,
+    fadeOutFrames: 18,
+    effects: { blur: 12 },
+  },
+
+  // Blur-through: depth-of-field pass — blur in, hold sharp
+  'blur-through': {
+    spring: 'gentle',
+    startDelay: 8,
+    staggerDelay: 3,
+    distance: 10,
+    scaleFrom: 0.96,
+    direction: 'up',
+    fadeInFrames: 22,
+    fadeOutFrames: 16,
+    effects: { blur: 12 },
+  },
 };
 
 // =============================================================================
@@ -358,6 +412,21 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       title: {},
       body: { startDelay: 20 },
     },
+    'blur-in': {
+      ...ANIMATION_PRESETS['blur-in'],
+      title: { distance: 8 },
+      body: { startDelay: 20, distance: 6 },
+    },
+    'blur-out': {
+      ...ANIMATION_PRESETS['blur-out'],
+      title: {},
+      body: { startDelay: 20 },
+    },
+    'blur-through': {
+      ...ANIMATION_PRESETS['blur-through'],
+      title: { distance: 12 },
+      body: { startDelay: 22, distance: 10 },
+    },
   },
 
   'quote': {
@@ -440,6 +509,21 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       title: {},
       body: { startDelay: 20 },
     },
+    'blur-in': {
+      ...ANIMATION_PRESETS['blur-in'],
+      title: {},
+      body: { startDelay: 20 },
+    },
+    'blur-out': {
+      ...ANIMATION_PRESETS['blur-out'],
+      title: {},
+      body: { startDelay: 20 },
+    },
+    'blur-through': {
+      ...ANIMATION_PRESETS['blur-through'],
+      title: {},
+      body: { startDelay: 22 },
+    },
   },
 
   'stats': {
@@ -508,6 +592,21 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     },
     flicker: {
       ...ANIMATION_PRESETS.flicker,
+      title: {},
+      data: { staggerDelay: 8 },
+    },
+    'blur-in': {
+      ...ANIMATION_PRESETS['blur-in'],
+      title: {},
+      data: { staggerDelay: 8 },
+    },
+    'blur-out': {
+      ...ANIMATION_PRESETS['blur-out'],
+      title: {},
+      data: { staggerDelay: 8 },
+    },
+    'blur-through': {
+      ...ANIMATION_PRESETS['blur-through'],
       title: {},
       data: { staggerDelay: 8 },
     },
@@ -594,6 +693,21 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       image: { scaleFrom: 0.98 },
       title: {},
     },
+    'blur-in': {
+      ...ANIMATION_PRESETS['blur-in'],
+      image: { scaleFrom: 0.98 },
+      title: { startDelay: 25 },
+    },
+    'blur-out': {
+      ...ANIMATION_PRESETS['blur-out'],
+      image: { scaleFrom: 0.98 },
+      title: {},
+    },
+    'blur-through': {
+      ...ANIMATION_PRESETS['blur-through'],
+      image: { scaleFrom: 0.97 },
+      title: { startDelay: 25 },
+    },
   },
 
   'dual-images': {
@@ -659,6 +773,18 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     },
     flicker: {
       ...ANIMATION_PRESETS.flicker,
+      image: { distance: 20 },
+    },
+    'blur-in': {
+      ...ANIMATION_PRESETS['blur-in'],
+      image: { distance: 20 },
+    },
+    'blur-out': {
+      ...ANIMATION_PRESETS['blur-out'],
+      image: { distance: 20 },
+    },
+    'blur-through': {
+      ...ANIMATION_PRESETS['blur-through'],
       image: { distance: 20 },
     },
   },
@@ -728,6 +854,18 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.flicker,
       image: { staggerDelay: 5 },
     },
+    'blur-in': {
+      ...ANIMATION_PRESETS['blur-in'],
+      image: { staggerDelay: 6 },
+    },
+    'blur-out': {
+      ...ANIMATION_PRESETS['blur-out'],
+      image: { staggerDelay: 6 },
+    },
+    'blur-through': {
+      ...ANIMATION_PRESETS['blur-through'],
+      image: { staggerDelay: 6 },
+    },
   },
 
   'bar-chart': {
@@ -793,6 +931,18 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     },
     flicker: {
       ...ANIMATION_PRESETS.flicker,
+      data: { staggerDelay: 8 },
+    },
+    'blur-in': {
+      ...ANIMATION_PRESETS['blur-in'],
+      data: { staggerDelay: 8 },
+    },
+    'blur-out': {
+      ...ANIMATION_PRESETS['blur-out'],
+      data: { staggerDelay: 8 },
+    },
+    'blur-through': {
+      ...ANIMATION_PRESETS['blur-through'],
       data: { staggerDelay: 8 },
     },
   },
@@ -862,6 +1012,18 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
       ...ANIMATION_PRESETS.flicker,
       data: { staggerDelay: 6, direction: 'left' },
     },
+    'blur-in': {
+      ...ANIMATION_PRESETS['blur-in'],
+      data: { staggerDelay: 10, direction: 'left' },
+    },
+    'blur-out': {
+      ...ANIMATION_PRESETS['blur-out'],
+      data: { staggerDelay: 10, direction: 'left' },
+    },
+    'blur-through': {
+      ...ANIMATION_PRESETS['blur-through'],
+      data: { staggerDelay: 10, direction: 'left' },
+    },
   },
 
   'equation': {
@@ -928,6 +1090,18 @@ export const SCENE_PRESETS: Record<SceneType, Record<AnimationPreset, SceneAnima
     flicker: {
       ...ANIMATION_PRESETS.flicker,
       data: { staggerDelay: 10 },
+    },
+    'blur-in': {
+      ...ANIMATION_PRESETS['blur-in'],
+      data: { staggerDelay: 15 },
+    },
+    'blur-out': {
+      ...ANIMATION_PRESETS['blur-out'],
+      data: { staggerDelay: 15 },
+    },
+    'blur-through': {
+      ...ANIMATION_PRESETS['blur-through'],
+      data: { staggerDelay: 15 },
     },
   },
 };
@@ -1019,6 +1193,9 @@ export const PRESET_LABELS: Record<AnimationPreset, string> = {
   reveal: 'Reveal',
   tracking: 'Tracking',
   flicker: 'Flicker',
+  'blur-in': 'Blur In',
+  'blur-out': 'Blur Out',
+  'blur-through': 'Blur Through',
 };
 
 /**
@@ -1041,6 +1218,9 @@ export const PRESET_DESCRIPTIONS: Record<AnimationPreset, string> = {
   reveal: 'Curtain wipe with traveling accent bar',
   tracking: 'Letter-spacing breathes from wide to normal',
   flicker: 'Neon sign power-on with rapid toggling',
+  'blur-in': 'Focus pull — elements emerge from defocus',
+  'blur-out': 'Defocus — elements blur away',
+  'blur-through': 'Depth pass — blur in, hold sharp',
 };
 
 // =============================================================================
@@ -1218,6 +1398,34 @@ export const TEXT_ANIMATION_PRESETS: Record<AnimationPreset, TextAnimationPreset
     direction: 'up',
     effects: ['fadeUp'],
   },
+
+  // Blur presets — use blur + fadeUp for defocus entrance
+  'blur-in': {
+    unit: 'word',
+    staggerFrames: 2,
+    spring: 'smooth',
+    distance: 6,
+    direction: 'up',
+    effects: ['blur', 'fadeUp'],
+  },
+
+  'blur-out': {
+    unit: 'word',
+    staggerFrames: 2,
+    spring: 'smooth',
+    distance: 8,
+    direction: 'down',
+    effects: ['blur', 'fadeUp'],
+  },
+
+  'blur-through': {
+    unit: 'word',
+    staggerFrames: 3,
+    spring: 'gentle',
+    distance: 10,
+    direction: 'up',
+    effects: ['blur', 'fadeUp'],
+  },
 };
 
 /**
@@ -1225,4 +1433,33 @@ export const TEXT_ANIMATION_PRESETS: Record<AnimationPreset, TextAnimationPreset
  */
 export function getTextAnimationPreset(preset: AnimationPreset): TextAnimationPreset {
   return TEXT_ANIMATION_PRESETS[preset] ?? TEXT_ANIMATION_PRESETS.smooth;
+}
+
+/**
+ * Resolve entrance/exit presets from scene data.
+ * Supports both `animation_preset` (legacy) and `animation_preset_in` (explicit).
+ * Returns `presetOut: undefined` when no exit animation is set.
+ */
+export function resolvePresets(
+  data: Record<string, any>,
+  defaultPreset: AnimationPreset
+): { presetIn: AnimationPreset; presetOut: AnimationPreset | undefined } {
+  const presetIn = (data.animation_preset_in || data.animation_preset || defaultPreset) as AnimationPreset;
+  const presetOut = data.animation_preset_out as AnimationPreset | undefined;
+  return { presetIn, presetOut: presetOut || undefined };
+}
+
+/**
+ * Reverse a direction for exit animations (up↔down, left↔right).
+ */
+export function reverseDirection(
+  dir: 'up' | 'down' | 'left' | 'right' | 'center' | 'random'
+): 'up' | 'down' | 'left' | 'right' | 'center' | 'random' {
+  switch (dir) {
+    case 'up': return 'down';
+    case 'down': return 'up';
+    case 'left': return 'right';
+    case 'right': return 'left';
+    default: return dir;
+  }
 }

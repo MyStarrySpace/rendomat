@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useCallback, useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Scene, Transition, TransitionType, sceneApi, Video, API_BASE } from '@/lib/api';
+import { Scene, Transition, TransitionType, AudioClip, VideoClip, sceneApi, audioClipApi, videoClipApi, Video, API_BASE } from '@/lib/api';
 import { calculateSceneDuration } from '@/lib/scene-duration';
 import { useTimeline } from './hooks/useTimeline';
 import { TimelineHeader } from './TimelineHeader';
 import { TimelineContainer } from './TimelineContainer';
 import { SidePanel } from './SidePanel';
-import { Film, AlertTriangle, X, RefreshCw, Sparkles, Plus } from 'lucide-react';
+import { AudioRecorder } from './AudioRecorder';
+import { Film, AlertTriangle, X, RefreshCw, Sparkles, Plus, Upload, Mic, Video as VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { frameToSeconds, getSceneAtFrame, TRACKS } from './lib/timeline-utils';
 
@@ -20,14 +22,20 @@ interface TimelineEditorProps {
   scenes: Scene[];
   transitions: Transition[];
   transitionTypes: TransitionType[];
+  audioClips?: AudioClip[];
+  videoClips?: VideoClip[];
   onScenesChange: () => void;
   onTransitionsChange: () => void;
+  onAudioClipsChange?: () => void;
+  onVideoClipsChange?: () => void;
   onSceneSelect?: (scene: Scene | null) => void;
   onOpenStockBrowser?: (fieldName: string) => void;
   onRenderVideo?: () => void;
   onRegenerateFromPrompt?: () => void;
   videoRef?: React.RefObject<HTMLVideoElement | null>;
   sceneRenderProgress?: Map<number, number>;
+  sidePanelContainer?: React.RefObject<HTMLDivElement | null>;
+  onSidePanelToggle?: (isOpen: boolean) => void;
 }
 
 export function TimelineEditor({
@@ -35,14 +43,20 @@ export function TimelineEditor({
   scenes,
   transitions,
   transitionTypes,
+  audioClips = [],
+  videoClips = [],
   onScenesChange,
   onTransitionsChange,
+  onAudioClipsChange,
+  onVideoClipsChange,
   onSceneSelect,
   onOpenStockBrowser,
   onRenderVideo,
   onRegenerateFromPrompt,
   videoRef: externalVideoRef,
   sceneRenderProgress,
+  sidePanelContainer,
+  onSidePanelToggle,
 }: TimelineEditorProps) {
   const [showRenderChangedModal, setShowRenderChangedModal] = useState(false);
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
@@ -52,6 +66,9 @@ export function TimelineEditor({
     }
     return false;
   });
+  const [showAudioRecorder, setShowAudioRecorder] = useState(false);
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
   const internalVideoRef = useRef<HTMLVideoElement>(null);
   const videoRef = externalVideoRef || internalVideoRef;
   const [videoSyncEnabled, setVideoSyncEnabled] = useState(true);
@@ -87,14 +104,108 @@ export function TimelineEditor({
     }
   }, [onScenesChange]);
 
+  // Audio clip update handler (for drag/resize from timeline hook)
+  const handleAudioClipUpdate = useCallback(async (clipId: number, data: Partial<AudioClip>) => {
+    try {
+      await audioClipApi.update(clipId, data);
+      onAudioClipsChange?.();
+    } catch (error) {
+      console.error('[TimelineEditor] audioClipApi.update failed', error);
+    }
+  }, [onAudioClipsChange]);
+
+  // Video clip update handler (for drag/resize from timeline hook)
+  const handleVideoClipUpdate = useCallback(async (clipId: number, data: Partial<VideoClip>) => {
+    try {
+      await videoClipApi.update(clipId, data);
+      onVideoClipsChange?.();
+    } catch (error) {
+      console.error('[TimelineEditor] videoClipApi.update failed', error);
+    }
+  }, [onVideoClipsChange]);
+
   // Timeline hook
   const timeline = useTimeline({
     scenes,
     transitions,
+    audioClips,
+    videoClips,
     onSceneUpdate: handleSceneUpdate,
     onSceneReorder: handleSceneReorder,
     onSceneResize: handleSceneResize,
+    onAudioClipUpdate: handleAudioClipUpdate,
+    onVideoClipUpdate: handleVideoClipUpdate,
   });
+
+  // Audio clip upload handler (needs timeline for playhead)
+  const handleAudioUpload = useCallback(async (file: File | Blob, name?: string) => {
+    try {
+      await audioClipApi.upload(video.id, file, {
+        name,
+        start_frame: timeline.playheadFrame,
+      });
+      onAudioClipsChange?.();
+    } catch (error) {
+      console.error('[TimelineEditor] Audio upload failed', error);
+    }
+  }, [video.id, onAudioClipsChange, timeline.playheadFrame]);
+
+  // Audio clip delete handler
+  const handleAudioClipDelete = useCallback(async (clipId: number) => {
+    try {
+      await audioClipApi.delete(clipId);
+      timeline.selectAudioClip(null);
+      onAudioClipsChange?.();
+    } catch (error) {
+      console.error('[TimelineEditor] Audio clip delete failed', error);
+    }
+  }, [onAudioClipsChange, timeline]);
+
+  // Audio clip save handler (from editor panel)
+  const handleAudioClipSave = useCallback(async (clipId: number, data: Partial<AudioClip>) => {
+    try {
+      await audioClipApi.update(clipId, data);
+      timeline.selectAudioClip(null);
+      onAudioClipsChange?.();
+    } catch (error) {
+      console.error('[TimelineEditor] Audio clip save failed', error);
+    }
+  }, [onAudioClipsChange, timeline]);
+
+  // Video clip upload handler
+  const handleVideoClipUpload = useCallback(async (file: File) => {
+    try {
+      await videoClipApi.upload(video.id, file, {
+        name: file.name.replace(/\.[^/.]+$/, ''),
+        start_frame: timeline.playheadFrame,
+      });
+      onVideoClipsChange?.();
+    } catch (error) {
+      console.error('[TimelineEditor] Video clip upload failed', error);
+    }
+  }, [video.id, onVideoClipsChange, timeline.playheadFrame]);
+
+  // Video clip delete handler
+  const handleVideoClipDelete = useCallback(async (clipId: number) => {
+    try {
+      await videoClipApi.delete(clipId);
+      timeline.selectVideoClip(null);
+      onVideoClipsChange?.();
+    } catch (error) {
+      console.error('[TimelineEditor] Video clip delete failed', error);
+    }
+  }, [onVideoClipsChange, timeline]);
+
+  // Video clip save handler (from editor panel)
+  const handleVideoClipSave = useCallback(async (clipId: number, data: Partial<VideoClip>) => {
+    try {
+      await videoClipApi.update(clipId, data);
+      timeline.selectVideoClip(null);
+      onVideoClipsChange?.();
+    } catch (error) {
+      console.error('[TimelineEditor] Video clip save failed', error);
+    }
+  }, [onVideoClipsChange, timeline]);
 
   // Derived state
   const hasUnrenderedScenes = useMemo(
@@ -306,10 +417,18 @@ export function TimelineEditor({
     }
   }, [timeline, scenes, onSceneSelect]);
 
+  // Notify parent when side panel opens/closes
+  useEffect(() => {
+    const isOpen = timeline.selectedSceneId !== null || timeline.selectedTransitionId !== null || timeline.selectedAudioClipId !== null || timeline.selectedVideoClipId !== null;
+    onSidePanelToggle?.(isOpen);
+  }, [timeline.selectedSceneId, timeline.selectedTransitionId, timeline.selectedAudioClipId, timeline.selectedVideoClipId, onSidePanelToggle]);
+
   // Close side panel
   const closeSidePanel = useCallback(() => {
     timeline.selectScene(null);
     timeline.selectTransition(null);
+    timeline.selectAudioClip(null);
+    timeline.selectVideoClip(null);
   }, [timeline]);
 
   // Video sync - update video time when playhead moves
@@ -465,6 +584,72 @@ export function TimelineEditor({
           onAddScene={handleAddScene}
         />
 
+        {/* Media controls bar */}
+        <div className="flex items-center gap-2 px-4 py-1.5 border-b border-[hsl(var(--border))] bg-[hsl(var(--surface))]">
+          <span className="text-[10px] text-[hsl(var(--foreground-muted))] mr-1">Audio:</span>
+          <button
+            className="flex items-center gap-1 px-2 py-1 text-[10px] text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--background))] transition-colors border border-[hsl(var(--border))]"
+            onClick={() => audioFileInputRef.current?.click()}
+          >
+            <Upload className="w-3 h-3" />
+            Upload
+          </button>
+          <button
+            className="flex items-center gap-1 px-2 py-1 text-[10px] text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--background))] transition-colors border border-[hsl(var(--border))]"
+            onClick={() => setShowAudioRecorder(true)}
+          >
+            <Mic className="w-3 h-3" />
+            Record
+          </button>
+
+          <div className="w-px h-4 bg-[hsl(var(--border))] mx-1" />
+
+          <span className="text-[10px] text-[hsl(var(--foreground-muted))] mr-1">B-Roll:</span>
+          <button
+            className="flex items-center gap-1 px-2 py-1 text-[10px] text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--background))] transition-colors border border-[hsl(var(--border))]"
+            onClick={() => videoFileInputRef.current?.click()}
+          >
+            <VideoIcon className="w-3 h-3" />
+            Import Video
+          </button>
+
+          <span className="text-[10px] text-[hsl(var(--foreground-subtle))] ml-auto">
+            {audioClips.length > 0 && `${audioClips.length} audio`}
+            {audioClips.length > 0 && videoClips.length > 0 && ' · '}
+            {videoClips.length > 0 && `${videoClips.length} video`}
+          </span>
+        </div>
+
+        {/* Hidden audio file input */}
+        <input
+          ref={audioFileInputRef}
+          type="file"
+          accept="audio/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              handleAudioUpload(file);
+              e.target.value = '';
+            }
+          }}
+        />
+
+        {/* Hidden video file input */}
+        <input
+          ref={videoFileInputRef}
+          type="file"
+          accept=".mp4,.mov,.avi,.mkv,.webm"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              handleVideoClipUpload(file);
+              e.target.value = '';
+            }
+          }}
+        />
+
         {/* Main timeline area */}
         <div className="flex flex-1 min-h-0">
           {/* Timeline container */}
@@ -491,6 +676,18 @@ export function TimelineEditor({
               onSceneResizeMove={handleSceneResizeMove}
               onSceneResizeEnd={handleSceneResizeEnd}
               onRenderScene={handleRenderScene}
+              audioClips={audioClips}
+              selectedAudioClipId={timeline.selectedAudioClipId}
+              onAudioClipSelect={timeline.selectAudioClip}
+              onAudioClipDragStart={timeline.handleAudioClipDragStart}
+              onAudioClipDragEnd={timeline.handleAudioClipDragEnd}
+              onAudioClipResizeEnd={timeline.handleAudioClipResizeEnd}
+              videoClips={videoClips}
+              selectedVideoClipId={timeline.selectedVideoClipId}
+              onVideoClipSelect={timeline.selectVideoClip}
+              onVideoClipDragStart={timeline.handleVideoClipDragStart}
+              onVideoClipDragEnd={timeline.handleVideoClipDragEnd}
+              onVideoClipResizeEnd={timeline.handleVideoClipResizeEnd}
               onScrollChange={timeline.setScrollLeft}
               getTransitionLabel={getTransitionLabel}
               changedSceneIds={timeline.changedSceneIds}
@@ -498,20 +695,53 @@ export function TimelineEditor({
             />
           </div>
 
-          {/* Side panel editor */}
+          {/* Side panel editor - inline fallback when no portal container */}
+          {!sidePanelContainer && (
+            <SidePanel
+              selectedScene={timeline.selectedScene}
+              selectedTransition={timeline.selectedTransition}
+              selectedAudioClip={timeline.selectedAudioClip}
+              selectedVideoClip={timeline.selectedVideoClip}
+              transitionTypes={transitionTypes}
+              onClose={closeSidePanel}
+              onSceneSave={handleSceneSave}
+              onTransitionSave={handleTransitionSave}
+              onTransitionDelete={handleTransitionDelete}
+              onAudioClipSave={handleAudioClipSave}
+              onAudioClipDelete={handleAudioClipDelete}
+              onVideoClipSave={handleVideoClipSave}
+              onVideoClipDelete={handleVideoClipDelete}
+              onOpenStockBrowser={onOpenStockBrowser}
+              onSceneTypeChange={handleSceneTypeChange}
+              onRegenerateFromPrompt={handleRegenerateFromPrompt}
+              hasChanges={timeline.selectedSceneId ? timeline.changedSceneIds.has(timeline.selectedSceneId) : false}
+            />
+          )}
+        </div>
+
+        {/* Side panel editor - portaled to external container */}
+        {sidePanelContainer?.current && createPortal(
           <SidePanel
             selectedScene={timeline.selectedScene}
             selectedTransition={timeline.selectedTransition}
+            selectedAudioClip={timeline.selectedAudioClip}
+            selectedVideoClip={timeline.selectedVideoClip}
             transitionTypes={transitionTypes}
             onClose={closeSidePanel}
             onSceneSave={handleSceneSave}
             onTransitionSave={handleTransitionSave}
             onTransitionDelete={handleTransitionDelete}
+            onAudioClipSave={handleAudioClipSave}
+            onAudioClipDelete={handleAudioClipDelete}
+            onVideoClipSave={handleVideoClipSave}
+            onVideoClipDelete={handleVideoClipDelete}
             onOpenStockBrowser={onOpenStockBrowser}
             onSceneTypeChange={handleSceneTypeChange}
+            onRegenerateFromPrompt={handleRegenerateFromPrompt}
             hasChanges={timeline.selectedSceneId ? timeline.changedSceneIds.has(timeline.selectedSceneId) : false}
-          />
-        </div>
+          />,
+          sidePanelContainer.current
+        )}
 
         {/* Hidden video element for sync (only when no external ref) */}
         {!externalVideoRef && video.output_path && (
@@ -672,6 +902,15 @@ export function TimelineEditor({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Audio Recorder Modal */}
+      <AudioRecorder
+        isOpen={showAudioRecorder}
+        onClose={() => setShowAudioRecorder(false)}
+        onRecordingComplete={(blob, filename) => {
+          handleAudioUpload(blob, filename.replace(/\.[^/.]+$/, ''));
+        }}
+      />
     </>
   );
 }

@@ -5,11 +5,13 @@ import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import {
   usePresetAnimation,
   usePresetSceneFade,
+  useSceneBlur,
   buildTransform,
 } from '../lib/motion';
 import {
   AnimationPreset,
   getElementConfig,
+  resolvePresets,
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
 
@@ -17,7 +19,8 @@ export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, 
   const layout = useResponsiveLayout();
 
   // Get animation preset from data or default to 'smooth'
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+  const { presetIn, presetOut } = resolvePresets(data, 'smooth');
+  const preset = presetIn;
 
   // Get element-specific configs
   const imageConfig = getElementConfig('dual-images', preset, 'image');
@@ -25,6 +28,9 @@ export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, 
 
   // Scene fade (skip fade-out when using external transitions)
   const sceneFade = usePresetSceneFade(imageConfig, durationInFrames, skipFadeOut);
+  const sceneBlur = useSceneBlur(imageConfig, durationInFrames, skipFadeOut);
+  const exitConfig = presetOut ? getElementConfig('dual-images', presetOut, 'title') : null;
+  const exitFade = exitConfig ? usePresetSceneFade(exitConfig, durationInFrames, false) : 1;
 
   // For dual images, override direction to slide from opposite sides
   const image1Config = { ...imageConfig, direction: 'left' as const };
@@ -44,7 +50,8 @@ export const DualImagesScene: React.FC<SceneProps> = ({ data, durationInFrames, 
       background: theme.colors.backgroundGradient || theme.colors.background,
       fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
       padding: layout.padding,
-      opacity: sceneFade,
+      opacity: sceneFade * exitFade,
+      filter: sceneBlur || undefined,
     }}>
       <div style={containerStyle}>
         {data.image_url && (

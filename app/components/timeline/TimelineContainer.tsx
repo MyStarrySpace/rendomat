@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useCallback, useEffect } from 'react';
-import { Scene, Transition } from '@/lib/api';
+import { Scene, Transition, AudioClip, VideoClip } from '@/lib/api';
 import { TimeRuler } from './TimeRuler';
 import { Playhead } from './Playhead';
 import { TimelineTrack } from './TimelineTrack';
@@ -38,6 +38,18 @@ interface TimelineContainerProps {
   onSceneResizeMove?: (sceneId: number, edge: 'start' | 'end', newFrame: number) => void;
   onSceneResizeEnd?: (sceneId: number, edge: 'start' | 'end', newFrame: number) => void;
   onRenderScene?: (sceneId: number) => void;
+  audioClips?: AudioClip[];
+  selectedAudioClipId?: number | null;
+  onAudioClipSelect?: (clipId: number | null) => void;
+  onAudioClipDragStart?: (clipId: number) => void;
+  onAudioClipDragEnd?: (clipId: number, newStartFrame: number) => void;
+  onAudioClipResizeEnd?: (clipId: number, newDurationFrames: number) => void;
+  videoClips?: VideoClip[];
+  selectedVideoClipId?: number | null;
+  onVideoClipSelect?: (clipId: number | null) => void;
+  onVideoClipDragStart?: (clipId: number) => void;
+  onVideoClipDragEnd?: (clipId: number, newStartFrame: number) => void;
+  onVideoClipResizeEnd?: (clipId: number, newDurationFrames: number) => void;
   onScrollChange?: (scrollLeft: number) => void;
   getTransitionLabel: (typeId: string) => string;
   changedSceneIds?: Set<number>;
@@ -65,6 +77,18 @@ export function TimelineContainer({
   onSceneResizeStart,
   onSceneResizeMove,
   onSceneResizeEnd,
+  audioClips,
+  selectedAudioClipId,
+  onAudioClipSelect,
+  onAudioClipDragStart,
+  onAudioClipDragEnd,
+  onAudioClipResizeEnd,
+  videoClips,
+  selectedVideoClipId,
+  onVideoClipSelect,
+  onVideoClipDragStart,
+  onVideoClipDragEnd,
+  onVideoClipResizeEnd,
   onRenderScene,
   onScrollChange,
   getTransitionLabel,
@@ -153,6 +177,18 @@ export function TimelineContainer({
             onSceneResizeMove={onSceneResizeMove}
             onSceneResizeEnd={onSceneResizeEnd}
             onRenderScene={onRenderScene}
+            audioClips={audioClips}
+            selectedAudioClipId={selectedAudioClipId}
+            onAudioClipSelect={onAudioClipSelect}
+            onAudioClipDragStart={onAudioClipDragStart}
+            onAudioClipDragEnd={onAudioClipDragEnd}
+            onAudioClipResizeEnd={onAudioClipResizeEnd}
+            videoClips={videoClips}
+            selectedVideoClipId={selectedVideoClipId}
+            onVideoClipSelect={onVideoClipSelect}
+            onVideoClipDragStart={onVideoClipDragStart}
+            onVideoClipDragEnd={onVideoClipDragEnd}
+            onVideoClipResizeEnd={onVideoClipResizeEnd}
             getTransitionLabel={getTransitionLabel}
             snapEnabled={snapEnabled}
             changedSceneIds={changedSceneIds}

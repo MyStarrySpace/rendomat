@@ -1,10 +1,11 @@
 import React from 'react';
 import { AbsoluteFill } from 'remotion';
 import { SceneProps } from './types';
-import { usePresetSceneFade } from '../lib/motion';
+import { usePresetSceneFade, useSceneBlur } from '../lib/motion';
 import {
   AnimationPreset,
   getElementConfig,
+  resolvePresets,
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
 import { EchoTextAnimation } from '../components/EchoTextAnimation';
@@ -17,15 +18,21 @@ import type { TextLayoutPreset } from '../lib/textLayouts';
 export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const { layout, textLayout } = useTextLayout(data.text_layout as TextLayoutPreset | undefined);
 
-  // Get animation preset from data or default to 'energetic' (user preference)
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'energetic';
+  // Resolve entrance/exit presets
+  const { presetIn, presetOut } = resolvePresets(data, 'energetic');
+  const preset = presetIn;
 
   // Get element-specific configs
   const titleConfig = getElementConfig('text-only', preset, 'title');
   const bodyConfig = getElementConfig('text-only', preset, 'body');
 
-  // Scene fade (skip fade-out when using external transitions)
+  // Scene fade + blur (skip fade-out when using external transitions)
   const sceneFade = usePresetSceneFade(titleConfig, durationInFrames, skipFadeOut);
+  const sceneBlur = useSceneBlur(titleConfig, durationInFrames, skipFadeOut);
+
+  // Exit animation: if presetOut is set, compute exit fade
+  const exitConfig = presetOut ? getElementConfig('text-only', presetOut, 'title') : null;
+  const exitFade = exitConfig ? usePresetSceneFade(exitConfig, durationInFrames, false) : 1;
 
   const titleFontSize = layout.titleFontSize * (textLayout.titleScale ?? 1);
   const bodyFontSize = layout.bodyFontSize * (textLayout.bodyScale ?? 1);
@@ -41,7 +48,8 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, th
       <AbsoluteFill style={{
         ...textLayout.container,
         background: theme.colors.backgroundGradient || theme.colors.background,
-        opacity: sceneFade,
+        opacity: sceneFade * exitFade,
+        filter: sceneBlur || undefined,
       }}>
         <EchoTextAnimation
           text={data.title}
@@ -59,7 +67,8 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, th
       <AbsoluteFill style={{
         ...textLayout.container,
         background: theme.colors.backgroundGradient || theme.colors.background,
-        opacity: sceneFade,
+        opacity: sceneFade * exitFade,
+        filter: sceneBlur || undefined,
       }}>
         <RevealTextAnimation
           text={data.title}
@@ -77,7 +86,8 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, th
       <AbsoluteFill style={{
         ...textLayout.container,
         background: theme.colors.backgroundGradient || theme.colors.background,
-        opacity: sceneFade,
+        opacity: sceneFade * exitFade,
+        filter: sceneBlur || undefined,
       }}>
         <TrackingTextAnimation
           text={data.title}
@@ -95,7 +105,8 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, th
       <AbsoluteFill style={{
         ...textLayout.container,
         background: theme.colors.backgroundGradient || theme.colors.background,
-        opacity: sceneFade,
+        opacity: sceneFade * exitFade,
+        filter: sceneBlur || undefined,
       }}>
         <FlickerTextAnimation
           text={data.title}
@@ -113,7 +124,8 @@ export const TextOnlyScene: React.FC<SceneProps> = ({ data, durationInFrames, th
       ...textLayout.container,
       background: theme.colors.backgroundGradient || theme.colors.background,
       padding: layout.padding,
-      opacity: sceneFade,
+      opacity: sceneFade * exitFade,
+      filter: sceneBlur || undefined,
     }}>
       <div style={{
         ...textLayout.content,

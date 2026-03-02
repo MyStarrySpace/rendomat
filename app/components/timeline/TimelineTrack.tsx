@@ -1,8 +1,10 @@
 "use client";
 
 import React from 'react';
-import { Scene, Transition } from '@/lib/api';
+import { Scene, Transition, AudioClip, VideoClip } from '@/lib/api';
 import { SceneBlock } from './SceneBlock';
+import { AudioClipBlock } from './AudioClipBlock';
+import { VideoClipBlock } from './VideoClipBlock';
 import { TransitionIndicator } from './TransitionIndicator';
 import {
   frameToPixel,
@@ -31,6 +33,18 @@ interface TimelineTrackProps {
   onRenderScene?: (sceneId: number) => void;
   getTransitionLabel: (typeId: string) => string;
   snapEnabled: boolean;
+  audioClips?: AudioClip[];
+  selectedAudioClipId?: number | null;
+  onAudioClipSelect?: (clipId: number | null) => void;
+  onAudioClipDragStart?: (clipId: number) => void;
+  onAudioClipDragEnd?: (clipId: number, newStartFrame: number) => void;
+  onAudioClipResizeEnd?: (clipId: number, newDurationFrames: number) => void;
+  videoClips?: VideoClip[];
+  selectedVideoClipId?: number | null;
+  onVideoClipSelect?: (clipId: number | null) => void;
+  onVideoClipDragStart?: (clipId: number) => void;
+  onVideoClipDragEnd?: (clipId: number, newStartFrame: number) => void;
+  onVideoClipResizeEnd?: (clipId: number, newDurationFrames: number) => void;
   changedSceneIds?: Set<number>;
   sceneRenderProgress?: Map<number, number>;
 }
@@ -55,6 +69,18 @@ export function TimelineTrack({
   onRenderScene,
   getTransitionLabel,
   snapEnabled,
+  audioClips = [],
+  selectedAudioClipId,
+  onAudioClipSelect,
+  onAudioClipDragStart,
+  onAudioClipDragEnd,
+  onAudioClipResizeEnd,
+  videoClips = [],
+  selectedVideoClipId,
+  onVideoClipSelect,
+  onVideoClipDragStart,
+  onVideoClipDragEnd,
+  onVideoClipResizeEnd,
   changedSceneIds = new Set(),
   sceneRenderProgress,
 }: TimelineTrackProps) {
@@ -200,12 +226,35 @@ export function TimelineTrack({
                 />
               )}
 
-              {/* Audio track: Show audio representation when we have audio */}
-              {track.id === 'audio' && (
-                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-[hsl(var(--foreground-subtle))]">
-                  {/* Audio waveform placeholder */}
-                </div>
-              )}
+              {/* B-Roll track: Render video clips */}
+              {track.id === 'b-roll' && videoClips.map((clip) => (
+                <VideoClipBlock
+                  key={clip.id}
+                  clip={clip}
+                  zoom={zoom}
+                  isSelected={selectedVideoClipId === clip.id}
+                  onClick={() => onVideoClipSelect?.(clip.id)}
+                  onDragStart={onVideoClipDragStart}
+                  onDragEnd={onVideoClipDragEnd}
+                  onResizeEnd={onVideoClipResizeEnd}
+                  trackHeight={track.height}
+                />
+              ))}
+
+              {/* Audio track: Render audio clips */}
+              {track.id === 'audio' && audioClips.map((clip) => (
+                <AudioClipBlock
+                  key={clip.id}
+                  clip={clip}
+                  zoom={zoom}
+                  isSelected={selectedAudioClipId === clip.id}
+                  onClick={() => onAudioClipSelect?.(clip.id)}
+                  onDragStart={onAudioClipDragStart}
+                  onDragEnd={onAudioClipDragEnd}
+                  onResizeEnd={onAudioClipResizeEnd}
+                  trackHeight={track.height}
+                />
+              ))}
 
               {/* Background FX track: Show animation indicators */}
               {track.id === 'background' && scenes.map((scene) => {

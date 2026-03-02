@@ -5,11 +5,13 @@ import { SceneProps } from './types';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import {
   usePresetSceneFade,
+  useSceneBlur,
   springConfig,
 } from '../lib/motion';
 import {
   AnimationPreset,
   getElementConfig,
+  resolvePresets,
   PresetConfig,
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
@@ -97,16 +99,22 @@ function renderLatex(latex: string): RenderedEquation {
 export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const layout = useResponsiveLayout();
 
-  // Get animation preset from data or default to 'dramatic' for equations
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'dramatic';
+  // Resolve entrance/exit presets
+  const { presetIn, presetOut } = resolvePresets(data, 'dramatic');
+  const preset = presetIn;
 
   // Get element-specific configs
   const titleConfig = getElementConfig('equation', preset, 'title');
   const bodyConfig = getElementConfig('equation', preset, 'body');
   const dataConfig = getElementConfig('equation', preset, 'data');
 
-  // Scene fade (skip fade-out when using external transitions)
+  // Scene fade + blur (skip fade-out when using external transitions)
   const sceneFade = usePresetSceneFade(titleConfig, durationInFrames, skipFadeOut);
+  const sceneBlur = useSceneBlur(titleConfig, durationInFrames, skipFadeOut);
+
+  // Exit animation: if presetOut is set, compute exit fade
+  const exitConfig = presetOut ? getElementConfig('equation', presetOut, 'title') : null;
+  const exitFade = exitConfig ? usePresetSceneFade(exitConfig, durationInFrames, false) : 1;
 
   // Parse equations - support both single equation and array of equations
   const equations = useMemo(() => {
@@ -136,7 +144,8 @@ export const EquationScene: React.FC<SceneProps> = ({ data, durationInFrames, th
       justifyContent: 'center',
       alignItems: 'center',
       padding: layout.padding,
-      opacity: sceneFade,
+      opacity: sceneFade * exitFade,
+      filter: sceneBlur || undefined,
     }}>
       <style>{katexStyles}</style>
       <div style={{

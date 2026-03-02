@@ -5,11 +5,13 @@ import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import {
   usePresetAnimation,
   usePresetSceneFade,
+  useSceneBlur,
   buildTransform,
 } from '../lib/motion';
 import {
   AnimationPreset,
   getElementConfig,
+  resolvePresets,
   PresetConfig,
 } from '../lib/animationPresets';
 import { AnimatedText } from '../components/AnimatedText';
@@ -18,7 +20,8 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme,
   const layout = useResponsiveLayout();
 
   // Get animation preset from data or default to 'smooth'
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+  const { presetIn, presetOut } = resolvePresets(data, 'smooth');
+  const preset = presetIn;
 
   // Get element-specific configs
   const imageConfig = getElementConfig('grid', preset, 'image');
@@ -26,6 +29,9 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme,
 
   // Scene fade (skip fade-out when using external transitions)
   const sceneFade = usePresetSceneFade(imageConfig, durationInFrames, skipFadeOut);
+  const sceneBlur = useSceneBlur(imageConfig, durationInFrames, skipFadeOut);
+  const exitConfig = presetOut ? getElementConfig('grid', presetOut, 'title') : null;
+  const exitFade = exitConfig ? usePresetSceneFade(exitConfig, durationInFrames, false) : 1;
 
   const images = [data.image_url, data.image_url_2, data.image_url_3, data.image_url_4].filter(Boolean);
 
@@ -39,7 +45,8 @@ export const GridScene: React.FC<SceneProps> = ({ data, durationInFrames, theme,
       background: theme.colors.backgroundGradient || theme.colors.background,
       fontFamily: `'${theme.fonts.body}', system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
       padding: layout.padding,
-      opacity: sceneFade,
+      opacity: sceneFade * exitFade,
+      filter: sceneBlur || undefined,
     }}>
       <div style={{
         display: 'grid',

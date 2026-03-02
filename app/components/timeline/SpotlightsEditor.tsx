@@ -18,6 +18,8 @@ import {
   AlertCircle,
   HelpCircle,
   Crosshair,
+  Palette,
+  RotateCcw,
 } from 'lucide-react';
 import { API_BASE } from '@/lib/api';
 import StockImageBrowser from '../../app/components/StockImageBrowser';
@@ -64,6 +66,7 @@ export function SpotlightsEditor({ editData, setEditData }: SpotlightsEditorProp
   const [stockTarget, setStockTarget] = useState<{ type: 'base' } | { type: 'point'; pointId: string } | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [styleExpanded, setStyleExpanded] = useState(false);
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
   const points: SpotlightPoint[] = editData.spotlights || [];
@@ -490,6 +493,177 @@ export function SpotlightsEditor({ editData, setEditData }: SpotlightsEditorProp
           </div>
         </div>
       )}
+
+      {/* Spotlight Style */}
+      <div className="border border-[hsl(var(--border))] bg-[hsl(var(--background))]">
+        <div
+          className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-[hsl(var(--surface))]"
+          onClick={() => setStyleExpanded(!styleExpanded)}
+        >
+          <Palette className="w-4 h-4 text-[hsl(var(--accent))]" />
+          <span className="text-xs font-medium text-[hsl(var(--foreground))] flex-1">Spotlight Style</span>
+          {(editData.spotlight_marker_color || editData.spotlight_card_bg || editData.spotlight_card_border_color || editData.spotlight_text_color || editData.spotlight_badge_color || editData.spotlight_badge_text_color) && (
+            <span className="w-1.5 h-1.5 bg-[hsl(var(--accent))]" title="Custom styles applied" />
+          )}
+          {styleExpanded ? (
+            <ChevronDown className="w-3 h-3 text-[hsl(var(--foreground-muted))]" />
+          ) : (
+            <ChevronRight className="w-3 h-3 text-[hsl(var(--foreground-muted))]" />
+          )}
+        </div>
+        {styleExpanded && (
+          <div className="px-3 pb-3 space-y-3 border-t border-[hsl(var(--border))]">
+            {/* Marker */}
+            <div className="pt-2">
+              <Label>Marker Lines</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="color"
+                  value={editData.spotlight_marker_color || '#d4a843'}
+                  onChange={(e) => setEditData({ ...editData, spotlight_marker_color: e.target.value })}
+                  className="w-8 h-8 border border-[hsl(var(--border))] cursor-pointer bg-transparent p-0"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-[hsl(var(--foreground-muted))]">
+                      Opacity {Math.round((editData.spotlight_marker_opacity ?? 1) * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={editData.spotlight_marker_opacity ?? 1}
+                    onChange={(e) => setEditData({ ...editData, spotlight_marker_opacity: parseFloat(e.target.value) })}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Card Background */}
+            <div>
+              <Label>Card Background</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="color"
+                  value={editData.spotlight_card_bg || '#0a0a0a'}
+                  onChange={(e) => setEditData({ ...editData, spotlight_card_bg: e.target.value })}
+                  className="w-8 h-8 border border-[hsl(var(--border))] cursor-pointer bg-transparent p-0"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-[hsl(var(--foreground-muted))]">
+                      Opacity {Math.round((editData.spotlight_card_bg_opacity ?? 0.85) * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={editData.spotlight_card_bg_opacity ?? 0.85}
+                    onChange={(e) => setEditData({ ...editData, spotlight_card_bg_opacity: parseFloat(e.target.value) })}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Card Border */}
+            <div>
+              <Label>Card Border</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="color"
+                  value={editData.spotlight_card_border_color || '#d4a843'}
+                  onChange={(e) => setEditData({ ...editData, spotlight_card_border_color: e.target.value })}
+                  className="w-8 h-8 border border-[hsl(var(--border))] cursor-pointer bg-transparent p-0"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-[hsl(var(--foreground-muted))]">
+                      Opacity {Math.round((editData.spotlight_card_border_opacity ?? 1) * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={editData.spotlight_card_border_opacity ?? 1}
+                    onChange={(e) => setEditData({ ...editData, spotlight_card_border_opacity: parseFloat(e.target.value) })}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Text Color */}
+            <div>
+              <Label>Text Color</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="color"
+                  value={editData.spotlight_text_color || '#ffffff'}
+                  onChange={(e) => setEditData({ ...editData, spotlight_text_color: e.target.value })}
+                  className="w-8 h-8 border border-[hsl(var(--border))] cursor-pointer bg-transparent p-0"
+                />
+                <span className="text-[10px] text-[hsl(var(--foreground-muted))] flex-1">
+                  Title &amp; description
+                </span>
+              </div>
+            </div>
+
+            {/* Badge */}
+            <div>
+              <Label>Badge</Label>
+              <div className="flex items-center gap-3 mt-1">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="color"
+                    value={editData.spotlight_badge_color || '#d4a843'}
+                    onChange={(e) => setEditData({ ...editData, spotlight_badge_color: e.target.value })}
+                    className="w-8 h-8 border border-[hsl(var(--border))] cursor-pointer bg-transparent p-0"
+                  />
+                  <span className="text-[10px] text-[hsl(var(--foreground-muted))]">Fill</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="color"
+                    value={editData.spotlight_badge_text_color || '#0a0a0a'}
+                    onChange={(e) => setEditData({ ...editData, spotlight_badge_text_color: e.target.value })}
+                    className="w-8 h-8 border border-[hsl(var(--border))] cursor-pointer bg-transparent p-0"
+                  />
+                  <span className="text-[10px] text-[hsl(var(--foreground-muted))]">Text</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Reset button */}
+            <button
+              type="button"
+              onClick={() => setEditData({
+                ...editData,
+                spotlight_marker_color: undefined,
+                spotlight_marker_opacity: undefined,
+                spotlight_card_bg: undefined,
+                spotlight_card_bg_opacity: undefined,
+                spotlight_card_border_color: undefined,
+                spotlight_card_border_opacity: undefined,
+                spotlight_text_color: undefined,
+                spotlight_badge_color: undefined,
+                spotlight_badge_text_color: undefined,
+              })}
+              className="flex items-center gap-1 text-xs text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset to theme defaults
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Stock Image Browser */}
       <StockImageBrowser

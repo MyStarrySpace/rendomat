@@ -10,7 +10,10 @@ import { spawnSync } from 'node:child_process';
 import { fork } from 'node:child_process';
 
 import { bundle } from '@remotion/bundler';
-import { clientDb, videoDb, sceneDb, transitionDb, audioClipDb, videoClipDb } from './database.mjs';
+import { clientDb, videoDb, sceneDb, transitionDb, audioClipDb, videoClipDb, userDb, creditTransactionDb } from './database.mjs';
+import { authenticateToken, optionalAuth } from './auth-middleware.mjs';
+import { createCheckoutSession, handleWebhookEvent, constructWebhookEvent, CREDIT_PACKAGES } from './stripe-service.mjs';
+import { renderOnLambda, isLambdaConfigured } from './lambda-renderer.mjs';
 import { renderScene, stitchScenes, muxAudio, overlayVideoClips, cleanCache } from './scene-renderer.mjs';
 import { getAllTemplates, getTemplate, createScenesFromTemplate } from './templates.mjs';
 import { generateSlidesFromDescription, generateChartData, generateEquation, improveSceneContent, searchTopicData } from './ai-service.mjs';
@@ -216,6 +219,20 @@ function sanitizePayload(body) {
 }
 
 const app = express();
+
+// Stripe webhook MUST be before express.json() for signature verification
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  try {
+    const event = constructWebhookEvent(req.body, sig);
+    handleWebhookEvent(event);
+    res.json({ received: true });
+  } catch (err) {
+    console.error('[stripe] Webhook error:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 app.use(express.json({ limit: '2mb' }));
 
 // Serve uploaded files
@@ -2518,8 +2535,14 @@ app.get('/api/videos/:videoId/download/:platformId', async (req, res) => {
 // =============================
 
 // SSE endpoint for real-time render progress
-app.get('/api/videos/:videoId/render-progress', (req, res) => {
+app.get('/api/videos/:videoId/render-progress', optionalAuth, (req, res) => {
   const videoId = parseInt(req.params.videoId, 10);
+
+  // If render is cloud-mode, require authentication
+  const currentState = getVideoRenderState(videoId);
+  if (currentState?.renderMode === 'cloud' && !req.user) {
+    return res.status(401).json({ error: 'Authentication required for cloud render progress' });
+  }
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-store');
@@ -3103,6 +3126,139 @@ app.get('/api/ae-plugin', async (req, res) => {
   } catch (error) {
     console.error('[ae-plugin] Download error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================
+// Auth & User API
+// =============================
+
+// Sync user from NextAuth callback (server-to-server only)
+app.post('/api/auth/sync-user', (req, res) => {
+  // Verify shared secret to prevent unauthorized account creation
+  const syncSecret = process.env.NEXTAUTH_SECRET;
+  const providedSecret = req.headers['x-auth-sync-secret'];
+  if (!syncSecret || providedSecret !== syncSecret) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  try {
+    const { email, name, image, provider, provider_id } = req.body;
+    if (!email || !provider || !provider_id) {
+      return res.status(400).json({ error: 'Missing required fields: email, provider, provider_id' });
+    }
+    const user = userDb.upsert({ email, name, image, provider, provider_id });
+    res.json(user);
+  } catch (error) {
+    console.error('[auth] Sync user error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get current user profile
+app.get('/api/users/me', authenticateToken, (req, res) => {
+  const user = userDb.getById(req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json(user);
+});
+
+// Get credit transaction history
+app.get('/api/users/me/transactions', authenticateToken, (req, res) => {
+  const transactions = creditTransactionDb.getAllForUser(req.user.id);
+  res.json(transactions);
+});
+
+// =============================
+// Billing API
+// =============================
+
+// Get available credit packages
+app.get('/api/billing/packages', (_req, res) => {
+  res.json({ packages: CREDIT_PACKAGES });
+});
+
+// Create checkout session
+app.post('/api/billing/checkout', authenticateToken, async (req, res) => {
+  try {
+    const { packageId } = req.body;
+    const session = await createCheckoutSession(req.user.id, packageId);
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error('[billing] Checkout error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// =============================
+// Cloud Render API
+// =============================
+
+// Check if Lambda is configured
+app.get('/api/render/capabilities', (_req, res) => {
+  res.json({
+    local: true,
+    cloud: isLambdaConfigured(),
+  });
+});
+
+// Trigger cloud render
+app.post('/api/videos/:videoId/render-cloud', authenticateToken, async (req, res) => {
+  const videoId = parseInt(req.params.videoId, 10);
+
+  if (!isLambdaConfigured()) {
+    return res.status(400).json({ error: 'Cloud rendering not configured' });
+  }
+
+  // Validate video exists and has scenes before accepting
+  const video = videoDb.getById(videoId);
+  if (!video) {
+    return res.status(404).json({ error: 'Video not found' });
+  }
+  const scenes = sceneDb.getAllForVideo(videoId);
+  if (!scenes.length) {
+    return res.status(400).json({ error: 'Video has no scenes to render' });
+  }
+
+  // Check credits
+  const user = userDb.getById(req.user.id);
+  if (!user || user.credits < 1) {
+    return res.status(402).json({ error: 'Insufficient credits' });
+  }
+
+  try {
+    // Start render in background, send immediate response
+    res.json({ started: true, videoId });
+
+    // Set up SSE state for progress
+    setVideoRenderState(videoId, {
+      stage: 'starting',
+      progress: 0,
+      renderMode: 'cloud',
+    });
+
+    const result = await renderOnLambda(videoId, req.user.id, (progress) => {
+      setVideoRenderState(videoId, {
+        ...progress,
+        renderMode: 'cloud',
+      });
+    });
+
+    setVideoRenderState(videoId, {
+      stage: 'complete',
+      progress: 100,
+      renderMode: 'cloud',
+      outputUrl: result.outputUrl,
+    });
+
+    setTimeout(() => cleanupVideoRenderState(videoId), 30000);
+  } catch (error) {
+    console.error('[cloud-render] Error:', error);
+    setVideoRenderState(videoId, {
+      stage: 'error',
+      error: error.message,
+      renderMode: 'cloud',
+    });
+    setTimeout(() => cleanupVideoRenderState(videoId), 30000);
   }
 });
 

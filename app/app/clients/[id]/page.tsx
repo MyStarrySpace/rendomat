@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Video as VideoIcon, Plus, Play, Clock, CheckCircle, AlertCircle, Loader2, Trash2, Sparkles, Wand2, Search, Globe, FileText, Quote, ExternalLink, BookOpen, X, FlaskConical } from "lucide-react";
 import Link from "next/link";
@@ -154,6 +154,34 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    'sales-framework': 'Sales Frameworks',
+    'general': 'General Templates',
+    'social': 'Social Media',
+  };
+
+  const groupedTemplates = useMemo(() => {
+    const groups: Record<string, Template[]> = {};
+    for (const t of templates) {
+      const cat = t.category || 'general';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(t);
+    }
+    // Order: sales-framework first, then general, then social, then any others
+    const order = ['sales-framework', 'general', 'social'];
+    const sorted = order
+      .filter(k => groups[k])
+      .map(k => ({ category: k, label: CATEGORY_LABELS[k] || k, templates: groups[k] }));
+    // Add any remaining categories
+    for (const k of Object.keys(groups)) {
+      if (!order.includes(k)) {
+        sorted.push({ category: k, label: CATEGORY_LABELS[k] || k, templates: groups[k] });
+      }
+    }
+    return sorted;
+  }, [templates]);
+
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -593,10 +621,14 @@ export default function ClientDetailPage() {
                         onChange={(e) => handleTemplateChange(e.target.value)}
                         className="w-full bg-[hsl(var(--surface))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
                       >
-                        {templates.map(template => (
-                          <option key={template.id} value={template.id}>
-                            {template.name} - {template.scene_count} scenes, {template.duration_seconds}s
-                          </option>
+                        {groupedTemplates.map(group => (
+                          <optgroup key={group.category} label={group.label}>
+                            {group.templates.map(template => (
+                              <option key={template.id} value={template.id}>
+                                {template.name} - {template.scene_count} scenes, {template.duration_seconds}s
+                              </option>
+                            ))}
+                          </optgroup>
                         ))}
                       </select>
                       <p className="text-xs text-[hsl(var(--foreground-subtle))] mt-1">
@@ -744,13 +776,15 @@ export default function ClientDetailPage() {
                       className="w-full bg-[hsl(var(--surface))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
                     >
                       <option value="">None (AI decides structure)</option>
-                      <optgroup label="Available Templates">
-                        {templates.map(template => (
-                          <option key={template.id} value={template.id}>
-                            {template.name} - {template.scene_count} scenes
-                          </option>
-                        ))}
-                      </optgroup>
+                      {groupedTemplates.map(group => (
+                        <optgroup key={group.category} label={group.label}>
+                          {group.templates.map(template => (
+                            <option key={template.id} value={template.id}>
+                              {template.name} - {template.scene_count} scenes
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
                     </select>
                   </div>
 

@@ -176,6 +176,30 @@ export const TEXT_ANIMATION_CONFIGS: Record<AnimationPreset, TextAnimationConfig
     direction: 'up',
     effects: ['fadeUp'],
   },
+  'blur-in': {
+    unit: 'word',
+    staggerFrames: 2,
+    spring: 'smooth',
+    distance: 6,
+    direction: 'up',
+    effects: ['blur', 'fadeUp'],
+  },
+  'blur-out': {
+    unit: 'word',
+    staggerFrames: 2,
+    spring: 'smooth',
+    distance: 8,
+    direction: 'down',
+    effects: ['blur', 'fadeUp'],
+  },
+  'blur-through': {
+    unit: 'word',
+    staggerFrames: 3,
+    spring: 'gentle',
+    distance: 10,
+    direction: 'up',
+    effects: ['blur', 'fadeUp'],
+  },
 };
 
 // =============================================================================

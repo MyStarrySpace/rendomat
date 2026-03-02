@@ -521,6 +521,7 @@ export function useStaggeredElement(options: StaggeredElementOptions) {
 // =============================================================================
 
 import type { AnimationPreset, PresetConfig } from './animationPresets';
+import { reverseDirection } from './animationPresets';
 
 interface UsePresetAnimationOptions {
   /** Animation preset name */
@@ -633,6 +634,137 @@ export function usePresetSceneFade(
   }
 
   return 1;
+}
+
+/**
+ * Scene-level blur effect for blur presets.
+ * Returns a CSS filter string ("blur(Xpx)" or "").
+ * Non-blur presets return "" — no visual change.
+ */
+export function useSceneBlur(
+  config: PresetConfig,
+  durationInFrames: number,
+  skipFadeOut: boolean
+): string {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  const blurAmount = typeof config.effects?.blur === 'number'
+    ? config.effects.blur
+    : config.effects?.blur ? 12 : 0;
+
+  if (blurAmount === 0) return '';
+
+  const maxBlur = Math.min(blurAmount, 12);
+
+  // Fade-in phase: blur from maxBlur → 0
+  if (frame < config.fadeInFrames) {
+    const progress = spring({
+      frame,
+      fps,
+      config: springConfig.smooth,
+      durationInFrames: config.fadeInFrames,
+    });
+    const blur = interpolate(progress, [0, 1], [maxBlur, 0]);
+    return `blur(${blur}px)`;
+  }
+
+  // Fade-out phase: blur from 0 → maxBlur
+  if (!skipFadeOut) {
+    const fadeOutStart = durationInFrames - config.fadeOutFrames;
+    if (frame > fadeOutStart) {
+      const fadeOutProgress = (frame - fadeOutStart) / config.fadeOutFrames;
+      const blur = interpolate(fadeOutProgress, [0, 1], [0, maxBlur]);
+      return `blur(${blur}px)`;
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Exit animation hook — mirrors usePresetAnimation but runs in reverse
+ * at the end of the scene. Returns full visibility before exit starts.
+ * Elements stagger out in reverse order (last element exits first).
+ */
+export function usePresetExitAnimation(
+  config: PresetConfig,
+  durationInFrames: number,
+  index: number = 0,
+  totalElements: number = 1
+) {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  const exitStart = durationInFrames - config.fadeOutFrames;
+
+  // Before exit: full visibility
+  if (frame <= exitStart) {
+    return {
+      opacity: 1,
+      translateX: 0,
+      translateY: 0,
+      scale: 1,
+      progress: 1,
+    };
+  }
+
+  // Reverse stagger: last element exits first
+  const reverseIndex = totalElements - 1 - index;
+  const delay = reverseIndex * config.staggerDelay;
+  const adjustedFrame = Math.max(0, frame - exitStart - delay);
+
+  const progress = spring({
+    frame: adjustedFrame,
+    fps,
+    config: springConfig[config.spring],
+    durationInFrames: config.fadeOutFrames,
+  });
+
+  // progress goes 0→1, we want visibility to go 1→0
+  const exitProgress = 1 - progress;
+
+  // Direction is reversed for exit
+  const dir = reverseDirection(config.direction);
+  let translateX = 0;
+  let translateY = 0;
+
+  const exitDistance = config.distance * progress;
+
+  switch (dir) {
+    case 'up':
+      translateY = -exitDistance;
+      break;
+    case 'down':
+      translateY = exitDistance;
+      break;
+    case 'left':
+      translateX = -exitDistance;
+      break;
+    case 'right':
+      translateX = exitDistance;
+      break;
+    case 'center':
+      break;
+    case 'random':
+      const directions = ['up', 'down', 'left', 'right'];
+      const d = directions[index % 4];
+      if (d === 'up') translateY = -exitDistance;
+      if (d === 'down') translateY = exitDistance;
+      if (d === 'left') translateX = -exitDistance;
+      if (d === 'right') translateX = exitDistance;
+      break;
+  }
+
+  const scale = interpolate(progress, [0, 1], [1, config.scaleFrom]);
+
+  return {
+    opacity: exitProgress,
+    translateX,
+    translateY,
+    scale,
+    progress: exitProgress,
+  };
 }
 
 // =============================================================================

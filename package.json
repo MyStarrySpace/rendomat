@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "remotion:preview": "remotion preview remotion/index.ts",
     "remotion:render:square": "remotion render remotion/index.ts PolicyWrappedSquare policy-wrapped.mp4",
@@ -11,7 +12,9 @@
     "remotion:render:payload": "node scripts/render-policy-wrapped.mjs",
     "render-server": "node server/render-server.mjs",
     "generate-narration": "node scripts/generate-narration.mjs",
-    "seed-db": "node scripts/seed-database.mjs"
+    "seed-db": "node scripts/seed-database.mjs",
+    "electron:dev": "electron .",
+    "electron:build": "cd app && npm run build && cd .. && electron-builder"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
@@ -29,12 +32,16 @@
     "elevenlabs-js": "^1.2.6",
     "express": "^4.19.2",
     "gray-matter": "^4.0.3",
+    "jsonwebtoken": "^9.0.3",
     "mammoth": "^1.11.0",
     "marked": "^17.0.1",
     "multer": "^2.0.2",
-    "remotion": "4.0.390"
+    "remotion": "4.0.390",
+    "stripe": "^20.4.0"
   },
   "devDependencies": {
-    "@remotion/cli": "4.0.390"
+    "@remotion/cli": "4.0.390",
+    "electron": "^35.7.5",
+    "electron-builder": "^25.1.8"
   }
 }

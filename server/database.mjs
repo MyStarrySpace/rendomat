@@ -90,10 +90,79 @@ function initializeDatabase() {
       UNIQUE(video_id, from_scene_number, to_scene_number)
     );
 
+    CREATE TABLE IF NOT EXISTS audio_clips (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      video_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      original_filename TEXT,
+      mime_type TEXT,
+      file_size INTEGER,
+      start_frame INTEGER NOT NULL DEFAULT 0,
+      duration_frames INTEGER NOT NULL,
+      source_duration_frames INTEGER NOT NULL,
+      trim_start_frame INTEGER DEFAULT 0,
+      trim_end_frame INTEGER,
+      volume REAL DEFAULT 1.0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS video_clips (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      video_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      normalized_path TEXT,
+      original_filename TEXT,
+      mime_type TEXT,
+      file_size INTEGER,
+      source_width INTEGER,
+      source_height INTEGER,
+      source_fps REAL,
+      start_frame INTEGER NOT NULL DEFAULT 0,
+      duration_frames INTEGER NOT NULL,
+      source_duration_frames INTEGER NOT NULL,
+      trim_start_frame INTEGER DEFAULT 0,
+      trim_end_frame INTEGER,
+      volume REAL DEFAULT 1.0,
+      mute_audio INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_videos_client ON videos(client_id);
     CREATE INDEX IF NOT EXISTS idx_scenes_video ON scenes(video_id);
     CREATE INDEX IF NOT EXISTS idx_render_jobs_status ON render_jobs(status);
     CREATE INDEX IF NOT EXISTS idx_transitions_video ON transitions(video_id);
+    CREATE INDEX IF NOT EXISTS idx_audio_clips_video ON audio_clips(video_id);
+    CREATE INDEX IF NOT EXISTS idx_video_clips_video ON video_clips(video_id);
+
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      name TEXT,
+      image TEXT,
+      provider TEXT NOT NULL,
+      provider_id TEXT NOT NULL,
+      credits INTEGER DEFAULT 3,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS credit_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      amount INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      stripe_session_id TEXT,
+      video_id INTEGER,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_credit_transactions_user ON credit_transactions(user_id);
   `);
 
   // Run migrations
@@ -711,6 +780,237 @@ export const transitionDb = {
     }
     return created;
   }
+};
+
+// Audio clip operations
+export const audioClipDb = {
+  getAllForVideo(videoId) {
+    return db.prepare('SELECT * FROM audio_clips WHERE video_id = ? ORDER BY start_frame').all(videoId);
+  },
+
+  getById(id) {
+    return db.prepare('SELECT * FROM audio_clips WHERE id = ?').get(id);
+  },
+
+  create(data) {
+    const stmt = db.prepare(`
+      INSERT INTO audio_clips (video_id, name, file_path, original_filename, mime_type, file_size, start_frame, duration_frames, source_duration_frames, trim_start_frame, trim_end_frame, volume)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const result = stmt.run(
+      data.video_id,
+      data.name,
+      data.file_path,
+      data.original_filename || null,
+      data.mime_type || null,
+      data.file_size || null,
+      data.start_frame || 0,
+      data.duration_frames,
+      data.source_duration_frames,
+      data.trim_start_frame || 0,
+      data.trim_end_frame || null,
+      data.volume ?? 1.0
+    );
+    return result.lastInsertRowid;
+  },
+
+  update(id, data) {
+    const updates = [];
+    const values = [];
+
+    if (data.name !== undefined) { updates.push('name = ?'); values.push(data.name); }
+    if (data.start_frame !== undefined) { updates.push('start_frame = ?'); values.push(data.start_frame); }
+    if (data.duration_frames !== undefined) { updates.push('duration_frames = ?'); values.push(data.duration_frames); }
+    if (data.trim_start_frame !== undefined) { updates.push('trim_start_frame = ?'); values.push(data.trim_start_frame); }
+    if (data.trim_end_frame !== undefined) { updates.push('trim_end_frame = ?'); values.push(data.trim_end_frame); }
+    if (data.volume !== undefined) { updates.push('volume = ?'); values.push(data.volume); }
+
+    if (updates.length === 0) {
+      return this.getById(id);
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
+
+    const stmt = db.prepare(`UPDATE audio_clips SET ${updates.join(', ')} WHERE id = ?`);
+    stmt.run(...values);
+    return this.getById(id);
+  },
+
+  delete(id) {
+    db.prepare('DELETE FROM audio_clips WHERE id = ?').run(id);
+  },
+};
+
+// Video clip operations
+export const videoClipDb = {
+  getAllForVideo(videoId) {
+    return db.prepare('SELECT * FROM video_clips WHERE video_id = ? ORDER BY start_frame').all(videoId);
+  },
+
+  getById(id) {
+    return db.prepare('SELECT * FROM video_clips WHERE id = ?').get(id);
+  },
+
+  create(data) {
+    const stmt = db.prepare(`
+      INSERT INTO video_clips (video_id, name, file_path, normalized_path, original_filename, mime_type, file_size, source_width, source_height, source_fps, start_frame, duration_frames, source_duration_frames, trim_start_frame, trim_end_frame, volume, mute_audio)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const result = stmt.run(
+      data.video_id,
+      data.name,
+      data.file_path,
+      data.normalized_path || null,
+      data.original_filename || null,
+      data.mime_type || null,
+      data.file_size || null,
+      data.source_width || null,
+      data.source_height || null,
+      data.source_fps || null,
+      data.start_frame || 0,
+      data.duration_frames,
+      data.source_duration_frames,
+      data.trim_start_frame || 0,
+      data.trim_end_frame || null,
+      data.volume ?? 1.0,
+      data.mute_audio ? 1 : 0
+    );
+    return result.lastInsertRowid;
+  },
+
+  update(id, data) {
+    const updates = [];
+    const values = [];
+
+    if (data.name !== undefined) { updates.push('name = ?'); values.push(data.name); }
+    if (data.start_frame !== undefined) { updates.push('start_frame = ?'); values.push(data.start_frame); }
+    if (data.duration_frames !== undefined) { updates.push('duration_frames = ?'); values.push(data.duration_frames); }
+    if (data.trim_start_frame !== undefined) { updates.push('trim_start_frame = ?'); values.push(data.trim_start_frame); }
+    if (data.trim_end_frame !== undefined) { updates.push('trim_end_frame = ?'); values.push(data.trim_end_frame); }
+    if (data.volume !== undefined) { updates.push('volume = ?'); values.push(data.volume); }
+    if (data.mute_audio !== undefined) { updates.push('mute_audio = ?'); values.push(data.mute_audio ? 1 : 0); }
+    if (data.normalized_path !== undefined) { updates.push('normalized_path = ?'); values.push(data.normalized_path); }
+
+    if (updates.length === 0) {
+      return this.getById(id);
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
+
+    const stmt = db.prepare(`UPDATE video_clips SET ${updates.join(', ')} WHERE id = ?`);
+    stmt.run(...values);
+    return this.getById(id);
+  },
+
+  delete(id) {
+    db.prepare('DELETE FROM video_clips WHERE id = ?').run(id);
+  },
+};
+
+// User operations
+export const userDb = {
+  getById(id) {
+    return db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  },
+
+  getByEmail(email) {
+    return db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  },
+
+  getByProvider(provider, providerId) {
+    return db.prepare('SELECT * FROM users WHERE provider = ? AND provider_id = ?').get(provider, providerId);
+  },
+
+  create(data) {
+    const id = data.id || crypto.randomUUID();
+    const stmt = db.prepare(`
+      INSERT INTO users (id, email, name, image, provider, provider_id, credits)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      id,
+      data.email,
+      data.name || null,
+      data.image || null,
+      data.provider,
+      data.provider_id,
+      data.credits ?? 3
+    );
+
+    // Record signup bonus
+    db.prepare(
+      'INSERT INTO credit_transactions (user_id, amount, reason) VALUES (?, ?, ?)'
+    ).run(id, 3, 'signup_bonus');
+
+    return this.getById(id);
+  },
+
+  update(id, data) {
+    const updates = [];
+    const values = [];
+
+    if (data.name !== undefined) { updates.push('name = ?'); values.push(data.name); }
+    if (data.image !== undefined) { updates.push('image = ?'); values.push(data.image); }
+    if (data.email !== undefined) { updates.push('email = ?'); values.push(data.email); }
+    if (data.credits !== undefined) { updates.push('credits = ?'); values.push(data.credits); }
+
+    if (updates.length === 0) return this.getById(id);
+
+    updates.push("updated_at = datetime('now')");
+    values.push(id);
+
+    db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+    return this.getById(id);
+  },
+
+  upsert(data) {
+    const existing = this.getByProvider(data.provider, data.provider_id);
+    if (existing) {
+      return this.update(existing.id, {
+        name: data.name,
+        image: data.image,
+        email: data.email,
+      });
+    }
+    return this.create(data);
+  },
+
+  adjustCredits(userId, amount, reason, extra = {}) {
+    const txn = db.transaction(() => {
+      const user = this.getById(userId);
+      if (!user) throw new Error('User not found');
+      if (amount < 0 && user.credits + amount < 0) {
+        throw new Error('Insufficient credits');
+      }
+
+      db.prepare('UPDATE users SET credits = credits + ?, updated_at = datetime(\'now\') WHERE id = ?')
+        .run(amount, userId);
+
+      db.prepare(
+        'INSERT INTO credit_transactions (user_id, amount, reason, stripe_session_id, video_id) VALUES (?, ?, ?, ?, ?)'
+      ).run(userId, amount, reason, extra.stripe_session_id || null, extra.video_id || null);
+
+      return this.getById(userId);
+    });
+    return txn();
+  },
+};
+
+// Credit transaction operations
+export const creditTransactionDb = {
+  getAllForUser(userId) {
+    return db.prepare('SELECT * FROM credit_transactions WHERE user_id = ? ORDER BY created_at DESC').all(userId);
+  },
+
+  getById(id) {
+    return db.prepare('SELECT * FROM credit_transactions WHERE id = ?').get(id);
+  },
+
+  getByStripeSession(sessionId) {
+    return db.prepare('SELECT * FROM credit_transactions WHERE stripe_session_id = ?').get(sessionId);
+  },
 };
 
 export default db;

@@ -17,6 +17,8 @@ interface SpotlightMarkerProps {
   cardOnBottom: boolean;
   markerWidth?: number;
   markerHeight?: number;
+  markerColor?: string;
+  markerOpacity?: number;
 }
 
 const DEFAULT_SIZE = 80;
@@ -36,9 +38,11 @@ export const SpotlightMarker: React.FC<SpotlightMarkerProps> = ({
   cardOnBottom,
   markerWidth = DEFAULT_SIZE,
   markerHeight: markerHeightProp,
+  markerColor,
+  markerOpacity: markerOpacityProp,
 }) => {
   const { fps } = useVideoConfig();
-  const accentColor = theme.colors.accent || '#d4a843';
+  const accentColor = markerColor || theme.colors.accent || '#d4a843';
   const drawStartFrame = cardDelayFrames - 10;
   const drawFrame = Math.max(0, segmentFrame - drawStartFrame);
 
@@ -338,7 +342,7 @@ export const SpotlightMarker: React.FC<SpotlightMarkerProps> = ({
   };
 
   return (
-    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity }}>
+    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: opacity * (markerOpacityProp ?? 1) }}>
       {renderMarker()}
     </div>
   );

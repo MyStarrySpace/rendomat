@@ -75,10 +75,11 @@ export default function Home() {
             variants={fadeInUp}
             className="headline text-5xl md:text-7xl text-[hsl(var(--foreground))] mb-8"
           >
-            Turn documents
+            From content to{" "}
+            <em className="italic text-[hsl(var(--accent))]">production</em>
             <br />
             <span className="text-[hsl(var(--foreground-muted))]">
-              into videos
+              in one sitting
             </span>
           </motion.h1>
 
@@ -86,8 +87,9 @@ export default function Home() {
             variants={fadeInUp}
             className="text-lg text-[hsl(var(--foreground-muted))] max-w-xl leading-relaxed"
           >
-            Drop in a markdown file, Word doc, or plain text. Get back a video
-            with scenes, transitions, and themes you can edit or export.
+            AI structures your content into scenes. A visual timeline gives you
+            full editorial control. Export to MP4, multiple formats, or
+            After Effects — from a single source.
           </motion.p>
         </motion.div>
       </section>
@@ -247,9 +249,8 @@ export default function Home() {
         >
           <p className="headline text-3xl md:text-4xl text-[hsl(var(--foreground))] leading-snug">
             You already have the content.
-            <span className="text-[hsl(var(--foreground-muted))]">
-              {" "}This turns it into something you can share.
-            </span>
+
+            {" "}<em className="italic text-[hsl(var(--accent))]">This turns it into something you can share.</em>
           </p>
         </motion.div>
       </section>

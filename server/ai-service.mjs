@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { searchPhotos } from './pexels-service.mjs';
 import { buildPromptFromPersonas, blendPersonas } from './persona-blender.mjs';
+import { getTemplate } from './templates.mjs';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -21,9 +22,18 @@ export async function generateSlidesFromDescription(description, templateId = nu
     ? `Generate exactly ${sceneCount} compelling slides`
     : `Generate an appropriate number of slides (typically 6-9 for optimal conversion)`;
 
-  const templateGuidance = templateId
-    ? `Use the "${templateId}" template structure as a guide for pacing and scene types.`
-    : `Design the optimal scene sequence and types for maximum impact.`;
+  let templateGuidance = `Design the optimal scene sequence and types for maximum impact.`;
+  if (templateId) {
+    const template = getTemplate(templateId);
+    if (template && template.framework) {
+      const sceneList = template.scenes
+        .map(s => `${s.scene_number}. ${s.name} (${s.scene_type})`)
+        .join('\n');
+      templateGuidance = `Use the "${template.name}" framework (${template.framework}). Follow this scene structure:\n${sceneList}\nAdapt the content to match the user's description while keeping the framework's persuasion sequence.`;
+    } else {
+      templateGuidance = `Use the "${templateId}" template structure as a guide for pacing and scene types.`;
+    }
+  }
 
   // Build company context if provided (advanced mode)
   const companyContext = companyDetails ? `

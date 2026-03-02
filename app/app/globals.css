@@ -362,3 +362,34 @@ body {
   border-left: 2px solid hsl(var(--accent));
   padding-left: 1.5rem;
 }
+
+/* =============================================================================
+   TIMELINE SCROLLBAR
+   Slim, editorial-styled horizontal scrollbar for the timeline
+   ============================================================================= */
+
+[data-timeline-container] {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border-hover)) transparent;
+}
+
+[data-timeline-container]::-webkit-scrollbar {
+  height: 6px;
+}
+
+[data-timeline-container]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-timeline-container]::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  transition: background 0.2s;
+}
+
+[data-timeline-container]::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--border-hover));
+}
+
+[data-timeline-container]::-webkit-scrollbar-thumb:active {
+  background: hsl(var(--accent) / 0.6);
+}

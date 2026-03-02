@@ -210,6 +210,44 @@ export function SceneEditor({
             <option value="tracking">Tracking</option>
             <option value="flicker">Flicker</option>
           </optgroup>
+          <optgroup label="Blur">
+            <option value="blur-in">Blur In</option>
+            <option value="blur-out">Blur Out</option>
+            <option value="blur-through">Blur Through</option>
+          </optgroup>
+        </select>
+      </div>
+
+      {/* Exit Animation */}
+      <div>
+        <Label>Exit Animation</Label>
+        <select
+          value={editData.animation_preset_out || ''}
+          onChange={(e) => setEditData({ ...editData, animation_preset_out: e.target.value || undefined })}
+          className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-3 py-2 text-sm text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
+        >
+          <option value="">Default (Fade Out)</option>
+          <optgroup label="Professional">
+            <option value="minimal">Minimal</option>
+            <option value="smooth">Smooth</option>
+            <option value="elegant">Elegant</option>
+            <option value="cinematic">Cinematic</option>
+          </optgroup>
+          <optgroup label="Energetic">
+            <option value="energetic">Energetic</option>
+            <option value="dramatic">Dramatic</option>
+            <option value="kinetic">Kinetic</option>
+          </optgroup>
+          <optgroup label="Specialty">
+            <option value="spiral">Spiral</option>
+            <option value="cascade">Cascade</option>
+            <option value="burst">Burst</option>
+          </optgroup>
+          <optgroup label="Blur">
+            <option value="blur-in">Blur In</option>
+            <option value="blur-out">Blur Out</option>
+            <option value="blur-through">Blur Through</option>
+          </optgroup>
         </select>
       </div>
 

@@ -116,6 +116,14 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = ({
       case 'rotate':
         rotate = interpolate(progress, [0, 1], [15, 0]);
         break;
+      case 'wave': {
+        translateY = interpolate(progress, [0, 1], [distance, 0]);
+        const wavePhase = index * 0.5;
+        const waveAmplitude = distance * 0.3 * (1 - progress);
+        translateY += Math.sin(progress * Math.PI * 3 + wavePhase) * waveAmplitude;
+        break;
+      }
+      // scramble: no motion — character substitution handled below
     }
   }
 
@@ -124,7 +132,7 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = ({
 
   // Apply direction-based translation (skip for snap — no motion)
   if (!isSnap && direction !== 'up' && !effects.includes('fadeUp') && !effects.includes('fadeDown') &&
-      !effects.includes('fadeLeft') && !effects.includes('fadeRight')) {
+      !effects.includes('fadeLeft') && !effects.includes('fadeRight') && !effects.includes('wave')) {
     switch (direction) {
       case 'up':
         translateY = interpolate(progress, [0, 1], [distance, 0]);
@@ -150,6 +158,19 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = ({
   });
 
   const filter = buildTextFilter(blur);
+
+  // Scramble effect: show random glyphs until progress > 0.7
+  let displayChar = char;
+  if (effects.includes('scramble') && !isSpace) {
+    const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&';
+    if (progress < 0.7) {
+      const slot = Math.floor(adjustedFrame / 2);
+      const ci = Math.abs(Math.floor(
+        Math.sin(slot * 7919 + index * 131) * CHARS.length
+      )) % CHARS.length;
+      displayChar = CHARS[ci];
+    }
+  }
 
   // Cursor: zero-width container so it never affects text layout.
   // Blink handled internally via frame timing (~530ms / 16 frames at 30fps).
@@ -201,7 +222,7 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = ({
     return (
       <>
         {modifier({
-          children: char,
+          children: displayChar,
           progress,       // spring timeline, NOT resolvedOpacity
           baseStyle: spanStyle,
           keyPrefix: `char-${index}`,
@@ -214,7 +235,7 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = ({
   return (
     <>
       <span style={spanStyle}>
-        {char}
+        {displayChar}
       </span>
       {cursorEl}
     </>

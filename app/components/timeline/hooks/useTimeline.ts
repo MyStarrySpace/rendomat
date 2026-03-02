@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Scene, Transition } from '@/lib/api';
+import { Scene, Transition, AudioClip, VideoClip } from '@/lib/api';
 import {
   DEFAULT_ZOOM,
   MIN_ZOOM,
@@ -34,6 +34,8 @@ export interface TimelineState {
   playheadFrame: number;
   selectedSceneId: number | null;
   selectedTransitionId: number | null;
+  selectedAudioClipId: number | null;
+  selectedVideoClipId: number | null;
   snapToGrid: boolean;
   isPlaying: boolean;
   scrollLeft: number;
@@ -43,25 +45,35 @@ export interface TimelineState {
 export interface UseTimelineOptions {
   scenes: Scene[];
   transitions: Transition[];
+  audioClips?: AudioClip[];
+  videoClips?: VideoClip[];
   onSceneUpdate?: (sceneId: number, data: Partial<Scene>) => Promise<void>;
   onSceneReorder?: (videoId: number, sceneId: number, newSceneNumber: number) => Promise<void>;
   onSceneResize?: (sceneId: number, edge: 'start' | 'end', newFrame: number) => Promise<void>;
   onTransitionSelect?: (transitionId: number | null) => void;
+  onAudioClipUpdate?: (clipId: number, data: Partial<AudioClip>) => Promise<void>;
+  onVideoClipUpdate?: (clipId: number, data: Partial<VideoClip>) => Promise<void>;
 }
 
 export function useTimeline({
   scenes,
   transitions,
+  audioClips = [],
+  videoClips = [],
   onSceneUpdate,
   onSceneReorder,
   onSceneResize,
   onTransitionSelect,
+  onAudioClipUpdate,
+  onVideoClipUpdate,
 }: UseTimelineOptions) {
   const [state, setState] = useState<TimelineState>({
     zoom: DEFAULT_ZOOM,
     playheadFrame: 0,
     selectedSceneId: null,
     selectedTransitionId: null,
+    selectedAudioClipId: null,
+    selectedVideoClipId: null,
     snapToGrid: true,
     isPlaying: false,
     scrollLeft: 0,
@@ -212,6 +224,8 @@ export function useTimeline({
       ...prev,
       selectedSceneId: sceneId,
       selectedTransitionId: null,
+      selectedAudioClipId: null,
+      selectedVideoClipId: null,
     }));
   }, []);
 
@@ -221,9 +235,33 @@ export function useTimeline({
       ...prev,
       selectedTransitionId: transitionId,
       selectedSceneId: null,
+      selectedAudioClipId: null,
+      selectedVideoClipId: null,
     }));
     onTransitionSelect?.(transitionId);
   }, [onTransitionSelect]);
+
+  // Audio clip selection
+  const selectAudioClip = useCallback((clipId: number | null) => {
+    setState(prev => ({
+      ...prev,
+      selectedAudioClipId: clipId,
+      selectedSceneId: null,
+      selectedTransitionId: null,
+      selectedVideoClipId: null,
+    }));
+  }, []);
+
+  // Video clip selection
+  const selectVideoClip = useCallback((clipId: number | null) => {
+    setState(prev => ({
+      ...prev,
+      selectedVideoClipId: clipId,
+      selectedSceneId: null,
+      selectedTransitionId: null,
+      selectedAudioClipId: null,
+    }));
+  }, []);
 
   // Toggle snap to grid
   const toggleSnapToGrid = useCallback(() => {
@@ -397,6 +435,82 @@ export function useTimeline({
     [transitions, state.selectedTransitionId]
   );
 
+  // Get selected audio clip
+  const selectedAudioClip = useMemo(
+    () => audioClips.find(c => c.id === state.selectedAudioClipId) || null,
+    [audioClips, state.selectedAudioClipId]
+  );
+
+  // Get selected video clip
+  const selectedVideoClip = useMemo(
+    () => videoClips.find(c => c.id === state.selectedVideoClipId) || null,
+    [videoClips, state.selectedVideoClipId]
+  );
+
+  // Audio clip drag handlers (free-position)
+  const audioClipDragState = useRef<{
+    clipId: number;
+    originalStartFrame: number;
+  } | null>(null);
+
+  const handleAudioClipDragStart = useCallback((clipId: number) => {
+    const clip = audioClips.find(c => c.id === clipId);
+    if (!clip) return;
+    audioClipDragState.current = {
+      clipId,
+      originalStartFrame: clip.start_frame,
+    };
+  }, [audioClips]);
+
+  const handleAudioClipDragEnd = useCallback(async (clipId: number, newStartFrame: number) => {
+    audioClipDragState.current = null;
+    const snappedFrame = Math.max(0, newStartFrame);
+    if (onAudioClipUpdate) {
+      await onAudioClipUpdate(clipId, { start_frame: snappedFrame });
+    }
+  }, [onAudioClipUpdate]);
+
+  const handleAudioClipResizeEnd = useCallback(async (clipId: number, newDurationFrames: number) => {
+    const clip = audioClips.find(c => c.id === clipId);
+    if (!clip) return;
+    const clamped = clamp(newDurationFrames, 15, clip.source_duration_frames);
+    if (onAudioClipUpdate) {
+      await onAudioClipUpdate(clipId, { duration_frames: clamped });
+    }
+  }, [audioClips, onAudioClipUpdate]);
+
+  // Video clip drag handlers (free-position)
+  const videoClipDragState = useRef<{
+    clipId: number;
+    originalStartFrame: number;
+  } | null>(null);
+
+  const handleVideoClipDragStart = useCallback((clipId: number) => {
+    const clip = videoClips.find(c => c.id === clipId);
+    if (!clip) return;
+    videoClipDragState.current = {
+      clipId,
+      originalStartFrame: clip.start_frame,
+    };
+  }, [videoClips]);
+
+  const handleVideoClipDragEnd = useCallback(async (clipId: number, newStartFrame: number) => {
+    videoClipDragState.current = null;
+    const snappedFrame = Math.max(0, newStartFrame);
+    if (onVideoClipUpdate) {
+      await onVideoClipUpdate(clipId, { start_frame: snappedFrame });
+    }
+  }, [onVideoClipUpdate]);
+
+  const handleVideoClipResizeEnd = useCallback(async (clipId: number, newDurationFrames: number) => {
+    const clip = videoClips.find(c => c.id === clipId);
+    if (!clip) return;
+    const clamped = clamp(newDurationFrames, 15, clip.source_duration_frames);
+    if (onVideoClipUpdate) {
+      await onVideoClipUpdate(clipId, { duration_frames: clamped });
+    }
+  }, [videoClips, onVideoClipUpdate]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -447,6 +561,8 @@ export function useTimeline({
         case 'Escape':
           selectScene(null);
           selectTransition(null);
+          selectAudioClip(null);
+          selectVideoClip(null);
           break;
       }
     };
@@ -460,6 +576,8 @@ export function useTimeline({
     setPlayheadFrame,
     selectScene,
     selectTransition,
+    selectAudioClip,
+    selectVideoClip,
     zoomIn,
     zoomOut,
   ]);
@@ -472,6 +590,8 @@ export function useTimeline({
     totalFrames,
     selectedScene,
     selectedTransition,
+    selectedAudioClip,
+    selectedVideoClip,
     containerRef,
     dragPreview,
     resizePreview,
@@ -488,6 +608,8 @@ export function useTimeline({
     stop,
     selectScene,
     selectTransition,
+    selectAudioClip,
+    selectVideoClip,
     toggleSnapToGrid,
     setScrollLeft,
     handleSceneDragStart,
@@ -496,6 +618,12 @@ export function useTimeline({
     handleSceneResizeStart,
     handleSceneResizeMove,
     handleSceneResizeEnd,
+    handleAudioClipDragStart,
+    handleAudioClipDragEnd,
+    handleAudioClipResizeEnd,
+    handleVideoClipDragStart,
+    handleVideoClipDragEnd,
+    handleVideoClipResizeEnd,
     markSceneChanged,
     clearSceneChanged,
     clearAllChanges,

@@ -2,6 +2,15 @@
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4321';
 
+// Auth header helper — call with session token from next-auth
+export function authHeaders(token?: string | null): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export interface Client {
   id: number;
   name: string;
@@ -76,6 +85,8 @@ export interface Template {
   id: string;
   name: string;
   description: string;
+  category: string;
+  framework: string | null;
   duration_seconds: number;
   aspect_ratio: string;
   scene_count: number;
@@ -408,6 +419,138 @@ export const platformApi = {
   },
 };
 
+// Audio Clip Types
+export interface AudioClip {
+  id: number;
+  video_id: number;
+  name: string;
+  file_path: string;
+  original_filename: string | null;
+  mime_type: string | null;
+  file_size: number | null;
+  start_frame: number;
+  duration_frames: number;
+  source_duration_frames: number;
+  trim_start_frame: number;
+  trim_end_frame: number | null;
+  volume: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Audio Clip API
+export const audioClipApi = {
+  async getAllForVideo(videoId: number): Promise<AudioClip[]> {
+    const res = await fetch(`${API_BASE}/api/videos/${videoId}/audio-clips`);
+    if (!res.ok) throw new Error('Failed to fetch audio clips');
+    return res.json();
+  },
+
+  async upload(videoId: number, file: File | Blob, options?: { name?: string; start_frame?: number; volume?: number }): Promise<AudioClip> {
+    const formData = new FormData();
+    formData.append('audio', file, file instanceof File ? file.name : 'recording.webm');
+    if (options?.name) formData.append('name', options.name);
+    if (options?.start_frame !== undefined) formData.append('start_frame', String(options.start_frame));
+    if (options?.volume !== undefined) formData.append('volume', String(options.volume));
+
+    const res = await fetch(`${API_BASE}/api/videos/${videoId}/audio-clips`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) throw new Error('Failed to upload audio clip');
+    return res.json();
+  },
+
+  async update(clipId: number, data: Partial<Pick<AudioClip, 'name' | 'start_frame' | 'duration_frames' | 'trim_start_frame' | 'trim_end_frame' | 'volume'>>): Promise<AudioClip> {
+    const res = await fetch(`${API_BASE}/api/audio-clips/${clipId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update audio clip');
+    return res.json();
+  },
+
+  async delete(clipId: number): Promise<void> {
+    const res = await fetch(`${API_BASE}/api/audio-clips/${clipId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete audio clip');
+  },
+
+  getStreamUrl(clipId: number): string {
+    return `${API_BASE}/api/audio-clips/${clipId}/stream`;
+  },
+};
+
+// Video Clip Types
+export interface VideoClip {
+  id: number;
+  video_id: number;
+  name: string;
+  file_path: string;
+  normalized_path: string | null;
+  original_filename: string | null;
+  mime_type: string | null;
+  file_size: number | null;
+  source_width: number | null;
+  source_height: number | null;
+  source_fps: number | null;
+  start_frame: number;
+  duration_frames: number;
+  source_duration_frames: number;
+  trim_start_frame: number;
+  trim_end_frame: number | null;
+  volume: number;
+  mute_audio: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Video Clip API
+export const videoClipApi = {
+  async getAllForVideo(videoId: number): Promise<VideoClip[]> {
+    const res = await fetch(`${API_BASE}/api/videos/${videoId}/video-clips`);
+    if (!res.ok) throw new Error('Failed to fetch video clips');
+    return res.json();
+  },
+
+  async upload(videoId: number, file: File, options?: { name?: string; start_frame?: number }): Promise<VideoClip> {
+    const formData = new FormData();
+    formData.append('video', file, file.name);
+    if (options?.name) formData.append('name', options.name);
+    if (options?.start_frame !== undefined) formData.append('start_frame', String(options.start_frame));
+
+    const res = await fetch(`${API_BASE}/api/videos/${videoId}/video-clips`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) throw new Error('Failed to upload video clip');
+    return res.json();
+  },
+
+  async update(clipId: number, data: Partial<Pick<VideoClip, 'name' | 'start_frame' | 'duration_frames' | 'trim_start_frame' | 'trim_end_frame' | 'volume' | 'mute_audio'>>): Promise<VideoClip> {
+    const res = await fetch(`${API_BASE}/api/video-clips/${clipId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update video clip');
+    return res.json();
+  },
+
+  async delete(clipId: number): Promise<void> {
+    const res = await fetch(`${API_BASE}/api/video-clips/${clipId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete video clip');
+  },
+
+  getStreamUrl(clipId: number): string {
+    return `${API_BASE}/api/video-clips/${clipId}/stream`;
+  },
+};
+
 // Persona Types
 export interface PersonaBehaviorOption {
   id: string;
@@ -644,6 +787,98 @@ export const researchApi = {
       body: JSON.stringify({ claim, sourceUrls }),
     });
     if (!res.ok) throw new Error('Failed to verify claim');
+    return res.json();
+  },
+};
+
+// User API
+export interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+  provider: string;
+  credits: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreditTransaction {
+  id: number;
+  user_id: string;
+  amount: number;
+  reason: string;
+  stripe_session_id: string | null;
+  video_id: number | null;
+  created_at: string;
+}
+
+export const userApi = {
+  async getMe(token: string): Promise<User> {
+    const res = await fetch(`${API_BASE}/api/users/me`, {
+      headers: authHeaders(token),
+    });
+    if (!res.ok) throw new Error('Failed to fetch user');
+    return res.json();
+  },
+
+  async getTransactions(token: string): Promise<CreditTransaction[]> {
+    const res = await fetch(`${API_BASE}/api/users/me/transactions`, {
+      headers: authHeaders(token),
+    });
+    if (!res.ok) throw new Error('Failed to fetch transactions');
+    return res.json();
+  },
+};
+
+// Billing API
+export interface CreditPackage {
+  id: string;
+  credits: number;
+  price: number;
+  label: string;
+}
+
+export const billingApi = {
+  async getPackages(): Promise<{ packages: CreditPackage[] }> {
+    const res = await fetch(`${API_BASE}/api/billing/packages`);
+    if (!res.ok) throw new Error('Failed to fetch packages');
+    return res.json();
+  },
+
+  async createCheckout(token: string, packageId: string): Promise<{ url: string }> {
+    const res = await fetch(`${API_BASE}/api/billing/checkout`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ packageId }),
+    });
+    if (!res.ok) throw new Error('Failed to create checkout');
+    return res.json();
+  },
+};
+
+// Cloud Render API
+export interface RenderCapabilities {
+  local: boolean;
+  cloud: boolean;
+}
+
+export const cloudRenderApi = {
+  async getCapabilities(): Promise<RenderCapabilities> {
+    const res = await fetch(`${API_BASE}/api/render/capabilities`);
+    if (!res.ok) throw new Error('Failed to fetch render capabilities');
+    return res.json();
+  },
+
+  async startCloudRender(videoId: number, token: string): Promise<{ started: boolean; videoId: number }> {
+    const res = await fetch(`${API_BASE}/api/videos/${videoId}/render-cloud`, {
+      method: 'POST',
+      headers: authHeaders(token),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Cloud render failed' }));
+      throw new Error(err.error || 'Cloud render failed');
+    }
     return res.json();
   },
 };

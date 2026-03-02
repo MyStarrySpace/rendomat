@@ -3,7 +3,25 @@ import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig, spring, interpolate
 import { SceneProps, SpotlightPoint } from './types';
 import { AnimatedText } from '../components/AnimatedText';
 import { SpotlightMarker } from '../components/SpotlightMarker';
-import { AnimationPreset } from '../lib/animationPresets';
+import { usePresetSceneFade, useSceneBlur } from '../lib/motion';
+import { AnimationPreset, ANIMATION_PRESETS, resolvePresets } from '../lib/animationPresets';
+
+/** Apply opacity to a hex color, returning rgba string */
+function colorWithOpacity(color: string, opacity: number): string {
+  // Handle hex colors
+  const hex = color.replace('#', '');
+  if (hex.length === 6 || hex.length === 3) {
+    const full = hex.length === 3
+      ? hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2]
+      : hex;
+    const r = parseInt(full.substring(0, 2), 16);
+    const g = parseInt(full.substring(2, 4), 16);
+    const b = parseInt(full.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  // If already rgba/rgb, just return as-is (opacity applied via CSS opacity)
+  return color;
+}
 
 export const SpotlightsScene: React.FC<SceneProps> = ({ data, durationInFrames, theme, skipFadeOut = false }) => {
   const frame = useCurrentFrame();
@@ -11,7 +29,19 @@ export const SpotlightsScene: React.FC<SceneProps> = ({ data, durationInFrames, 
 
   const points: SpotlightPoint[] = data.spotlights || [];
   const imageUrl = data.spotlight_image_url || data.image_url;
-  const preset: AnimationPreset = (data.animation_preset as AnimationPreset) || 'smooth';
+  const { presetIn, presetOut } = resolvePresets(data, 'smooth');
+  const preset = presetIn;
+
+  // Style overrides
+  const markerColor = data.spotlight_marker_color;
+  const markerOpacity = data.spotlight_marker_opacity;
+  const cardBg = data.spotlight_card_bg;
+  const cardBgOpacity = data.spotlight_card_bg_opacity;
+  const cardBorderColor = data.spotlight_card_border_color;
+  const cardBorderOpacity = data.spotlight_card_border_opacity;
+  const textColor = data.spotlight_text_color;
+  const badgeColor = data.spotlight_badge_color;
+  const badgeTextColor = data.spotlight_badge_text_color;
 
   if (!imageUrl || points.length === 0) {
     return (
@@ -45,6 +75,10 @@ export const SpotlightsScene: React.FC<SceneProps> = ({ data, durationInFrames, 
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
   );
   const sceneOpacity = sceneFadeIn * sceneFadeOut;
+
+  const sceneBlur = useSceneBlur(ANIMATION_PRESETS[preset], durationInFrames, skipFadeOut);
+  const exitConfig = presetOut ? ANIMATION_PRESETS[presetOut] : null;
+  const exitFade = exitConfig ? usePresetSceneFade(exitConfig, durationInFrames, false) : 1;
 
   // Determine current segment and interpolation targets
   const currentSegmentRaw = frame / framesPerPoint;
@@ -131,7 +165,8 @@ export const SpotlightsScene: React.FC<SceneProps> = ({ data, durationInFrames, 
     <AbsoluteFill style={{
       background: theme.colors.background,
       overflow: 'hidden',
-      opacity: sceneOpacity,
+      opacity: sceneOpacity * exitFade,
+      filter: sceneBlur || undefined,
     }}>
       {/* Camera container — pans and zooms via transform */}
       <div style={{
@@ -169,8 +204,12 @@ export const SpotlightsScene: React.FC<SceneProps> = ({ data, durationInFrames, 
           width: cardWidth,
           opacity: cardOpacity,
           transform: `translateY(${cardSlideY}px)`,
-          background: theme.colors.surface || 'rgba(10, 10, 10, 0.85)',
-          border: `1px solid ${theme.colors.accent || 'rgba(255,255,255,0.15)'}`,
+          background: cardBg
+            ? colorWithOpacity(cardBg, cardBgOpacity ?? 0.85)
+            : theme.colors.surface || 'rgba(10, 10, 10, 0.85)',
+          border: `1px solid ${cardBorderColor
+            ? colorWithOpacity(cardBorderColor, cardBorderOpacity ?? 1)
+            : theme.colors.accent || 'rgba(255,255,255,0.15)'}`,
           padding: 24,
           display: 'flex',
           flexDirection: 'column',
@@ -186,8 +225,8 @@ export const SpotlightsScene: React.FC<SceneProps> = ({ data, durationInFrames, 
               right: cardOnRight ? undefined : -16,
               width: 40,
               height: 40,
-              background: theme.colors.accent || '#d4a843',
-              color: theme.colors.background || '#0a0a0a',
+              background: badgeColor || theme.colors.accent || '#d4a843',
+              color: badgeTextColor || theme.colors.background || '#0a0a0a',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -215,7 +254,7 @@ export const SpotlightsScene: React.FC<SceneProps> = ({ data, durationInFrames, 
             <div style={{
               fontSize: 32,
               fontWeight: 700,
-              color: theme.colors.textPrimary,
+              color: textColor || theme.colors.textPrimary,
               fontFamily: `'${theme.fonts.heading}', serif`,
               letterSpacing: '-0.02em',
             }}>
@@ -234,8 +273,8 @@ export const SpotlightsScene: React.FC<SceneProps> = ({ data, durationInFrames, 
             <div style={{
               fontSize: 20,
               lineHeight: 1.4,
-              color: theme.colors.textSecondary || theme.colors.textPrimary,
-              opacity: 0.85,
+              color: textColor || theme.colors.textSecondary || theme.colors.textPrimary,
+              opacity: textColor ? 1 : 0.85,
             }}>
               <AnimatedText
                 preset={preset}
@@ -264,6 +303,8 @@ export const SpotlightsScene: React.FC<SceneProps> = ({ data, durationInFrames, 
         cardOnBottom={cardOnBottom}
         markerWidth={currentPoint.markerWidth}
         markerHeight={currentPoint.markerHeight}
+        markerColor={markerColor}
+        markerOpacity={markerOpacity}
       />
     </AbsoluteFill>
   );
