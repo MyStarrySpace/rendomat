@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAuthenticate } from "@neondatabase/neon-js/auth/react/ui";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -24,7 +25,8 @@ import {
 } from "@/lib/motion";
 
 export default function BillingPage() {
-  const { data: session, status } = useSession();
+  const { user } = useAuthenticate({ enabled: false });
+  const router = useRouter();
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [credits, setCredits] = useState<number>(0);
@@ -43,7 +45,7 @@ export default function BillingPage() {
 
   useEffect(() => {
     loadData();
-  }, [session]);
+  }, [user]);
 
   async function loadData() {
     try {
@@ -52,18 +54,8 @@ export default function BillingPage() {
       ]);
       setPackages(pkgRes.packages);
 
-      if (session) {
-        const token = (session as any).accessToken;
-        if (token) {
-          const [user, txns] = await Promise.all([
-            userApi.getMe(token),
-            userApi.getTransactions(token),
-          ]);
-          setCredits(user.credits);
-          setTransactions(txns);
-        } else {
-          setCredits((session.user as any)?.credits ?? 0);
-        }
+      if (user) {
+        // TODO: fetch credits and transactions from Neon DB via API route
       }
     } catch (error) {
       console.error("Failed to load billing data:", error);
@@ -73,12 +65,12 @@ export default function BillingPage() {
   }
 
   async function handleCheckout(packageId: string) {
-    if (!session) return;
+    if (!user) return;
     setCheckingOut(packageId);
     try {
-      const token = (session as any).accessToken;
-      const { url } = await billingApi.createCheckout(token, packageId);
-      window.location.href = url;
+      // TODO: implement checkout via Neon DB API route
+      console.warn("Checkout not yet implemented with Neon Auth");
+      setCheckingOut(null);
     } catch (error) {
       console.error("Checkout failed:", error);
       setCheckingOut(null);
@@ -98,7 +90,7 @@ export default function BillingPage() {
     }
   }
 
-  if (status === "loading" || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-[hsl(var(--foreground-muted))]" />
@@ -179,12 +171,12 @@ export default function BillingPage() {
           </motion.div>
 
           {/* Packages */}
-          {!session ? (
+          {!user ? (
             <div className="p-8 border border-[hsl(var(--border))] text-center">
               <p className="text-[hsl(var(--foreground-muted))] mb-4">
                 Sign in to purchase credits
               </p>
-              <Button onClick={() => window.location.href = "/api/auth/signin"}>
+              <Button onClick={() => router.push("/auth")}>
                 Sign in
               </Button>
             </div>
@@ -225,7 +217,7 @@ export default function BillingPage() {
           )}
 
           {/* Transaction history */}
-          {session && transactions.length > 0 && (
+          {user && transactions.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

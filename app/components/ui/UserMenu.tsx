@@ -1,12 +1,14 @@
 "use client";
 
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useAuthenticate } from "@neondatabase/neon-js/auth/react/ui";
 import { useState, useRef, useEffect } from "react";
-import { LogIn, LogOut, CreditCard, User, Coins } from "lucide-react";
+import { LogIn, LogOut, CreditCard, User } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export function UserMenu() {
-  const { data: session, status } = useSession();
+  const { user, isPending } = useAuthenticate({ enabled: false });
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -20,16 +22,16 @@ export function UserMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (status === "loading") {
+  if (isPending) {
     return (
       <div className="h-8 w-8 bg-[hsl(var(--surface))] animate-pulse" />
     );
   }
 
-  if (!session?.user) {
+  if (!user) {
     return (
       <button
-        onClick={() => signIn()}
+        onClick={() => router.push("/auth")}
         className="inline-flex items-center gap-2 h-8 px-3 text-sm font-medium text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] border border-[hsl(var(--border))] hover:border-[hsl(var(--border-hover))] bg-[hsl(var(--surface))] hover:bg-[hsl(var(--surface-hover))] transition-colors"
       >
         <LogIn className="w-3.5 h-3.5" />
@@ -37,9 +39,6 @@ export function UserMenu() {
       </button>
     );
   }
-
-  const user = session.user as any;
-  const credits = user.credits ?? 0;
 
   return (
     <div className="relative" ref={menuRef}>
@@ -57,10 +56,6 @@ export function UserMenu() {
         ) : (
           <User className="w-5 h-5 text-[hsl(var(--foreground-muted))]" />
         )}
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-[hsl(var(--accent))]">
-          <Coins className="w-3 h-3" />
-          {credits}
-        </span>
       </button>
 
       {open && (
@@ -74,17 +69,6 @@ export function UserMenu() {
             </p>
           </div>
 
-          <div className="p-2 border-b border-[hsl(var(--border))]">
-            <div className="flex items-center justify-between px-2 py-1.5">
-              <span className="text-xs uppercase tracking-wider text-[hsl(var(--foreground-muted))]">
-                Credits
-              </span>
-              <span className="text-sm font-medium text-[hsl(var(--accent))]">
-                {credits}
-              </span>
-            </div>
-          </div>
-
           <div className="p-1">
             <Link
               href="/billing"
@@ -94,8 +78,19 @@ export function UserMenu() {
               <CreditCard className="w-3.5 h-3.5" />
               Buy Credits
             </Link>
+            <Link
+              href="/account"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 px-2 py-1.5 text-sm text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--background))] transition-colors w-full"
+            >
+              <User className="w-3.5 h-3.5" />
+              Account
+            </Link>
             <button
-              onClick={() => signOut()}
+              onClick={() => {
+                router.push("/auth");
+                setOpen(false);
+              }}
               className="flex items-center gap-2 px-2 py-1.5 text-sm text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--error))] hover:bg-[hsl(var(--background))] transition-colors w-full text-left"
             >
               <LogOut className="w-3.5 h-3.5" />

@@ -1,4 +1,3 @@
-import Script from "next/script";
 import type { Metadata } from "next";
 import { Inter, Playfair_Display, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/Providers";
@@ -44,9 +43,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
-      </head>
       <body
         className={`${inter.variable} ${playfairDisplay.variable} ${jetbrainsMono.variable} antialiased`}
       >

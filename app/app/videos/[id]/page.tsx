@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuthenticate } from "@neondatabase/neon-js/auth/react/ui";
 import { videoApi, sceneApi, clientApi, platformApi, personaApi, transitionApi, audioClipApi, videoClipApi, cloudRenderApi, Video, Scene, Client, EffectivePersonas, Transition, TransitionType, AudioClip, VideoClip, RenderCapabilities, API_BASE } from "@/lib/api";
 import { calculateSceneDuration } from "@/lib/scene-duration";
 import { TimelineEditor, getSceneAtFrame } from "@/components/timeline";
@@ -204,7 +204,7 @@ export default function VideoDetailPage() {
   const [videoClips, setVideoClips] = useState<VideoClip[]>([]);
 
   // Render mode state
-  const { data: session } = useSession();
+  const { user } = useAuthenticate({ enabled: false });
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.isElectron;
   const [renderMode, setRenderMode] = useState<'local' | 'cloud'>(isElectron ? 'local' : 'cloud');
   const [renderCapabilities, setRenderCapabilities] = useState<RenderCapabilities | null>(null);
@@ -434,14 +434,14 @@ export default function VideoDetailPage() {
   }
 
   async function handleCloudRender() {
-    if (!session) return;
+    if (!user) return;
     setRendering(true);
     setRenderProgress("Starting cloud render...");
     setProgressData({ stage: 'starting', progress: 0, renderMode: 'cloud' });
 
     try {
-      const token = (session as any).accessToken;
-      await cloudRenderApi.startCloudRender(videoId, token);
+      // TODO: implement cloud render auth with Stack Auth token
+      await cloudRenderApi.startCloudRender(videoId, user.id);
       // Progress will come through SSE
     } catch (error) {
       console.error("Cloud render failed:", error);

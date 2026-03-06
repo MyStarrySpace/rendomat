@@ -2,7 +2,7 @@
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4321';
 
-// Auth header helper — call with session token from next-auth
+// Auth header helper
 export function authHeaders(token?: string | null): Record<string, string> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) {
