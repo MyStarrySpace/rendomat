@@ -172,8 +172,9 @@ export default function BillingPage() {
               Cloud Render Credits
             </h1>
             <p className="text-[hsl(var(--foreground-muted))] max-w-lg">
-              Each cloud render uses one credit. Your video is rendered on AWS Lambda
-              and delivered via S3 — no local resources needed.
+              Credits are based on video length: 1 credit per 10 seconds of rendered
+              video. Your video is rendered on AWS Lambda and delivered via S3, so no
+              local resources are needed.
             </p>
           </motion.div>
 
@@ -205,7 +206,7 @@ export default function BillingPage() {
                     </CardHeader>
                     <CardContent className="flex-1 flex flex-col justify-between gap-4">
                       <p className="text-sm text-[hsl(var(--foreground-muted))]">
-                        {formatPrice(Math.round(pkg.price / pkg.credits))} per render
+                        {formatPrice(Math.round(pkg.price / pkg.credits))} per credit
                       </p>
                       <Button
                         onClick={() => handleCheckout(pkg.id)}

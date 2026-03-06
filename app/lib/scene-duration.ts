@@ -132,3 +132,19 @@ export function calculateSceneDuration(slide: SlideData): number {
 export function calculateSceneDurations(slides: SlideData[]): number[] {
   return slides.map(slide => calculateSceneDuration(slide));
 }
+
+/**
+ * Calculate render credits for a scene based on its duration.
+ * 1 credit per 10 seconds, minimum 1 credit per scene.
+ */
+export function calculateSceneCredits(durationFrames: number): number {
+  const seconds = durationFrames / FPS;
+  return Math.max(1, Math.ceil(seconds / 10));
+}
+
+/**
+ * Calculate total render credits for a set of scenes.
+ */
+export function calculateTotalCredits(scenes: { start_frame: number; end_frame: number }[]): number {
+  return scenes.reduce((sum, s) => sum + calculateSceneCredits(s.end_frame - s.start_frame), 0);
+}

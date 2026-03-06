@@ -4,7 +4,7 @@ import React, { useCallback, useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Scene, Transition, TransitionType, AudioClip, VideoClip, sceneApi, audioClipApi, videoClipApi, Video, API_BASE } from '@/lib/api';
-import { calculateSceneDuration } from '@/lib/scene-duration';
+import { calculateSceneDuration, calculateSceneCredits } from '@/lib/scene-duration';
 import { useTimeline } from './hooks/useTimeline';
 import { TimelineHeader } from './TimelineHeader';
 import { TimelineContainer } from './TimelineContainer';
@@ -217,6 +217,13 @@ export function TimelineEditor({
     () => timeline.changedSceneIds.size > 0,
     [timeline.changedSceneIds]
   );
+
+  const renderCreditCost = useMemo(() => {
+    const scenesToRender = scenes.filter(
+      s => !s.cache_path || timeline.changedSceneIds.has(s.id)
+    );
+    return scenesToRender.reduce((sum, s) => sum + calculateSceneCredits(s.end_frame - s.start_frame), 0);
+  }, [scenes, timeline.changedSceneIds]);
 
   // Scene save handler (for side panel) - saves and triggers re-render
   const handleSceneSave = useCallback(async (sceneId: number, data: any) => {
@@ -570,6 +577,7 @@ export function TimelineEditor({
           snapToGrid={timeline.snapToGrid}
           hasUnrenderedScenes={hasUnrenderedScenes}
           hasChangedScenes={hasChangedScenes}
+          renderCreditCost={renderCreditCost}
           onZoomIn={timeline.zoomIn}
           onZoomOut={timeline.zoomOut}
           onZoomChange={timeline.setZoom}

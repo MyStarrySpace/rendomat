@@ -733,11 +733,11 @@ export default function VideoDetailPage() {
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Button
                 onClick={renderMode === 'cloud' ? handleCloudRender : handleRender}
-                disabled={rendering}
+                disabled={rendering || (renderMode === 'local' && cachedScenes < totalScenes)}
                 loading={rendering}
-                icon={renderMode === 'cloud' ? <Cloud className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
+                icon={renderMode === 'cloud' ? <Cloud className="w-4 h-4" /> : <Download className="w-4 h-4" />}
               >
-                {rendering ? "Rendering..." : renderMode === 'cloud' ? "Cloud Render" : "Render Video"}
+                {rendering ? "Rendering..." : renderMode === 'cloud' ? "Cloud Render" : "Download Video"}
               </Button>
             </motion.div>
           </div>
@@ -746,8 +746,7 @@ export default function VideoDetailPage() {
 
       {/* Content */}
       <div
-        className="pt-32 pb-24 px-6 transition-[margin] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]"
-        style={{ marginRight: sidePanelOpen ? 320 : 0 }}
+        className="pt-32 pb-24 px-6"
       >
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -782,6 +781,15 @@ export default function VideoDetailPage() {
               <ThemePicker
                 value={video.theme_id || 'tech-dark'}
                 onChange={async (themeId) => {
+                  const cached = scenes.filter(s => s.cache_path);
+                  if (cached.length > 0) {
+                    const ok = window.confirm(
+                      `Changing the theme will clear the render cache for ${cached.length} scene${cached.length !== 1 ? 's' : ''}. Continue?`
+                    );
+                    if (!ok) return;
+                    await Promise.all(cached.map(s => sceneApi.clearCache(s.id)));
+                    setScenes(prev => prev.map(s => s.cache_path ? { ...s, cache_path: null, cache_hash: null, cached_at: null } : s));
+                  }
                   await videoApi.update(video.id, { theme_id: themeId });
                   loadData();
                 }}
@@ -824,7 +832,19 @@ export default function VideoDetailPage() {
             <div className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-4 mb-8">
               <div className="flex items-center gap-3 mb-2">
                 <Zap className="w-5 h-5 text-[hsl(var(--warning))]" />
-                <h3 className="font-medium text-[hsl(var(--foreground))]">Cache Status</h3>
+                <h3 className="font-medium text-[hsl(var(--foreground))] flex-1">Cache Status</h3>
+                <button
+                  onClick={async () => {
+                    await Promise.all(scenes.map(s => sceneApi.clearCache(s.id)));
+                    setScenes(prev => prev.map(s => ({ ...s, cache_path: null, cache_hash: null, cached_at: null })));
+                    handleRender();
+                  }}
+                  disabled={rendering}
+                  className="flex items-center gap-1.5 text-xs text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${rendering ? 'animate-spin' : ''}`} />
+                  Re-render all
+                </button>
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex-1 bg-[hsl(var(--background))] h-2 overflow-hidden">

@@ -147,7 +147,7 @@ function initializeDatabase() {
       image TEXT,
       provider TEXT NOT NULL,
       provider_id TEXT NOT NULL,
-      credits INTEGER DEFAULT 3,
+      credits INTEGER DEFAULT 30,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
@@ -936,13 +936,13 @@ export const userDb = {
       data.image || null,
       data.provider,
       data.provider_id,
-      data.credits ?? 3
+      data.credits ?? 30
     );
 
     // Record signup bonus
     db.prepare(
       'INSERT INTO credit_transactions (user_id, amount, reason) VALUES (?, ?, ?)'
-    ).run(id, 3, 'signup_bonus');
+    ).run(id, data.credits ?? 30, 'signup_bonus');
 
     return this.getById(id);
   },

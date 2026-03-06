@@ -17,9 +17,6 @@ export async function renderOnLambda(videoId, userId, onProgress) {
     throw new Error('Lambda rendering not configured');
   }
 
-  // Deduct 1 credit
-  userDb.adjustCredits(userId, -1, 'render', { video_id: videoId });
-
   const video = videoDb.getById(videoId);
   if (!video) throw new Error('Video not found');
 
@@ -27,6 +24,13 @@ export async function renderOnLambda(videoId, userId, onProgress) {
   const transitions = transitionDb.getAllForVideo(videoId);
 
   if (!scenes.length) throw new Error('No scenes to render');
+
+  // Deduct credits: 1 per 10 seconds, minimum 1 per scene
+  const creditCost = scenes.reduce((sum, s) => {
+    const durationSeconds = (s.end_frame - s.start_frame) / 30;
+    return sum + Math.max(1, Math.ceil(durationSeconds / 10));
+  }, 0);
+  userDb.adjustCredits(userId, -creditCost, 'render', { video_id: videoId });
 
   // Build input props for FullVideoComposition
   const sceneProps = scenes.map(scene => {

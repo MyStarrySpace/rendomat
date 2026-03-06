@@ -6,9 +6,9 @@ const stripe = process.env.STRIPE_SECRET_KEY
   : null;
 
 export const CREDIT_PACKAGES = [
-  { id: 'pack-5', credits: 5, price: 499, label: '5 Credits' },
-  { id: 'pack-20', credits: 20, price: 1499, label: '20 Credits' },
-  { id: 'pack-50', credits: 50, price: 2999, label: '50 Credits' },
+  { id: 'pack-50', credits: 50, price: 499, label: '50 Credits' },
+  { id: 'pack-200', credits: 200, price: 1499, label: '200 Credits' },
+  { id: 'pack-500', credits: 500, price: 2999, label: '500 Credits' },
 ];
 
 export async function createCheckoutSession(userId, packageId) {
@@ -26,7 +26,7 @@ export async function createCheckoutSession(userId, packageId) {
       price_data: {
         currency: 'usd',
         product_data: {
-          name: `${pkg.label} — Rendomat Cloud Rendering`,
+          name: `${pkg.label} - Rendomat Cloud Rendering`,
           description: `${pkg.credits} cloud render credits`,
         },
         unit_amount: pkg.price,

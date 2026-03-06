@@ -16,7 +16,7 @@ import { createCheckoutSession, handleWebhookEvent, constructWebhookEvent, CREDI
 import { renderOnLambda, isLambdaConfigured } from './lambda-renderer.mjs';
 import { renderScene, stitchScenes, muxAudio, overlayVideoClips, cleanCache } from './scene-renderer.mjs';
 import { getAllTemplates, getTemplate, createScenesFromTemplate } from './templates.mjs';
-import { generateSlidesFromDescription, generateChartData, generateEquation, improveSceneContent, searchTopicData } from './ai-service.mjs';
+import { generateSlidesFromDescription, generateChartData, generateEquation, improveSceneContent, searchTopicData, analyzeUrl } from './ai-service.mjs';
 import { PLATFORMS, ASPECT_RATIOS, groupPlatformsByAspectRatio, getDimensionsForAspectRatio } from './platform-config.mjs';
 import { searchPhotos, getPhoto, getCuratedPhotos } from './pexels-service.mjs';
 import { getAllPersonas, getPersona, getPersonasGroupedByCategory } from './personas.mjs';
@@ -2553,8 +2553,7 @@ app.get('/api/videos/:videoId/render-progress', optionalAuth, (req, res) => {
   subscribeVideoRender(videoId, res);
   res.write(`: connected\n\n`);
 
-  // Send current state if available
-  const currentState = getVideoRenderState(videoId);
+  // Send current state if available (reuse from auth check above)
   if (currentState) {
     res.write(`event: progress\ndata: ${JSON.stringify(currentState)}\n\n`);
   }
@@ -3190,6 +3189,188 @@ app.post('/api/billing/checkout', authenticateToken, async (req, res) => {
 });
 
 // =============================
+// URL-to-Video Pipeline
+// =============================
+
+// Step 1: Analyze a URL (returns analysis + recommendations, user can override)
+app.post('/api/videos/analyze-url', async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    console.log(`[url-to-video] Analyzing: ${url}`);
+    const analysis = await analyzeUrl(url);
+    console.log(`[url-to-video] Analysis complete: "${analysis.title}" (${analysis.contentType}), recommended template: ${analysis.recommendedTemplate}`);
+
+    res.json(analysis);
+  } catch (error) {
+    console.error('[url-to-video] Analysis failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Step 2: Generate video from URL (uses analysis + optional overrides)
+app.post('/api/videos/generate-from-url', async (req, res) => {
+  try {
+    const {
+      url,
+      clientId,
+      // All overridable — if omitted, auto-analyzed
+      title: overrideTitle,
+      templateId: overrideTemplate,
+      sceneCount: overrideSceneCount,
+      companyDetails: overrideCompanyDetails,
+      description: overrideDescription,
+      personas,
+      behaviorOverrides,
+      themeId,
+      aspectRatio,
+      useResearch,     // whether to do web research beyond the URL
+    } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    // Validate persona IDs if provided
+    if (personas && Array.isArray(personas) && personas.length > 0) {
+      const validation = validatePersonaIds(personas);
+      if (!validation.isValid) {
+        return res.status(400).json({
+          error: `Invalid persona IDs: ${validation.invalid.join(', ')}`
+        });
+      }
+    }
+
+    // Step 1: Analyze the URL
+    console.log(`[url-to-video] Analyzing URL: ${url}`);
+    const analysis = await analyzeUrl(url);
+    console.log(`[url-to-video] Detected: "${analysis.title}" (${analysis.contentType})`);
+
+    // Merge overrides with analysis
+    const finalTitle = overrideTitle || analysis.title;
+    const finalTemplate = overrideTemplate || analysis.recommendedTemplate;
+    const finalSceneCount = overrideSceneCount || analysis.sceneCount;
+    const finalCompanyDetails = overrideCompanyDetails || analysis.companyDetails;
+    const finalDescription = overrideDescription || analysis.description;
+
+    // Step 2: Generate scenes (with or without research)
+    let scenes;
+    let researchData = null;
+
+    if (useResearch) {
+      const { performResearch } = await import('./research-service.mjs');
+      const { generateSlidesWithResearch } = await import('./research-service.mjs');
+
+      console.log(`[url-to-video] Performing research for: ${finalDescription}`);
+      const research = await performResearch(finalDescription, {
+        websiteUrl: url,
+        companyName: finalCompanyDetails.companyName,
+        industry: finalCompanyDetails.industry,
+        searchWeb: true,
+      });
+
+      const result = await generateSlidesWithResearch(finalDescription, {
+        research,
+        personas: personas || ['vsl-expert'],
+        behaviorOverrides: behaviorOverrides || {},
+        sceneCount: finalSceneCount,
+        companyDetails: finalCompanyDetails,
+      });
+
+      scenes = result.scenes;
+      researchData = {
+        citations_used: result.citations_used,
+        case_studies_used: result.case_studies_used,
+        summary: result.research_summary,
+      };
+    } else {
+      console.log(`[url-to-video] Generating ${finalSceneCount} scenes with template: ${finalTemplate}`);
+      scenes = await generateSlidesFromDescription(
+        finalDescription,
+        finalTemplate,
+        finalSceneCount,
+        finalCompanyDetails,
+        personas,
+        behaviorOverrides
+      );
+    }
+
+    console.log(`[url-to-video] Generated ${scenes.length} scenes`);
+
+    // Step 3: Create video in DB
+    const FPS = 30;
+    const template = getTemplate(finalTemplate);
+    const templateDefaults = template ? {
+      composition_id: template.composition_id,
+      duration_seconds: template.duration_seconds,
+      aspect_ratio: template.aspect_ratio,
+    } : {};
+
+    const videoId = videoDb.create({
+      client_id: clientId || null,
+      title: finalTitle,
+      composition_id: templateDefaults.composition_id || 'FullVideo',
+      status: 'draft',
+      aspect_ratio: aspectRatio || templateDefaults.aspect_ratio || '16:9',
+      theme_id: themeId || 'tech-dark',
+      data: JSON.stringify({
+        source_url: url,
+        content_type: analysis.contentType,
+        template_used: finalTemplate,
+        generated_at: new Date().toISOString(),
+      }),
+    });
+
+    // Step 4: Create scenes in DB
+    let currentFrame = 0;
+    for (const scene of scenes) {
+      const durationFrames = template?.scenes?.[scene.scene_number]
+        ? (template.scenes[scene.scene_number].end_frame - template.scenes[scene.scene_number].start_frame)
+        : 5 * FPS; // default 5 seconds per scene
+
+      sceneDb.create({
+        video_id: videoId,
+        scene_number: scene.scene_number,
+        name: scene.name,
+        scene_type: scene.scene_type,
+        start_frame: currentFrame,
+        end_frame: currentFrame + durationFrames,
+        data: JSON.stringify(scene.data),
+      });
+      currentFrame += durationFrames;
+    }
+
+    // Update video duration
+    videoDb.update(videoId, { duration_seconds: Math.ceil(currentFrame / FPS) });
+
+    const video = videoDb.getById(videoId);
+    const createdScenes = sceneDb.getAllForVideo(videoId);
+
+    console.log(`[url-to-video] Created video #${videoId} with ${createdScenes.length} scenes (${Math.ceil(currentFrame / FPS)}s)`);
+
+    res.json({
+      video,
+      scenes: createdScenes,
+      analysis: {
+        sourceUrl: url,
+        contentType: analysis.contentType,
+        recommendedTemplate: analysis.recommendedTemplate,
+        templateUsed: finalTemplate,
+        templateReasoning: analysis.templateReasoning,
+        companyDetails: finalCompanyDetails,
+      },
+      research: researchData,
+    });
+  } catch (error) {
+    console.error('[url-to-video] Generation failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================
 // Cloud Render API
 // =============================
 
@@ -3219,10 +3400,16 @@ app.post('/api/videos/:videoId/render-cloud', authenticateToken, async (req, res
     return res.status(400).json({ error: 'Video has no scenes to render' });
   }
 
+  // Calculate credit cost: 1 credit per 10 seconds, minimum 1 per scene
+  const creditCost = scenes.reduce((sum, s) => {
+    const durationSeconds = (s.end_frame - s.start_frame) / 30;
+    return sum + Math.max(1, Math.ceil(durationSeconds / 10));
+  }, 0);
+
   // Check credits
   const user = userDb.getById(req.user.id);
-  if (!user || user.credits < 1) {
-    return res.status(402).json({ error: 'Insufficient credits' });
+  if (!user || user.credits < creditCost) {
+    return res.status(402).json({ error: `Insufficient credits. This render costs ${creditCost} credits, you have ${user?.credits ?? 0}.` });
   }
 
   try {

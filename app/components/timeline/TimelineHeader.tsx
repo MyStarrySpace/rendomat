@@ -4,14 +4,13 @@ import React from 'react';
 import {
   ZoomIn,
   ZoomOut,
-  Grid3X3,
+  Magnet,
   Play,
   Pause,
   SkipBack,
   SkipForward,
   Square,
-  RefreshCw,
-  Sparkles,
+  Zap,
   Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
@@ -25,6 +24,7 @@ interface TimelineHeaderProps {
   snapToGrid: boolean;
   hasUnrenderedScenes: boolean;
   hasChangedScenes: boolean;
+  renderCreditCost: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomChange: (zoom: number) => void;
@@ -47,6 +47,7 @@ export function TimelineHeader({
   snapToGrid,
   hasUnrenderedScenes,
   hasChangedScenes,
+  renderCreditCost,
   onZoomIn,
   onZoomOut,
   onZoomChange,
@@ -62,6 +63,17 @@ export function TimelineHeader({
 }: TimelineHeaderProps) {
   // Calculate zoom percentage for display
   const zoomPercent = Math.round((zoom / 80) * 100);
+
+  // Map zoom value to slider position (0-1000) so 100% zoom (80) is centered at 500
+  const zoomToSlider = (z: number): number => {
+    if (z <= 80) return ((z - MIN_ZOOM) / (80 - MIN_ZOOM)) * 500;
+    return 500 + ((z - 80) / (MAX_ZOOM - 80)) * 500;
+  };
+  const sliderToZoom = (s: number): number => {
+    if (s <= 500) return MIN_ZOOM + (s / 500) * (80 - MIN_ZOOM);
+    return 80 + ((s - 500) / 500) * (MAX_ZOOM - 80);
+  };
+  const sliderValue = zoomToSlider(zoom);
 
   return (
     <div className="flex items-center justify-between px-4 py-2 bg-[hsl(var(--surface))] border-b border-[hsl(var(--border))]">
@@ -144,9 +156,9 @@ export function TimelineHeader({
             variant={hasChangedScenes ? 'secondary' : 'default'}
             size="sm"
             onClick={onRenderChanged}
-            icon={<RefreshCw className="w-4 h-4" />}
+            icon={<Zap className="w-4 h-4" />}
           >
-            {hasChangedScenes ? 'Re-render Changed' : 'Render All'}
+            {hasChangedScenes ? 'Re-render Changed' : 'Render All'}{renderCreditCost > 0 ? ` (${renderCreditCost} cr)` : ''}
           </Button>
         )}
       </div>
@@ -159,7 +171,7 @@ export function TimelineHeader({
           onClick={onToggleSnap}
           title="Toggle snap to grid"
         >
-          <Grid3X3 className="w-4 h-4" />
+          <Magnet className="w-4 h-4" />
         </Button>
 
         <div className="flex items-center gap-2 ml-2">
@@ -176,10 +188,10 @@ export function TimelineHeader({
           <div className="flex items-center gap-2">
             <input
               type="range"
-              min={MIN_ZOOM}
-              max={MAX_ZOOM}
-              value={zoom}
-              onChange={(e) => onZoomChange(parseFloat(e.target.value))}
+              min={0}
+              max={1000}
+              value={sliderValue}
+              onChange={(e) => onZoomChange(sliderToZoom(parseFloat(e.target.value)))}
               className="w-24 h-1 bg-[hsl(var(--border))] appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-[hsl(var(--accent))] [&::-webkit-slider-thumb]:cursor-pointer"
               title={`Zoom: ${zoomPercent}%`}
             />
