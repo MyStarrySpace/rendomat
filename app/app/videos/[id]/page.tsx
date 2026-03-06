@@ -30,6 +30,7 @@ import {
   Plus,
   Minus,
   Cloud,
+  Monitor,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -202,9 +203,10 @@ export default function VideoDetailPage() {
   // Video clips (B-roll) state
   const [videoClips, setVideoClips] = useState<VideoClip[]>([]);
 
-  // Cloud render state
+  // Render mode state
   const { data: session } = useSession();
-  const [renderMode, setRenderMode] = useState<'local' | 'cloud'>('local');
+  const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.isElectron;
+  const [renderMode, setRenderMode] = useState<'local' | 'cloud'>(isElectron ? 'local' : 'cloud');
   const [renderCapabilities, setRenderCapabilities] = useState<RenderCapabilities | null>(null);
 
   // Transition state
@@ -359,8 +361,16 @@ export default function VideoDetailPage() {
       try {
         const caps = await cloudRenderApi.getCapabilities();
         setRenderCapabilities(caps);
+        // If no local rendering available, force cloud mode
+        if (!caps.local && caps.cloud) {
+          setRenderMode('cloud');
+        }
       } catch {
-        // Cloud render check failed, local only
+        // API server unreachable — if running in browser (not Electron), assume cloud-only
+        if (!isElectron) {
+          setRenderCapabilities({ local: false, cloud: true });
+          setRenderMode('cloud');
+        }
       }
     } catch (error) {
       console.error("Failed to load data:", error);
@@ -833,12 +843,13 @@ export default function VideoDetailPage() {
                 Export
               </Button>
             </motion.div>
-            {renderCapabilities?.cloud && session && (
+            {renderCapabilities?.local && renderCapabilities?.cloud && (
               <div className="flex items-center border border-[hsl(var(--border))] h-8 text-xs">
                 <button
                   onClick={() => setRenderMode('local')}
-                  className={`px-2 h-full transition-colors ${renderMode === 'local' ? 'bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))]' : 'text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))]'}`}
+                  className={`px-2 h-full flex items-center gap-1 transition-colors ${renderMode === 'local' ? 'bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))]' : 'text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))]'}`}
                 >
+                  <Monitor className="w-3 h-3" />
                   Local
                 </button>
                 <button
