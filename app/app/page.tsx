@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, Download } from "lucide-react";
+import { ArrowUpRight, Download, Monitor, Apple, Terminal } from "lucide-react";
 import { motion } from "framer-motion";
 import {
   spring,
@@ -40,10 +41,16 @@ export default function Home() {
               Projects
             </Link>
             <Link
-              href="/ae-plugin"
+              href="#download"
               className="link-subtle text-sm flex items-center gap-1"
             >
               <Download className="w-3 h-3" />
+              Download
+            </Link>
+            <Link
+              href="/ae-plugin"
+              className="link-subtle text-sm flex items-center gap-1"
+            >
               AE Plugin
             </Link>
             <motion.div whileHover={{ x: 2 }} transition={spring.snappy}>
@@ -154,8 +161,14 @@ export default function Home() {
             transition={spring.gentle}
             className="frame"
           >
-            <div className="aspect-[16/9] bg-[hsl(var(--background-subtle))] flex items-center justify-center">
-              <p className="caption">App Preview</p>
+            <div className="relative aspect-[16/9] bg-[hsl(var(--background-subtle))]">
+              <Image
+                src="/preview.png"
+                alt="Rendomat editor interface"
+                fill
+                className="object-cover"
+                priority
+              />
             </div>
           </motion.div>
           <motion.p
@@ -338,8 +351,109 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Download */}
+      <section id="download" className="py-24 px-6 bg-[hsl(var(--surface))]">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="show"
+            viewport={viewportOnce}
+          >
+            <motion.p variants={fadeInUp} className="caption mb-6">
+              Download
+            </motion.p>
+            <motion.h2
+              variants={fadeInUp}
+              className="headline text-3xl md:text-4xl text-[hsl(var(--foreground))] mb-4"
+            >
+              Render locally, no cloud required
+            </motion.h2>
+            <motion.p
+              variants={fadeInUp}
+              className="text-[hsl(var(--foreground-muted))] mb-12 max-w-xl leading-relaxed"
+            >
+              The desktop app bundles the render server, FFmpeg, and editor in one
+              package. Your projects stay on your machine.
+            </motion.p>
+          </motion.div>
+
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="show"
+            viewport={viewportOnce}
+            className="grid md:grid-cols-3 gap-6"
+          >
+            {[
+              {
+                platform: "Windows",
+                icon: Monitor,
+                file: "Rendomat-Setup-0.1.0.exe",
+                note: "Windows 10+",
+              },
+              {
+                platform: "macOS",
+                icon: Apple,
+                file: "Rendomat-0.1.0.dmg",
+                note: "macOS 12+",
+              },
+              {
+                platform: "Linux",
+                icon: Terminal,
+                file: "Rendomat-0.1.0.AppImage",
+                note: "Ubuntu 20.04+",
+              },
+            ].map((item) => (
+              <motion.a
+                key={item.platform}
+                variants={fadeInUp}
+                href={`https://github.com/MyStarrySpace/rendomat/releases/latest/download/${item.file}`}
+                className="group border border-[hsl(var(--border))] p-6 flex flex-col items-center gap-3 hover:border-[hsl(var(--accent))] transition-colors bg-[hsl(var(--background))]"
+              >
+                <item.icon className="w-8 h-8 text-[hsl(var(--foreground-muted))] group-hover:text-[hsl(var(--accent))] transition-colors" />
+                <span className="text-[hsl(var(--foreground))] font-medium">
+                  {item.platform}
+                </span>
+                <span className="text-xs text-[hsl(var(--foreground-subtle))]">
+                  {item.note}
+                </span>
+                <span className="flex items-center gap-1 text-sm text-[hsl(var(--foreground-muted))] group-hover:text-[hsl(var(--accent))] transition-colors mt-2">
+                  <Download className="w-3.5 h-3.5" />
+                  Download
+                </span>
+              </motion.a>
+            ))}
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={viewportOnce}
+            transition={{ delay: 0.4 }}
+            className="text-xs text-[hsl(var(--foreground-subtle))] mt-6 text-center"
+          >
+            Or use the{" "}
+            <Link href="/clients" className="link-subtle">
+              web editor
+            </Link>{" "}
+            with cloud rendering — no install needed.
+          </motion.p>
+        </div>
+      </section>
+
+      {/* Divider */}
+      <motion.div
+        initial={{ scaleX: 0 }}
+        whileInView={{ scaleX: 1 }}
+        viewport={viewportOnce}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        style={{ transformOrigin: "center" }}
+        className="divider mx-6"
+      />
+
       {/* CTA */}
-      <section className="py-24 px-6 bg-[hsl(var(--surface))]">
+      <section className="py-24 px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}

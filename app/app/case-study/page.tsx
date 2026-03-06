@@ -26,6 +26,13 @@ import {
   Terminal,
   TrendingUp,
   RefreshCw,
+  CreditCard,
+  Shield,
+  Cloud,
+  Zap,
+  Lock,
+  DollarSign,
+  Package,
 } from "lucide-react";
 import { MermaidChart } from "@/components/ui/MermaidChart";
 import { motion } from "framer-motion";
@@ -270,6 +277,41 @@ const cloudRenderChart = `flowchart LR
     C2["Stripe Webhook"] -->|"Add Credits"| D
 `;
 
+const authFlowChart = `flowchart LR
+    subgraph OAUTH["OAuth Providers"]
+        G["Google"]
+        GH["GitHub"]
+    end
+
+    subgraph NEXTAUTH["Next.js (NextAuth v5)"]
+        A["signIn Callback"] -->|"Upsert User"| B["POST /api/auth/sync-user"]
+        A -->|"Sign JWT (jose)"| C["jwt Callback"]
+        C -->|"Expose Token"| D["session Callback"]
+    end
+
+    subgraph EXPRESS["Express API"]
+        E["authenticateToken"] -->|"jwt.verify"| F["req.user"]
+        F --> H["Protected Endpoints"]
+    end
+
+    G -->|"OAuth Code"| A
+    GH -->|"OAuth Code"| A
+    B -->|"x-auth-sync-secret"| I["SQLite users Table"]
+    D -->|"Bearer JWT"| E
+`;
+
+const stripeFlowChart = `flowchart LR
+    A["User"] -->|"Buy Credits"| B["Billing Page"]
+    B -->|"POST /api/billing/checkout"| C["Express API"]
+    C -->|"createCheckoutSession"| D["Stripe API"]
+    D -->|"Redirect"| E["Stripe Checkout"]
+    E -->|"Payment Complete"| F["Stripe Webhook"]
+    F -->|"express.raw() + Signature Verify"| G["handleWebhookEvent"]
+    G -->|"Idempotent Check"| H["SQLite"]
+    H -->|"adjustCredits (Transaction)"| I["credits + transaction_log"]
+    I -->|"Refresh"| A
+`;
+
 const personas = [
   {
     name: "Sarah Chen",
@@ -483,6 +525,9 @@ export default function CaseStudyPage() {
             </a>
             <a href="#flow" className="link-subtle text-sm">
               Flow
+            </a>
+            <a href="#infrastructure" className="link-subtle text-sm">
+              Infra
             </a>
           </div>
         </div>
@@ -1395,6 +1440,419 @@ export default function CaseStudyPage() {
           </motion.div>
 
           <MermaidChart chart={cloudRenderChart} className="py-4" />
+        </div>
+      </section>
+
+      <div className="divider mx-6" />
+
+      {/* ================================================================== */}
+      {/* INFRASTRUCTURE DEEP DIVES                                           */}
+      {/* ================================================================== */}
+      <section id="infrastructure" className="py-24 px-6 bg-[hsl(var(--surface))] scroll-mt-20">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="show"
+            viewport={viewportOnce}
+          >
+            <motion.p variants={fadeInUp} className="caption mb-6">
+              Infrastructure
+            </motion.p>
+            <motion.h2
+              variants={fadeInUp}
+              className="headline text-3xl md:text-4xl text-[hsl(var(--foreground))] mb-4"
+            >
+              Auth, payments, and <em className="italic">cloud rendering</em>
+            </motion.h2>
+            <motion.p
+              variants={fadeInUp}
+              className="text-[hsl(var(--foreground-muted))] max-w-2xl leading-relaxed mb-16"
+            >
+              Three infrastructure systems that turn a local tool into a deployed
+              product: OAuth authentication, credits-based Stripe billing, and
+              serverless video rendering on AWS Lambda. Each integrates with the
+              same Express backend and SQLite database.
+            </motion.p>
+          </motion.div>
+
+          {/* ---- AUTH FLOW ---- */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewportOnce}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="mb-20"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 flex items-center justify-center border border-[hsl(var(--border))] text-[hsl(var(--foreground-subtle))]">
+                <Shield className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="headline text-2xl text-[hsl(var(--foreground))]">
+                  Authentication
+                </h3>
+                <p className="text-xs text-[hsl(var(--foreground-subtle))]">
+                  NextAuth v5 + JWT + Express middleware
+                </p>
+              </div>
+            </div>
+            <p className="text-[hsl(var(--foreground-muted))] leading-relaxed mb-8 max-w-2xl">
+              NextAuth v5 handles Google and GitHub OAuth with JWT strategy. On
+              sign-in, a callback syncs the user to the Express backend via a
+              secret-protected REST endpoint. The JWT is signed with jose,
+              propagated through the session callback, and sent as a Bearer token
+              to Express. The Express{" "}
+              <span className="font-mono text-xs text-[hsl(var(--foreground))]">
+                authenticateToken
+              </span>{" "}
+              middleware verifies the JWT and populates{" "}
+              <span className="font-mono text-xs text-[hsl(var(--foreground))]">
+                req.user
+              </span>{" "}
+              for all protected endpoints.
+            </p>
+
+            <MermaidChart chart={authFlowChart} className="py-4 mb-8" />
+
+            <div className="grid md:grid-cols-3 gap-4">
+              {[
+                {
+                  icon: <Lock className="w-4 h-4" />,
+                  title: "JWT propagation",
+                  text: "Signed in Next.js, verified in Express. One token flows through the entire stack — no session store, no cookies on the API layer.",
+                },
+                {
+                  icon: <Shield className="w-4 h-4" />,
+                  title: "User sync on sign-in",
+                  text: "The signIn callback POSTs to /api/auth/sync-user with a shared secret. This upserts the user record and initializes 3 signup credits.",
+                },
+                {
+                  icon: <Database className="w-4 h-4" />,
+                  title: "SQLite as source of truth",
+                  text: "User records, credit balances, and transaction history live in SQLite. The JWT carries identity; the database carries state.",
+                },
+              ].map((item, i) => (
+                <motion.div
+                  key={item.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={viewportOnce}
+                  transition={{ delay: i * 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  className="p-5 border border-[hsl(var(--border))] bg-[hsl(var(--background))]"
+                >
+                  <div className="text-[hsl(var(--foreground-subtle))] mb-3">
+                    {item.icon}
+                  </div>
+                  <h4 className="text-sm font-medium text-[hsl(var(--foreground))] mb-2">
+                    {item.title}
+                  </h4>
+                  <p className="text-sm text-[hsl(var(--foreground-muted))] leading-relaxed">
+                    {item.text}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* ---- STRIPE BILLING ---- */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewportOnce}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="mb-20"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 flex items-center justify-center border border-[hsl(var(--border))] text-[hsl(var(--foreground-subtle))]">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="headline text-2xl text-[hsl(var(--foreground))]">
+                  Stripe Billing
+                </h3>
+                <p className="text-xs text-[hsl(var(--foreground-subtle))]">
+                  Credits-based payments with atomic fulfillment
+                </p>
+              </div>
+            </div>
+            <p className="text-[hsl(var(--foreground-muted))] leading-relaxed mb-8 max-w-2xl">
+              Cloud renders cost credits. Users start with 3 free credits on
+              signup, then purchase more through Stripe Checkout. The webhook
+              endpoint is registered before{" "}
+              <span className="font-mono text-xs text-[hsl(var(--foreground))]">
+                express.json()
+              </span>{" "}
+              middleware so the raw body is available for signature verification.
+              Fulfillment is idempotent — the handler checks{" "}
+              <span className="font-mono text-xs text-[hsl(var(--foreground))]">
+                stripe_session_id
+              </span>{" "}
+              before adjusting credits, preventing double-credit on webhook retries.
+            </p>
+
+            <MermaidChart chart={stripeFlowChart} className="py-4 mb-8" />
+
+            <div className="grid md:grid-cols-2 gap-4 mb-8">
+              <div className="border border-[hsl(var(--border))] bg-[hsl(var(--background))]">
+                <div className="px-5 py-3 border-b border-[hsl(var(--border))]">
+                  <p className="caption flex items-center gap-2">
+                    <Package className="w-3 h-3" />
+                    Credit Packages
+                  </p>
+                </div>
+                <div className="divide-y divide-[hsl(var(--border))]">
+                  {[
+                    { credits: 5, price: "$4.99", per: "$1.00 / render" },
+                    { credits: 20, price: "$14.99", per: "$0.75 / render" },
+                    { credits: 50, price: "$29.99", per: "$0.60 / render" },
+                  ].map((pkg) => (
+                    <div
+                      key={pkg.credits}
+                      className="px-5 py-3 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-sm text-[hsl(var(--foreground))]">
+                          {pkg.credits}
+                        </span>
+                        <span className="text-xs text-[hsl(var(--foreground-subtle))]">
+                          credits
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-medium text-[hsl(var(--foreground))]">
+                          {pkg.price}
+                        </span>
+                        <span className="text-xs text-[hsl(var(--foreground-subtle))] ml-2">
+                          {pkg.per}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border border-[hsl(var(--border))] bg-[hsl(var(--background))]">
+                <div className="px-5 py-3 border-b border-[hsl(var(--border))]">
+                  <p className="caption flex items-center gap-2">
+                    <DollarSign className="w-3 h-3" />
+                    Transaction Types
+                  </p>
+                </div>
+                <div className="divide-y divide-[hsl(var(--border))]">
+                  {[
+                    { type: "signup_bonus", description: "+3 credits on first OAuth sign-in", direction: "+" },
+                    { type: "purchase", description: "Stripe Checkout fulfillment via webhook", direction: "+" },
+                    { type: "render", description: "-1 credit per cloud render invocation", direction: "-" },
+                  ].map((tx) => (
+                    <div
+                      key={tx.type}
+                      className="px-5 py-3 flex items-center gap-3"
+                    >
+                      <span className={`text-sm font-mono ${
+                        tx.direction === "+" ? "text-[hsl(var(--success))]" : "text-[hsl(var(--error))]"
+                      }`}>
+                        {tx.direction}
+                      </span>
+                      <div>
+                        <span className="font-mono text-xs text-[hsl(var(--foreground))]">
+                          {tx.type}
+                        </span>
+                        <p className="text-xs text-[hsl(var(--foreground-subtle))]">
+                          {tx.description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              {[
+                {
+                  icon: <Lock className="w-4 h-4" />,
+                  title: "Webhook signature verification",
+                  text: "The /api/stripe/webhook route uses express.raw() and Stripe's constructEvent to verify the webhook signature before processing. Registered before the JSON body parser to preserve the raw body.",
+                },
+                {
+                  icon: <Database className="w-4 h-4" />,
+                  title: "Atomic credit adjustment",
+                  text: "adjustCredits() wraps the balance UPDATE and transaction INSERT in a single SQLite transaction. If either fails, both roll back. No partial state.",
+                },
+              ].map((item, i) => (
+                <motion.div
+                  key={item.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={viewportOnce}
+                  transition={{ delay: i * 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  className="p-5 border border-[hsl(var(--border))] bg-[hsl(var(--background))]"
+                >
+                  <div className="text-[hsl(var(--foreground-subtle))] mb-3">
+                    {item.icon}
+                  </div>
+                  <h4 className="text-sm font-medium text-[hsl(var(--foreground))] mb-2">
+                    {item.title}
+                  </h4>
+                  <p className="text-sm text-[hsl(var(--foreground-muted))] leading-relaxed">
+                    {item.text}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* ---- CLOUD RENDERING (LAMBDA) ---- */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewportOnce}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 flex items-center justify-center border border-[hsl(var(--border))] text-[hsl(var(--foreground-subtle))]">
+                <Cloud className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="headline text-2xl text-[hsl(var(--foreground))]">
+                  Cloud Rendering
+                </h3>
+                <p className="text-xs text-[hsl(var(--foreground-subtle))]">
+                  @remotion/lambda + S3 + SSE progress
+                </p>
+              </div>
+            </div>
+            <p className="text-[hsl(var(--foreground-muted))] leading-relaxed mb-8 max-w-2xl">
+              Local rendering ties up the user&apos;s machine for 3-5 minutes.
+              The cloud pipeline offloads the entire job to{" "}
+              <span className="font-mono text-xs text-[hsl(var(--foreground))]">
+                @remotion/lambda
+              </span>
+              . A{" "}
+              <span className="font-mono text-xs text-[hsl(var(--foreground))]">
+                FullVideoComposition
+              </span>{" "}
+              bundles all scenes and transitions into a single Remotion composition,
+              Lambda fans out rendering across parallel workers (40 frames per worker),
+              and the final video lands in S3. The user sees real-time progress
+              via Server-Sent Events, then gets a download link.
+            </p>
+
+            <div className="grid md:grid-cols-2 gap-4 mb-8">
+              <div className="border border-[hsl(var(--border))] bg-[hsl(var(--background))]">
+                <div className="px-5 py-3 border-b border-[hsl(var(--border))]">
+                  <p className="caption flex items-center gap-2">
+                    <Zap className="w-3 h-3" />
+                    Lambda Configuration
+                  </p>
+                </div>
+                <div className="px-5 py-4 space-y-3">
+                  {[
+                    { label: "Codec", value: "H.264" },
+                    { label: "Image format", value: "JPEG" },
+                    { label: "Frames per worker", value: "40" },
+                    { label: "Max retries", value: "1" },
+                    { label: "Composition", value: "FullVideo-{aspect}" },
+                    { label: "Output", value: "S3 presigned URL" },
+                  ].map((row) => (
+                    <div
+                      key={row.label}
+                      className="flex items-center justify-between"
+                    >
+                      <span className="text-xs text-[hsl(var(--foreground-subtle))]">
+                        {row.label}
+                      </span>
+                      <span className="font-mono text-xs text-[hsl(var(--foreground))]">
+                        {row.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border border-[hsl(var(--border))] bg-[hsl(var(--background))]">
+                <div className="px-5 py-3 border-b border-[hsl(var(--border))]">
+                  <p className="caption flex items-center gap-2">
+                    <Play className="w-3 h-3" />
+                    Render Lifecycle
+                  </p>
+                </div>
+                <div className="px-5 py-4">
+                  <div className="space-y-3">
+                    {[
+                      { stage: "starting", desc: "Credit deducted, props built from DB, Lambda invoked" },
+                      { stage: "rendering", desc: "Parallel workers render frames, SSE polls every 2s" },
+                      { stage: "complete", desc: "S3 URL returned, video record updated, download ready" },
+                      { stage: "error", desc: "Credit refund, error logged, user notified via SSE" },
+                    ].map((step, i) => (
+                      <div key={step.stage} className="flex gap-3">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-2 h-2 mt-1.5 ${
+                            step.stage === "error"
+                              ? "bg-[hsl(var(--error))]"
+                              : step.stage === "complete"
+                              ? "bg-[hsl(var(--success))]"
+                              : "bg-[hsl(var(--accent))]"
+                          }`} />
+                          {i < 3 && (
+                            <div className="w-px h-full bg-[hsl(var(--border))]" />
+                          )}
+                        </div>
+                        <div className="pb-2">
+                          <span className="font-mono text-xs text-[hsl(var(--foreground))]">
+                            {step.stage}
+                          </span>
+                          <p className="text-xs text-[hsl(var(--foreground-subtle))] mt-0.5">
+                            {step.desc}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4">
+              {[
+                {
+                  icon: <Cloud className="w-4 h-4" />,
+                  title: "FullVideoComposition",
+                  text: "Unlike local rendering which caches individual scenes, Lambda renders a single composition containing all scenes and transitions. The tradeoff: no incremental caching, but massive parallelism across workers.",
+                },
+                {
+                  icon: <Zap className="w-4 h-4" />,
+                  title: "SSE progress reuse",
+                  text: "The same Server-Sent Events infrastructure serves both local and cloud progress. The frontend doesn't care where the video is rendering — it just subscribes to the progress stream.",
+                },
+                {
+                  icon: <Server className="w-4 h-4" />,
+                  title: "Aspect-ratio routing",
+                  text: "The Lambda function name and composition ID are derived from the video's aspect ratio. A 16:9 video renders as FullVideo-16x9, a 9:16 as FullVideo-9x16. Same code, different compositions.",
+                },
+              ].map((item, i) => (
+                <motion.div
+                  key={item.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={viewportOnce}
+                  transition={{ delay: i * 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  className="p-5 border border-[hsl(var(--border))] bg-[hsl(var(--background))]"
+                >
+                  <div className="text-[hsl(var(--foreground-subtle))] mb-3">
+                    {item.icon}
+                  </div>
+                  <h4 className="text-sm font-medium text-[hsl(var(--foreground))] mb-2">
+                    {item.title}
+                  </h4>
+                  <p className="text-sm text-[hsl(var(--foreground-muted))] leading-relaxed">
+                    {item.text}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
         </div>
       </section>
 

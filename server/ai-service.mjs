@@ -365,6 +365,119 @@ Return ONLY valid JSON with the improved scene data. Keep the same structure but
 /**
  * Search for relevant data/facts for a topic
  */
+/**
+ * Analyze a public URL and extract structured information for video generation.
+ * Scrapes the page, classifies the content type, extracts company details,
+ * and recommends a template.
+ * @param {string} url - The public URL to analyze
+ * @returns {Promise<{description: string, companyDetails: object, recommendedTemplate: string, contentType: string, title: string}>}
+ */
+export async function analyzeUrl(url) {
+  // Import fetchUrlContent from research-service
+  const { default: fetch } = await import('node-fetch').catch(() => ({ default: globalThis.fetch }));
+
+  // Fetch URL content inline (mirrors research-service logic, avoids circular dep)
+  let html = '';
+  let pageTitle = url;
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    html = await response.text();
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    pageTitle = titleMatch ? titleMatch[1].trim() : url;
+  } catch (err) {
+    throw new Error(`Failed to fetch URL: ${err.message}`);
+  }
+
+  const textContent = html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, 40000);
+
+  if (textContent.length < 50) {
+    throw new Error('Page has too little content to analyze');
+  }
+
+  const { getAllTemplates } = await import('./templates.mjs');
+  const templates = getAllTemplates();
+  const templateList = templates.map(t => `- ${t.id}: ${t.name} (${t.category}, ${t.scene_count} scenes)`).join('\n');
+
+  const prompt = `Analyze this web page and extract structured information for generating a video.
+
+PAGE URL: ${url}
+PAGE TITLE: ${pageTitle}
+
+PAGE CONTENT:
+${textContent}
+
+AVAILABLE VIDEO TEMPLATES:
+${templateList}
+
+Analyze the page and return ONLY valid JSON:
+{
+  "title": "Short video title based on the page content (max 60 chars)",
+  "description": "A 2-3 sentence description of what the video should cover, written as a creative brief for an AI video generator. Be specific about the key messages, value propositions, and target audience.",
+  "content_type": "product|company|case-study|blog|landing-page|portfolio|documentation|other",
+  "recommended_template": "template_id from the list above that best fits this content",
+  "template_reasoning": "One sentence explaining why this template fits",
+  "company_details": {
+    "companyName": "Company or product name (extract from page)",
+    "industry": "Industry or vertical",
+    "targetAudience": "Who this is for",
+    "painPoints": "Key problems addressed",
+    "valueProposition": "Core value prop or unique selling point",
+    "metrics": "Any specific numbers, stats, or proof points found",
+    "cta": "Suggested call-to-action"
+  },
+  "scene_count": 6
+}
+
+GUIDELINES:
+- For product pages: focus on features, benefits, and differentiators
+- For case studies: focus on challenge, solution, results
+- For company pages: focus on mission, services, and social proof
+- For blog posts: focus on key insights and takeaways
+- Pick a scene_count between 5 and 9 based on content density
+- Choose the template that best matches the content's persuasion goal`;
+
+  const message = await anthropic.messages.create({
+    model: 'claude-sonnet-4-5-20250929',
+    max_tokens: 2048,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const responseText = message.content[0].text;
+  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error('Failed to parse URL analysis');
+  }
+
+  const analysis = JSON.parse(jsonMatch[0]);
+
+  return {
+    title: analysis.title || pageTitle,
+    description: analysis.description,
+    contentType: analysis.content_type || 'other',
+    recommendedTemplate: analysis.recommended_template || 'product-launch',
+    templateReasoning: analysis.template_reasoning || '',
+    companyDetails: analysis.company_details || {},
+    sceneCount: analysis.scene_count || 6,
+    sourceUrl: url,
+    pageTitle,
+  };
+}
+
 export async function searchTopicData(topic) {
   const prompt = `Provide 5-7 key statistics, facts, or data points about: ${topic}
 

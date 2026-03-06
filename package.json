@@ -13,6 +13,8 @@
     "render-server": "node server/render-server.mjs",
     "generate-narration": "node scripts/generate-narration.mjs",
     "seed-db": "node scripts/seed-database.mjs",
+    "test": "node --test server/test/render-pipeline.test.mjs",
+    "test:render": "node --test server/test/render-pipeline.test.mjs",
     "electron:dev": "electron .",
     "electron:build": "cd app && npm run build && cd .. && electron-builder"
   },
@@ -36,6 +38,7 @@
     "mammoth": "^1.11.0",
     "marked": "^17.0.1",
     "multer": "^2.0.2",
+    "openssl": "^2.0.0",
     "remotion": "4.0.390",
     "stripe": "^20.4.0"
   },

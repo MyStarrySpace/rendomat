@@ -12,7 +12,7 @@ import { SidePanel } from './SidePanel';
 import { AudioRecorder } from './AudioRecorder';
 import { Film, AlertTriangle, X, RefreshCw, Sparkles, Plus, Upload, Mic, Video as VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui';
-import { frameToSeconds, getSceneAtFrame, TRACKS } from './lib/timeline-utils';
+import { getSceneAtFrame, TRACKS } from './lib/timeline-utils';
 
 // Local storage key for "don't show again" preference
 const RENDER_MODAL_DISMISSED_KEY = 'timeline-render-modal-dismissed';
@@ -24,7 +24,7 @@ interface TimelineEditorProps {
   transitionTypes: TransitionType[];
   audioClips?: AudioClip[];
   videoClips?: VideoClip[];
-  onScenesChange: () => void;
+  onScenesChange: () => void | Promise<void>;
   onTransitionsChange: () => void;
   onAudioClipsChange?: () => void;
   onVideoClipsChange?: () => void;
@@ -36,6 +36,7 @@ interface TimelineEditorProps {
   sceneRenderProgress?: Map<number, number>;
   sidePanelContainer?: React.RefObject<HTMLDivElement | null>;
   onSidePanelToggle?: (isOpen: boolean) => void;
+  onPlayheadChange?: (frame: number) => void;
 }
 
 export function TimelineEditor({
@@ -57,6 +58,7 @@ export function TimelineEditor({
   sceneRenderProgress,
   sidePanelContainer,
   onSidePanelToggle,
+  onPlayheadChange,
 }: TimelineEditorProps) {
   const [showRenderChangedModal, setShowRenderChangedModal] = useState(false);
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
@@ -66,12 +68,16 @@ export function TimelineEditor({
     }
     return false;
   });
+  const [autoRender, setAutoRender] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('timeline-auto-render') === 'true';
+    }
+    return false;
+  });
+  const autoRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
   const videoFileInputRef = useRef<HTMLInputElement>(null);
-  const internalVideoRef = useRef<HTMLVideoElement>(null);
-  const videoRef = externalVideoRef || internalVideoRef;
-  const [videoSyncEnabled, setVideoSyncEnabled] = useState(true);
 
   // Scene update handler (for resize during drag - local preview)
   const handleSceneUpdate = useCallback(async (sceneId: number, data: Partial<Scene>) => {
@@ -328,9 +334,9 @@ export function TimelineEditor({
       )
     );
     timeline.clearAllChanges();
-    onScenesChange();
+    await onScenesChange();
     setShowRenderChangedModal(false);
-    // Trigger full video render
+    // Trigger full video render (server reads cleared caches from DB)
     onRenderVideo?.();
   }, [scenes, timeline, onScenesChange, onRenderVideo, dontShowRenderModal]);
 
@@ -342,6 +348,34 @@ export function TimelineEditor({
       setShowRenderChangedModal(true);
     }
   }, [dontShowRenderModal, doRenderChanged]);
+
+  // Auto-render toggle
+  const toggleAutoRender = useCallback(() => {
+    setAutoRender(prev => {
+      const next = !prev;
+      localStorage.setItem('timeline-auto-render', String(next));
+      return next;
+    });
+  }, []);
+
+  // Auto-render: debounced trigger when scenes change and auto-render is on
+  useEffect(() => {
+    if (!autoRender) return;
+    if (!hasUnrenderedScenes && !hasChangedScenes) return;
+
+    if (autoRenderTimerRef.current) {
+      clearTimeout(autoRenderTimerRef.current);
+    }
+    autoRenderTimerRef.current = setTimeout(() => {
+      doRenderChanged();
+    }, 1500);
+
+    return () => {
+      if (autoRenderTimerRef.current) {
+        clearTimeout(autoRenderTimerRef.current);
+      }
+    };
+  }, [autoRender, hasUnrenderedScenes, hasChangedScenes, scenes, doRenderChanged]);
 
   // Regenerate from prompt handler
   const handleRegenerateFromPrompt = useCallback(() => {
@@ -438,32 +472,22 @@ export function TimelineEditor({
     timeline.selectVideoClip(null);
   }, [timeline]);
 
-  // Video sync - update video time when playhead moves
+  // Clear changedSceneIds for scenes that now have cache_path (render completed)
   useEffect(() => {
-    if (!videoRef.current || !videoSyncEnabled) return;
-
-    const video = videoRef.current;
-    const currentTime = frameToSeconds(timeline.playheadFrame);
-
-    // Only seek if difference is significant
-    if (Math.abs(video.currentTime - currentTime) > 0.1) {
-      video.currentTime = currentTime;
+    if (timeline.changedSceneIds.size === 0) return;
+    for (const sceneId of timeline.changedSceneIds) {
+      const scene = scenes.find(s => s.id === sceneId);
+      if (scene?.cache_path) {
+        timeline.clearSceneChanged(sceneId);
+      }
     }
-  }, [timeline.playheadFrame, videoSyncEnabled]);
+  }, [scenes]);
 
-  // Sync playhead with video during playback
+  // Notify parent of playhead changes
   useEffect(() => {
-    if (!videoRef.current || !videoSyncEnabled || !timeline.isPlaying) return;
+    onPlayheadChange?.(timeline.playheadFrame);
+  }, [timeline.playheadFrame, onPlayheadChange]);
 
-    const video = videoRef.current;
-
-    // Play video when timeline plays
-    video.play().catch(() => {});
-
-    return () => {
-      video.pause();
-    };
-  }, [timeline.isPlaying, videoSyncEnabled]);
 
   if (scenes.length === 0) {
     const totalTrackHeight = TRACKS.reduce((sum, t) => sum + t.height, 0);
@@ -587,7 +611,9 @@ export function TimelineEditor({
           onStop={timeline.stop}
           onSeekStart={() => timeline.setPlayheadFrame(0)}
           onSeekEnd={() => timeline.setPlayheadFrame(timeline.totalFrames)}
+          autoRender={autoRender}
           onRenderChanged={handleRenderChanged}
+          onToggleAutoRender={toggleAutoRender}
           onRegenerateFromPrompt={handleRegenerateFromPrompt}
           onAddScene={handleAddScene}
         />
@@ -751,15 +777,6 @@ export function TimelineEditor({
           sidePanelContainer.current
         )}
 
-        {/* Hidden video element for sync (only when no external ref) */}
-        {!externalVideoRef && video.output_path && (
-          <video
-            ref={internalVideoRef}
-            src={`${API_BASE}/uploads/${video.output_path}`}
-            className="hidden"
-            muted
-          />
-        )}
       </div>
 
       {/* Re-render Changed Scenes Confirmation Modal */}

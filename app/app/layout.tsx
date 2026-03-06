@@ -24,6 +24,17 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Rendomat",
   description: "AI-powered video production platform",
+  openGraph: {
+    title: "Rendomat",
+    description: "AI-powered video production platform",
+    images: [{ url: "/preview.png", width: 1920, height: 1080 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Rendomat",
+    description: "AI-powered video production platform",
+    images: ["/preview.png"],
+  },
 };
 
 export default function RootLayout({
@@ -33,13 +44,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+      </head>
       <body
         className={`${inter.variable} ${playfairDisplay.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <Providers>
           {children}
         </Providers>
-        <Script src="https://mcp.figma.com/mcp/html-to-design/capture.js" strategy="afterInteractive" />
       </body>
     </html>
   );

@@ -36,7 +36,7 @@ import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { videoApi, sceneApi, clientApi, platformApi, personaApi, transitionApi, audioClipApi, videoClipApi, cloudRenderApi, Video, Scene, Client, EffectivePersonas, Transition, TransitionType, AudioClip, VideoClip, RenderCapabilities, API_BASE } from "@/lib/api";
 import { calculateSceneDuration } from "@/lib/scene-duration";
-import { TimelineEditor } from "@/components/timeline";
+import { TimelineEditor, getSceneAtFrame } from "@/components/timeline";
 import { THEMES } from "@/lib/themes";
 import { AnimationPicker } from "@/components/ui/AnimationPicker";
 import { ThemePicker } from "@/components/ui/ThemePicker";
@@ -52,6 +52,95 @@ import {
   cardVariants,
   spring,
 } from "@/lib/motion";
+
+// Convert "16:9" to "16/9" for CSS aspect-ratio
+function cssAspectRatio(ratio: string): string {
+  return ratio.replace(':', '/');
+}
+
+// Scene-aware static preview synced with timeline playhead
+function ScenePreview({
+  scenes,
+  playheadFrame,
+  aspectRatio,
+  rendering,
+  renderingSceneId,
+  onRenderScene,
+  onRenderAll,
+}: {
+  scenes: Scene[];
+  playheadFrame: number;
+  aspectRatio: string;
+  rendering: boolean;
+  renderingSceneId: number | null;
+  onRenderScene: (sceneId: number) => void;
+  onRenderAll: () => void;
+}) {
+  const currentSceneRef = getSceneAtFrame(scenes, playheadFrame);
+  const fullScene = currentSceneRef ? scenes.find(s => s.id === currentSceneRef.id) ?? null : null;
+  const ar = cssAspectRatio(aspectRatio);
+
+  if (!fullScene) {
+    return (
+      <div
+        className="w-full flex flex-col items-center justify-center gap-4 bg-[hsl(var(--background))]"
+        style={{ aspectRatio: ar }}
+      >
+        <Film className="w-12 h-12 text-[hsl(var(--foreground-muted))]" />
+        <p className="text-sm text-[hsl(var(--foreground-muted))]">Move the playhead over a scene</p>
+      </div>
+    );
+  }
+
+  if (!fullScene.cache_path) {
+    const isRendering = renderingSceneId === fullScene.id;
+    return (
+      <div
+        className="w-full flex flex-col items-center justify-center gap-4 bg-[hsl(var(--background))]"
+        style={{ aspectRatio: ar }}
+      >
+        <Film className="w-12 h-12 text-[hsl(var(--foreground-muted))]" />
+        <p className="text-sm font-medium text-[hsl(var(--foreground-muted))]">
+          Scene {fullScene.scene_number} has not been rendered
+        </p>
+        <div className="flex items-center gap-3">
+          <Button
+            size="sm"
+            onClick={() => onRenderScene(fullScene.id)}
+            disabled={rendering}
+            loading={isRendering}
+            icon={<Zap className="w-4 h-4" />}
+          >
+            Render This Scene
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onRenderAll}
+            disabled={rendering}
+            icon={<Zap className="w-4 h-4" />}
+          >
+            Render All
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Static frame: paused video at the playhead position within the scene
+  const sceneLocalTime = (playheadFrame - fullScene.start_frame) / 30;
+
+  return (
+    <video
+      key={fullScene.id}
+      className="w-full bg-black"
+      style={{ aspectRatio: ar }}
+      src={`${API_BASE}/api/scenes/${fullScene.id}/preview#t=${sceneLocalTime.toFixed(2)}`}
+      preload="auto"
+      muted
+    />
+  );
+}
 
 // Platform configuration
 const PLATFORMS = {
@@ -123,26 +212,37 @@ export default function VideoDetailPage() {
   const [transitionTypes, setTransitionTypes] = useState<TransitionType[]>([]);
   const [editingTransitionId, setEditingTransitionId] = useState<number | null>(null);
   const [showTransitions, setShowTransitions] = useState(true);
+  const [showCacheDropdown, setShowCacheDropdown] = useState(false);
 
   const mainVideoRef = useRef<HTMLVideoElement>(null);
   const sidePanelRef = useRef<HTMLDivElement>(null);
   const [sidePanelMounted, setSidePanelMounted] = useState(false);
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
+  const [playheadFrame, setPlayheadFrame] = useState(0);
 
-  // Build per-scene render progress map from SSE progress data
+  // Build per-scene render progress map from SSE progress data + single-scene render
   const sceneRenderProgress = useMemo(() => {
-    if (!progressData?.scenes) return undefined;
     const map = new Map<number, number>();
-    for (const s of progressData.scenes) {
-      if (s.status === 'cached' || s.status === 'completed') {
-        map.set(s.id, 100);
-      } else if (s.status === 'rendering') {
-        map.set(s.id, s.progress || 0);
+
+    // SSE bulk render progress
+    if (progressData?.scenes) {
+      for (const s of progressData.scenes) {
+        if (s.status === 'cached' || s.status === 'completed') {
+          map.set(s.id, 100);
+        } else if (s.status === 'rendering') {
+          map.set(s.id, s.progress || 0);
+        }
+        // 'pending' scenes are not in the map (no fill)
       }
-      // 'pending' scenes are not in the map (no fill)
     }
-    return map;
-  }, [progressData]);
+
+    // Single-scene render (indeterminate progress shown as 50%)
+    if (renderingSceneId != null && !map.has(renderingSceneId)) {
+      map.set(renderingSceneId, 50);
+    }
+
+    return map.size > 0 ? map : undefined;
+  }, [progressData, renderingSceneId]);
 
   useEffect(() => {
     loadData();
@@ -188,8 +288,19 @@ export default function VideoDetailPage() {
           setRenderProgress('Stitching scenes together...');
         } else if (progress.stage === 'complete') {
           setRenderProgress('Render complete!');
+          loadData();
+          setTimeout(() => {
+            setRenderProgress('');
+            setRendering(false);
+            setProgressData(null);
+          }, 2000);
         } else if (progress.stage === 'error') {
           setRenderProgress(`Render failed: ${progress.error}`);
+          setTimeout(() => {
+            setRenderProgress('');
+            setRendering(false);
+            setProgressData(null);
+          }, 5000);
         } else if (progress.current_scene_index !== null && progress.scenes) {
           const currentScene = progress.scenes[progress.current_scene_index];
           const cacheInfo = progress.cached_scenes > 0 ? ` (${progress.cached_scenes} cached)` : '';
@@ -260,7 +371,7 @@ export default function VideoDetailPage() {
 
   async function handleRender() {
     setRendering(true);
-    setRenderProgress("Preparing to render...");
+    setRenderProgress("Starting render...");
     setProgressData({
       completed_scenes: 0,
       total_scenes: scenes.length,
@@ -269,8 +380,29 @@ export default function VideoDetailPage() {
     });
 
     try {
-      const blob = await videoApi.renderScenes(videoId);
+      // POST returns immediately; progress comes via SSE
+      const result = await videoApi.renderScenes(videoId);
+      if (result.status === 'already_rendering') {
+        setRenderProgress("Render already in progress...");
+      }
+      // SSE 'complete' event handler (in useEffect below) will handle cleanup
+    } catch (error) {
+      console.error("Failed to start render:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      setRenderProgress(`Render failed: ${errorMessage}`);
+      setProgressData(null);
+      setTimeout(() => {
+        setRenderProgress("");
+        setRendering(false);
+      }, 5000);
+    }
+  }
 
+  async function handleDownload() {
+    setRenderProgress("Preparing download...");
+
+    try {
+      const blob = await videoApi.downloadVideo(videoId);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -280,22 +412,13 @@ export default function VideoDetailPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      setRenderProgress("Render complete!");
-      setProgressData(null);
-      setTimeout(() => {
-        setRenderProgress("");
-        setRendering(false);
-      }, 2000);
-
-      loadData();
+      setRenderProgress("");
     } catch (error) {
-      console.error("Failed to render video:", error);
+      console.error("Failed to download video:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      setRenderProgress(`Render failed: ${errorMessage}`);
-      setProgressData(null);
+      setRenderProgress(`Download failed: ${errorMessage}`);
       setTimeout(() => {
         setRenderProgress("");
-        setRendering(false);
       }, 5000);
     }
   }
@@ -327,8 +450,6 @@ export default function VideoDetailPage() {
       const result = await sceneApi.render(sceneId, forceRender);
       // Update the single scene's cache fields from the response
       setScenes(prev => prev.map(s => s.id === sceneId ? { ...s, cache_path: result.cache_path ?? s.cache_path, cached_at: new Date().toISOString() } : s));
-      // Show preview
-      setPreviewSceneId(sceneId);
     } catch (error) {
       console.error("Failed to render scene:", error);
       alert(error instanceof Error ? error.message : "Failed to render scene");
@@ -682,7 +803,6 @@ export default function VideoDetailPage() {
 
   const cachedScenes = scenes.filter(s => s.cache_path).length;
   const totalScenes = scenes.length;
-  const cachePercentage = totalScenes > 0 ? Math.round((cachedScenes / totalScenes) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))]">
@@ -731,14 +851,34 @@ export default function VideoDetailPage() {
               </div>
             )}
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Button
-                onClick={renderMode === 'cloud' ? handleCloudRender : handleRender}
-                disabled={rendering || (renderMode === 'local' && cachedScenes < totalScenes)}
-                loading={rendering}
-                icon={renderMode === 'cloud' ? <Cloud className="w-4 h-4" /> : <Download className="w-4 h-4" />}
-              >
-                {rendering ? "Rendering..." : renderMode === 'cloud' ? "Cloud Render" : "Download Video"}
-              </Button>
+              {renderMode === 'cloud' ? (
+                <Button
+                  onClick={handleCloudRender}
+                  disabled={rendering}
+                  loading={rendering}
+                  icon={<Cloud className="w-4 h-4" />}
+                >
+                  {rendering ? "Rendering..." : "Cloud Render"}
+                </Button>
+              ) : cachedScenes < totalScenes ? (
+                <Button
+                  onClick={handleRender}
+                  disabled={rendering}
+                  loading={rendering}
+                  icon={<Zap className="w-4 h-4" />}
+                >
+                  {rendering ? "Rendering..." : "Render All Unrendered"}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleDownload}
+                  disabled={rendering}
+                  loading={rendering}
+                  icon={<Download className="w-4 h-4" />}
+                >
+                  {rendering ? "Rendering..." : "Download Video"}
+                </Button>
+              )}
             </motion.div>
           </div>
         </div>
@@ -774,9 +914,55 @@ export default function VideoDetailPage() {
                 <Clock className="w-4 h-4" />
                 {video.duration_seconds}s
               </span>
-              <span className="flex items-center gap-1">
-                <Database className="w-4 h-4" />
-                Cache: {cachePercentage}%
+              <span className="relative flex items-center gap-1">
+                <button
+                  onClick={() => setShowCacheDropdown(!showCacheDropdown)}
+                  className="flex items-center gap-1 hover:text-[hsl(var(--foreground))] transition-colors"
+                >
+                  <Database className="w-4 h-4" />
+                  Cache: {cachedScenes}/{totalScenes}
+                  <ChevronDown className={`w-3 h-3 transition-transform ${showCacheDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                {showCacheDropdown && (
+                  <div className="absolute top-full left-0 mt-2 z-50 bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-3 min-w-[220px] shadow-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="caption text-xs">Scene Cache</span>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await Promise.all(scenes.map(s => sceneApi.clearCache(s.id)));
+                          setScenes(prev => prev.map(s => ({ ...s, cache_path: null, cache_hash: null, cached_at: null })));
+                          handleRender();
+                        }}
+                        disabled={rendering}
+                        className="flex items-center gap-1 text-xs text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${rendering ? 'animate-spin' : ''}`} />
+                        Re-render all
+                      </button>
+                    </div>
+                    <div className="space-y-1 max-h-[240px] overflow-y-auto">
+                      {scenes.map((scene, i) => (
+                        <div key={scene.id} className="flex items-center justify-between text-xs py-1 border-b border-[hsl(var(--border)/.3)] last:border-0">
+                          <span className="text-[hsl(var(--foreground))] truncate mr-2">
+                            {i + 1}. {scene.headline || scene.scene_type || `Scene ${i + 1}`}
+                          </span>
+                          {scene.cache_path ? (
+                            <span className="flex items-center gap-1 text-[hsl(var(--success))] shrink-0">
+                              <CheckCircle className="w-3 h-3" />
+                              cached
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-[hsl(var(--foreground-muted))] shrink-0">
+                              <AlertCircle className="w-3 h-3" />
+                              pending
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </span>
               <ThemePicker
                 value={video.theme_id || 'tech-dark'}
@@ -824,42 +1010,6 @@ export default function VideoDetailPage() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Cache Status */}
-          {cachedScenes > 0 && (
-            <div className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-4 mb-8">
-              <div className="flex items-center gap-3 mb-2">
-                <Zap className="w-5 h-5 text-[hsl(var(--warning))]" />
-                <h3 className="font-medium text-[hsl(var(--foreground))] flex-1">Cache Status</h3>
-                <button
-                  onClick={async () => {
-                    await Promise.all(scenes.map(s => sceneApi.clearCache(s.id)));
-                    setScenes(prev => prev.map(s => ({ ...s, cache_path: null, cache_hash: null, cached_at: null })));
-                    handleRender();
-                  }}
-                  disabled={rendering}
-                  className="flex items-center gap-1.5 text-xs text-[hsl(var(--foreground-muted))] hover:text-[hsl(var(--foreground))] transition-colors disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${rendering ? 'animate-spin' : ''}`} />
-                  Re-render all
-                </button>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex-1 bg-[hsl(var(--background))] h-2 overflow-hidden">
-                  <div
-                    className="bg-[hsl(var(--success))] h-full transition-all duration-500"
-                    style={{ width: `${cachePercentage}%` }}
-                  />
-                </div>
-                <span className="text-sm text-[hsl(var(--foreground-muted))] font-mono">
-                  {cachedScenes}/{totalScenes} cached
-                </span>
-              </div>
-              <p className="text-sm text-[hsl(var(--foreground-subtle))] mt-2">
-                Only {totalScenes - cachedScenes} scene{totalScenes - cachedScenes !== 1 ? 's' : ''} will be re-rendered
-              </p>
             </div>
           )}
 
@@ -954,32 +1104,20 @@ export default function VideoDetailPage() {
           {/* Video + Timeline */}
           <div>
             <div>
-              {/* Output Video */}
+              {/* Scene Preview */}
               <div className="mb-12">
-                <p className="caption mb-4">Output Video</p>
+                <p className="caption mb-4">Preview</p>
                 <div className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] p-4">
                   <div className="max-w-4xl mx-auto">
-                    {video.output_path ? (
-                      <video
-                        ref={mainVideoRef}
-                        className="w-full"
-                        style={{ aspectRatio: video.aspect_ratio || '16/9' }}
-                        src={`${API_BASE}/api/videos/${videoId}/preview`}
-                      >
-                        Your browser does not support the video tag.
-                      </video>
-                    ) : (
-                      <div
-                        className="w-full flex flex-col items-center justify-center gap-4 text-[hsl(var(--foreground)/0.4)]"
-                        style={{ aspectRatio: video.aspect_ratio || '16/9' }}
-                      >
-                        <Film className="w-12 h-12" />
-                        <div className="text-center">
-                          <p className="text-sm font-medium text-[hsl(var(--foreground)/0.6)]">No video rendered yet</p>
-                          <p className="text-xs mt-1">Use the <span className="text-[hsl(var(--accent))]">Render All Scenes</span> button below to generate your video</p>
-                        </div>
-                      </div>
-                    )}
+                    <ScenePreview
+                      scenes={scenes}
+                      playheadFrame={playheadFrame}
+                      aspectRatio={video.aspect_ratio || '16:9'}
+                      rendering={rendering}
+                      renderingSceneId={renderingSceneId}
+                      onRenderScene={(sceneId) => handleRenderScene(sceneId, false)}
+                      onRenderAll={handleRender}
+                    />
                   </div>
                 </div>
               </div>
@@ -1034,6 +1172,7 @@ export default function VideoDetailPage() {
                 sceneRenderProgress={sceneRenderProgress}
                 sidePanelContainer={sidePanelRef}
                 onSidePanelToggle={setSidePanelOpen}
+                onPlayheadChange={setPlayheadFrame}
               />
             </div>
           </div>
@@ -1173,8 +1312,8 @@ export default function VideoDetailPage() {
                                 value={scene.scene_type || 'text-only'}
                                 onChange={(e) => {
                                   const newType = e.target.value;
-                                  sceneApi.update(scene.id, { scene_type: newType });
-                                  setScenes(prev => prev.map(s => s.id === scene.id ? { ...s, scene_type: newType } : s));
+                                  sceneApi.update(scene.id, { scene_type: newType, cache_path: null, cache_hash: null, cached_at: null });
+                                  setScenes(prev => prev.map(s => s.id === scene.id ? { ...s, scene_type: newType, cache_path: null, cache_hash: null, cached_at: null } : s));
                                 }}
                                 className="w-full bg-[hsl(var(--background))] border border-[hsl(var(--border))] px-4 py-2 text-[hsl(var(--foreground))] focus:outline-none focus:border-[hsl(var(--accent))]"
                               >

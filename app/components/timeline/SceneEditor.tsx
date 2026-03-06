@@ -156,6 +156,27 @@ export function SceneEditor({
         </div>
       </div>
 
+      {/* Scene preview thumbnail */}
+      <div className="border border-[hsl(var(--border))] overflow-hidden bg-black">
+        {scene.cache_path ? (
+          <video
+            key={scene.id}
+            className="w-full"
+            style={{ aspectRatio: '16/9' }}
+            src={`${API_BASE}/api/scenes/${scene.id}/preview#t=0.5`}
+            preload="auto"
+            muted
+          />
+        ) : (
+          <div
+            className="w-full flex items-center justify-center bg-[hsl(var(--background))] text-[hsl(var(--foreground-muted))]"
+            style={{ aspectRatio: '16/9' }}
+          >
+            <span className="text-xs">Not rendered</span>
+          </div>
+        )}
+      </div>
+
       {/* Animation Style */}
       <div className="grid grid-cols-2 gap-3">
         <div>

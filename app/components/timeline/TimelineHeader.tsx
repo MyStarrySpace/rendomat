@@ -11,6 +11,7 @@ import {
   SkipForward,
   Square,
   Zap,
+  RefreshCw,
   Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
@@ -34,7 +35,9 @@ interface TimelineHeaderProps {
   onStop: () => void;
   onSeekStart: () => void;
   onSeekEnd: () => void;
+  autoRender: boolean;
   onRenderChanged: () => void;
+  onToggleAutoRender: () => void;
   onRegenerateFromPrompt?: () => void;
   onAddScene?: () => void;
 }
@@ -57,7 +60,9 @@ export function TimelineHeader({
   onStop,
   onSeekStart,
   onSeekEnd,
+  autoRender,
   onRenderChanged,
+  onToggleAutoRender,
   onRegenerateFromPrompt,
   onAddScene,
 }: TimelineHeaderProps) {
@@ -151,7 +156,7 @@ export function TimelineHeader({
             Add Scene
           </Button>
         )}
-        {(hasUnrenderedScenes || hasChangedScenes) && (
+        {(hasUnrenderedScenes || hasChangedScenes) && !autoRender && (
           <Button
             variant={hasChangedScenes ? 'secondary' : 'default'}
             size="sm"
@@ -161,6 +166,14 @@ export function TimelineHeader({
             {hasChangedScenes ? 'Re-render Changed' : 'Render All'}{renderCreditCost > 0 ? ` (${renderCreditCost} cr)` : ''}
           </Button>
         )}
+        <Button
+          variant={autoRender ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={onToggleAutoRender}
+          title="Auto-render on change"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </Button>
       </div>
 
       {/* Right: Zoom & snap controls */}

@@ -178,7 +178,7 @@ export const videoApi = {
     if (!res.ok) throw new Error('Failed to delete video');
   },
 
-  async renderScenes(id: number): Promise<Blob> {
+  async renderScenes(id: number): Promise<{ status: string; videoId: number; totalScenes?: number }> {
     const res = await fetch(`${API_BASE}/api/videos/${id}/render-scenes`, {
       method: 'POST',
     });
@@ -190,8 +190,22 @@ export const videoApi = {
           errorMessage = errorData.error;
         }
       } catch {
-        // If response isn't JSON, use status text
         errorMessage = `Failed to render video: ${res.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+    return res.json();
+  },
+
+  async downloadVideo(id: number): Promise<Blob> {
+    const res = await fetch(`${API_BASE}/api/videos/${id}/download`);
+    if (!res.ok) {
+      let errorMessage = 'Failed to download video';
+      try {
+        const errorData = await res.json();
+        if (errorData.error) errorMessage = errorData.error;
+      } catch {
+        errorMessage = `Failed to download: ${res.statusText}`;
       }
       throw new Error(errorMessage);
     }
@@ -853,6 +867,88 @@ export const billingApi = {
       body: JSON.stringify({ packageId }),
     });
     if (!res.ok) throw new Error('Failed to create checkout');
+    return res.json();
+  },
+};
+
+// URL-to-Video Pipeline
+export interface UrlAnalysis {
+  title: string;
+  description: string;
+  contentType: string;
+  recommendedTemplate: string;
+  templateReasoning: string;
+  companyDetails: {
+    companyName?: string;
+    industry?: string;
+    targetAudience?: string;
+    painPoints?: string;
+    valueProposition?: string;
+    metrics?: string;
+    cta?: string;
+  };
+  sceneCount: number;
+  sourceUrl: string;
+  pageTitle: string;
+}
+
+export interface GenerateFromUrlOptions {
+  url: string;
+  clientId?: number;
+  title?: string;
+  templateId?: string;
+  sceneCount?: number;
+  companyDetails?: UrlAnalysis['companyDetails'];
+  description?: string;
+  personas?: string[];
+  behaviorOverrides?: Record<string, unknown>;
+  themeId?: string;
+  aspectRatio?: string;
+  useResearch?: boolean;
+}
+
+export interface GenerateFromUrlResult {
+  video: Record<string, unknown>;
+  scenes: Record<string, unknown>[];
+  analysis: {
+    sourceUrl: string;
+    contentType: string;
+    recommendedTemplate: string;
+    templateUsed: string;
+    templateReasoning: string;
+    companyDetails: UrlAnalysis['companyDetails'];
+  };
+  research: {
+    citations_used: unknown[];
+    case_studies_used: unknown[];
+    summary: string;
+  } | null;
+}
+
+export const urlToVideoApi = {
+  async analyzeUrl(url: string): Promise<UrlAnalysis> {
+    const res = await fetch(`${API_BASE}/api/videos/analyze-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'URL analysis failed' }));
+      throw new Error(err.error || 'URL analysis failed');
+    }
+    return res.json();
+  },
+
+  async generateFromUrl(options: GenerateFromUrlOptions): Promise<GenerateFromUrlResult> {
+    const res = await fetch(`${API_BASE}/api/videos/generate-from-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(options),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Video generation failed' }));
+      throw new Error(err.error || 'Video generation failed');
+    }
     return res.json();
   },
 };

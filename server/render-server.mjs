@@ -1843,20 +1843,15 @@ app.get('/api/transitions/types', (req, res) => {
   });
 });
 
-app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
+// Background render job: fires and forgets, progress via SSE
+async function runRenderJob(videoId) {
   try {
-    const videoId = parseInt(req.params.videoId, 10);
     const video = videoDb.getById(videoId);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    if (!video) throw new Error('Video not found');
 
     const scenes = sceneDb.getAllForVideo(videoId);
-    if (scenes.length === 0) {
-      return res.status(400).json({ error: 'No scenes found for this video' });
-    }
+    if (scenes.length === 0) throw new Error('No scenes found');
 
-    // Build initial scene state with cache status
     const sceneStates = scenes.map(scene => ({
       id: scene.id,
       scene_number: scene.scene_number,
@@ -1869,7 +1864,6 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
     const cachedCount = sceneStates.filter(s => s.status === 'cached').length;
     const toRenderCount = sceneStates.filter(s => s.status === 'pending').length;
 
-    // Initialize render state and broadcast
     const updateRenderState = (updates) => {
       const state = {
         status: 'rendering',
@@ -1884,7 +1878,6 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
         ...updates,
       };
       setVideoRenderState(videoId, state);
-      // Also update DB for polling fallback
       videoDb.update(videoId, {
         status: 'rendering',
         render_progress: JSON.stringify(state)
@@ -1920,7 +1913,6 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
       const sceneState = sceneStates[i];
 
       if (sceneState.status === 'cached') {
-        // Use cached scene
         scenePaths.push(sceneState.cache_path);
         updateRenderState({
           current_scene_index: i,
@@ -1930,7 +1922,6 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
         continue;
       }
 
-      // Mark scene as rendering
       sceneState.status = 'rendering';
       sceneState.progress = 0;
       updateRenderState({
@@ -1938,17 +1929,14 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
         stage: 'rendering',
       });
 
-      // Build input props
       const inputProps = {};
       if (video.theme_id) {
         inputProps.themeId = video.theme_id;
       }
-      // Pass bg_time_offset if pre-calculated for this scene's bg_group
       if (scene._bgTimeOffset !== undefined) {
         inputProps._bgTimeOffset = scene._bgTimeOffset;
       }
 
-      // Render the scene with progress callback
       const scenePath = await renderScene(
         scene.id,
         serveUrl,
@@ -1964,10 +1952,10 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
         }
       );
 
-      // Mark scene as completed and update cache path
       sceneState.status = 'completed';
       sceneState.progress = 100;
       sceneState.cache_path = scenePath;
+      sceneDb.updateCache(scene.id, scenePath, null);
       completedRenders++;
 
       scenePaths.push(scenePath);
@@ -1985,17 +1973,13 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
       current_scene_index: null,
     });
 
-    // Stitch scenes together
     const audioClips = audioClipDb.getAllForVideo(videoId);
     const videoClips = videoClipDb.getAllForVideo(videoId);
-    let outputPath;
 
-    // Step 1: Stitch scenes
     const stitchedPath = path.join(os.tmpdir(), `video-${videoId}-stitched-${Date.now()}.mp4`);
     await stitchScenes(scenePaths, stitchedPath);
     let currentPath = stitchedPath;
 
-    // Step 2: Mux audio if present
     if (audioClips.length > 0) {
       const audioMuxedPath = path.join(os.tmpdir(), `video-${videoId}-audiomuxed-${Date.now()}.mp4`);
       await muxAudio(currentPath, audioClips, audioMuxedPath);
@@ -2003,15 +1987,12 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
       currentPath = audioMuxedPath;
     }
 
-    // Step 3: Overlay video clips (B-roll) if present
     if (videoClips.length > 0) {
       const overlayPath = path.join(os.tmpdir(), `video-${videoId}-overlay-${Date.now()}.mp4`);
       await overlayVideoClips(currentPath, videoClips, overlayPath);
       await fs.unlink(currentPath).catch(() => {});
       currentPath = overlayPath;
     }
-
-    outputPath = currentPath;
 
     // Final state: completed
     updateRenderState({
@@ -2020,27 +2001,20 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
       overall_progress: 100,
     });
 
-    // Update video with output path
     videoDb.update(videoId, {
-      output_path: outputPath,
+      output_path: currentPath,
       status: 'completed',
       render_progress: null
     });
 
     // Cleanup SSE state after a delay (allow clients to receive final update)
-    setTimeout(() => cleanupVideoRenderState(videoId), 5000);
+    setTimeout(() => cleanupVideoRenderState(videoId), 10000);
 
-    // Read and send the video file
-    const file = await fs.readFile(outputPath);
-    res.setHeader('Content-Type', 'video/mp4');
-    res.setHeader('Content-Disposition', `attachment; filename="${video.title}.mp4"`);
-    res.status(200).send(file);
+    console.log(`[render-scenes] Video ${videoId} render complete: ${currentPath}`);
 
   } catch (error) {
-    console.error('[render-scenes] Error:', error);
-    const videoId = parseInt(req.params.videoId, 10);
+    console.error('[render-scenes] Background render error:', error);
 
-    // Broadcast error state
     setVideoRenderState(videoId, {
       status: 'error',
       stage: 'error',
@@ -2052,13 +2026,65 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
       render_progress: null
     });
 
-    // Cleanup SSE state after a delay
-    setTimeout(() => cleanupVideoRenderState(videoId), 5000);
+    setTimeout(() => cleanupVideoRenderState(videoId), 10000);
+  }
+}
 
-    res.status(500).json({
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+// POST: Start render (returns immediately, progress via SSE)
+app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
+  try {
+    const videoId = parseInt(req.params.videoId, 10);
+    const video = videoDb.getById(videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const scenes = sceneDb.getAllForVideo(videoId);
+    if (scenes.length === 0) {
+      return res.status(400).json({ error: 'No scenes found for this video' });
+    }
+
+    // Check if already rendering
+    const currentState = getVideoRenderState(videoId);
+    if (currentState && currentState.status === 'rendering') {
+      return res.json({ status: 'already_rendering', videoId });
+    }
+
+    // Return immediately, render in background
+    res.json({ status: 'started', videoId, totalScenes: scenes.length });
+
+    // Fire and forget: render in background
+    runRenderJob(videoId);
+
+  } catch (error) {
+    console.error('[render-scenes] Error starting render:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET: Download rendered video
+app.get('/api/videos/:videoId/download', async (req, res) => {
+  try {
+    const videoId = parseInt(req.params.videoId, 10);
+    const video = videoDb.getById(videoId);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+    if (!video.output_path) {
+      return res.status(404).json({ error: 'Video has not been rendered yet' });
+    }
+    try {
+      await fs.access(video.output_path);
+    } catch {
+      return res.status(404).json({ error: 'Rendered file not found on disk' });
+    }
+    const file = await fs.readFile(video.output_path);
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Disposition', `attachment; filename="${video.title || 'video'}.mp4"`);
+    res.status(200).send(file);
+  } catch (error) {
+    console.error('[download] Error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
