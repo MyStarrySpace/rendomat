@@ -956,7 +956,7 @@ export default function VideoDetailPage() {
                       {scenes.map((scene, i) => (
                         <div key={scene.id} className="flex items-center justify-between text-xs py-1 border-b border-[hsl(var(--border)/.3)] last:border-0">
                           <span className="text-[hsl(var(--foreground))] truncate mr-2">
-                            {i + 1}. {scene.headline || scene.scene_type || `Scene ${i + 1}`}
+                            {i + 1}. {scene.name || scene.scene_type || `Scene ${i + 1}`}
                           </span>
                           {scene.cache_path ? (
                             <span className="flex items-center gap-1 text-[hsl(var(--success))] shrink-0">
