@@ -421,7 +421,7 @@ describe("Scene reorder", () => {
     testVideoIds.push(videoId);
 
     sceneIds = [];
-    // Create 4 scenes: 90 frames each (no transitions — tests pure reorder logic)
+    // Create 4 scenes: 90 frames each
     for (let i = 1; i <= 4; i++) {
       const id = sceneDb.create({
         video_id: videoId,
@@ -432,17 +432,19 @@ describe("Scene reorder", () => {
       });
       sceneIds.push(id);
     }
+
+    // Create transitions between consecutive scenes (1→2, 2→3, 3→4)
+    transitionDb.createDefaultsForVideo(videoId);
   });
 
-  it("moves a scene earlier and renumbers correctly", () => {
+  it("moves a scene earlier with transitions and renumbers correctly", () => {
     // Move scene 3 to position 1: [1,2,3,4] → [3,1,2,4]
+    // This previously crashed with UNIQUE constraint on transitions
     const result = sceneDb.reorderScene(sceneIds[2], 1);
 
     assert.equal(result.length, 4);
-    // The scene that was originally scene 3 should now be scene_number 1
     const movedScene = result.find((s) => s.id === sceneIds[2]);
     assert.equal(movedScene.scene_number, 1);
-    // Original scene 1 should now be scene_number 2
     const shifted = result.find((s) => s.id === sceneIds[0]);
     assert.equal(shifted.scene_number, 2);
   });
@@ -461,9 +463,19 @@ describe("Scene reorder", () => {
     }
   });
 
+  it("remaps transitions to stay between adjacent scenes after reorder", () => {
+    const transitions = transitionDb.getAllForVideo(videoId);
+
+    for (const t of transitions) {
+      assert.equal(
+        t.to_scene_number,
+        t.from_scene_number + 1,
+        `Transition ${t.id} should be between adjacent scenes (${t.from_scene_number}→${t.to_scene_number})`
+      );
+    }
+  });
+
   it("moves a scene later and renumbers correctly", () => {
-    // Current order by id: [sceneIds[2]=1, sceneIds[0]=2, sceneIds[1]=3, sceneIds[3]=4]
-    // Move scene at position 1 to position 3
     const result = sceneDb.reorderScene(sceneIds[2], 3);
 
     assert.equal(result.length, 4);

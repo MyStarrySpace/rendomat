@@ -20,9 +20,9 @@ export interface Track {
 
 export const TRACKS: Track[] = [
   { id: 'video', label: 'Video', height: 60 },
+  { id: 'background', label: 'BG FX', height: 40 },
   { id: 'b-roll', label: 'B-Roll', height: 50 },
   { id: 'audio', label: 'Audio', height: 40 },
-  { id: 'background', label: 'BG FX', height: 40 },
 ];
 
 /**

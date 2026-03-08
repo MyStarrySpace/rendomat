@@ -599,19 +599,29 @@ export const sceneDb = {
       ).all(videoId);
       const idToNewNum = new Map(updatedScenes.map(s => [s.id, s.scene_number]));
 
+      // Two-pass remap: delete non-adjacent first to avoid UNIQUE constraint conflicts
       for (const t of transitionsBySceneIds) {
         if (!t.fromId || !t.toId) continue;
         const newFrom = idToNewNum.get(t.fromId);
         const newTo = idToNewNum.get(t.toId);
         if (newFrom === undefined || newTo === undefined) continue;
 
-        // Only keep transitions between adjacent scenes
+        if (newTo !== newFrom + 1) {
+          db.prepare('DELETE FROM transitions WHERE id = ?').run(t.id);
+        }
+      }
+
+      // Second pass: update remaining adjacent transitions
+      for (const t of transitionsBySceneIds) {
+        if (!t.fromId || !t.toId) continue;
+        const newFrom = idToNewNum.get(t.fromId);
+        const newTo = idToNewNum.get(t.toId);
+        if (newFrom === undefined || newTo === undefined) continue;
+
         if (newTo === newFrom + 1) {
           db.prepare(
             'UPDATE transitions SET from_scene_number = ?, to_scene_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
           ).run(newFrom, newTo, t.id);
-        } else {
-          db.prepare('DELETE FROM transitions WHERE id = ?').run(t.id);
         }
       }
 

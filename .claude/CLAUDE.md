@@ -62,3 +62,11 @@ node scripts/render-transition-previews.mjs --type crossfade
 ```
 
 Preview clips are stored in `public/transitions/` as MP4 files (320×180, 30fps).
+
+## Testing Philosophy
+
+- Tests exist to **find and fix bugs** based on expected correct behavior, not just to verify existing code passes.
+- Write tests that encode what the behavior **should** be. If a test fails, that's a bug to fix in the production code — don't weaken the test to match broken behavior.
+- When a test reveals a bug, fix the production code first, then confirm the test passes.
+- Server-side database tests: `node --test server/test/state-management.test.mjs` (imports `server/database.mjs` directly, no running server needed)
+- Cloud/Neon tests: `cd app && node --test test/*.test.mjs` (requires `DATABASE_URL` env var)

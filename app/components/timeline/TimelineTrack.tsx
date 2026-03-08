@@ -256,13 +256,17 @@ export function TimelineTrack({
                 />
               ))}
 
-              {/* Background FX track: Show animation indicators */}
+              {/* Background FX track: Show animation indicators aligned to scenes */}
               {track.id === 'background' && scenes.map((scene) => {
                 const sceneData = scene.data ? JSON.parse(scene.data) : {};
                 if (!sceneData.animation_style || sceneData.animation_style === 'none') return null;
 
-                const left = frameToPixel(scene.start_frame, zoom);
-                const width = frameToPixel(scene.end_frame - scene.start_frame, zoom);
+                const isDraggedScene = dragPreview?.sceneId === scene.id;
+                const previewLeft = previewPositionMap.get(scene.id);
+                const previewWidth = previewWidthMap.get(scene.id);
+
+                const left = previewLeft ?? frameToPixel(scene.start_frame, zoom);
+                const width = previewWidth ?? frameToPixel(scene.end_frame - scene.start_frame, zoom);
 
                 return (
                   <div
@@ -273,6 +277,8 @@ export function TimelineTrack({
                       width: Math.max(width, 30),
                       height: track.height - 8,
                       top: 4,
+                      opacity: isDraggedScene ? 0.5 : 1,
+                      transition: isDraggedScene ? 'none' : 'left 0.15s, width 0.15s',
                     }}
                   >
                     <span className="text-[9px] text-[hsl(var(--accent))] truncate">
