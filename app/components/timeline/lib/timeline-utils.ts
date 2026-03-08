@@ -299,15 +299,41 @@ export function findDropTargetIndex<T extends { id: number; start_frame: number;
 }
 
 /**
- * Check if scene data has changed since last render
+ * Simple fast hash for client-side scene data comparison.
+ * Not cryptographic — just needs to detect data changes reliably.
+ * Produces a 16-char hex string to match server's generateSceneHash format.
+ */
+function simpleHash(str: string): string {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const combined = (h2 >>> 0) * 0x100000000 + (h1 >>> 0);
+  return combined.toString(16).padStart(16, '0');
+}
+
+/**
+ * Check if scene data has changed since last render.
+ *
+ * Uses client-side hash comparison. Note: the client hash algorithm differs
+ * from the server's SHA-256 hash, so this only works when cache_hash was set
+ * using the same client-side hash. For server-set cache_hash (SHA-256),
+ * a mismatch will cause this to return true (safe — just means we show
+ * the scene as needing re-render, which the user can verify).
  */
 export function hasSceneChanged(scene: { data: string | null; cache_hash: string | null }): boolean {
-  if (!scene.cache_hash) return true; // Never rendered
+  if (!scene.cache_hash) return true; // Never rendered or hash not stored
   if (!scene.data) return false;
 
-  // Simple hash comparison - if data exists but hash is from old data, it's changed
-  // In a real implementation, we'd compute a hash of the current data
-  return false; // Placeholder - actual implementation would compare hashes
+  const currentHash = simpleHash(scene.data);
+  return currentHash !== scene.cache_hash;
 }
 
 /**

@@ -11,6 +11,7 @@ import {
   getZebraStripeStyle,
   getSnapGridSize,
   snapToGrid,
+  hasSceneChanged,
 } from './lib/timeline-utils';
 import { GripVertical, Database, AlertCircle, Zap } from 'lucide-react';
 
@@ -71,6 +72,8 @@ export function SceneBlock({
   const DRAG_THRESHOLD = 6; // pixels before drag activates
 
   const isUnrendered = !scene.cache_path;
+  const hasStaleCache = hasSceneChanged(scene);
+  const effectiveHasChanges = hasChanges || hasStaleCache;
   const duration = getSceneDuration(scene);
 
   // Use preview position/width during drag or resize, otherwise use scene's actual values
@@ -81,7 +84,7 @@ export function SceneBlock({
     ? previewWidth
     : frameToPixel(duration, zoom);
   const color = getSceneTypeColor(scene.scene_type);
-  const zebraStyle = getZebraStripeStyle(isUnrendered, hasChanges);
+  const zebraStyle = getZebraStripeStyle(isUnrendered, effectiveHasChanges);
 
   // Handle drag start (for reordering) — enters pending state until threshold crossed
   const handleDragMouseDown = useCallback((e: React.MouseEvent) => {
@@ -263,10 +266,10 @@ export function SceneBlock({
           {width > 80 && (
             <div className="text-[10px] text-white/70 flex items-center gap-1">
               {formatDuration(duration)}
-              {scene.cache_path && !hasChanges && (
+              {scene.cache_path && !effectiveHasChanges && (
                 <Database className="w-2.5 h-2.5" />
               )}
-              {hasChanges && (
+              {effectiveHasChanges && (
                 <span className="text-yellow-200">modified</span>
               )}
             </div>
@@ -274,7 +277,7 @@ export function SceneBlock({
         </div>
 
         {/* Render button for unrendered scenes */}
-        {(isUnrendered || hasChanges) && onRenderScene && width > 60 && (
+        {(isUnrendered || effectiveHasChanges) && onRenderScene && width > 60 && (
           <button
             onClick={(e) => {
               e.stopPropagation();

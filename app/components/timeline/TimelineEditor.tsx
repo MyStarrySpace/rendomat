@@ -12,7 +12,7 @@ import { SidePanel } from './SidePanel';
 import { AudioRecorder } from './AudioRecorder';
 import { Film, AlertTriangle, X, RefreshCw, Sparkles, Plus, Upload, Mic, Video as VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui';
-import { getSceneAtFrame, TRACKS } from './lib/timeline-utils';
+import { getSceneAtFrame, TRACKS, hasSceneChanged } from './lib/timeline-utils';
 
 // Local storage key for "don't show again" preference
 const RENDER_MODAL_DISMISSED_KEY = 'timeline-render-modal-dismissed';
@@ -226,7 +226,7 @@ export function TimelineEditor({
 
   const renderCreditCost = useMemo(() => {
     const scenesToRender = scenes.filter(
-      s => !s.cache_path || timeline.changedSceneIds.has(s.id)
+      s => !s.cache_path || timeline.changedSceneIds.has(s.id) || hasSceneChanged(s)
     );
     return scenesToRender.reduce((sum, s) => sum + calculateSceneCredits(s.end_frame - s.start_frame), 0);
   }, [scenes, timeline.changedSceneIds]);
@@ -319,9 +319,9 @@ export function TimelineEditor({
       localStorage.setItem(RENDER_MODAL_DISMISSED_KEY, 'true');
     }
 
-    // Only clear caches for changed scenes (or unrendered)
+    // Only clear caches for changed scenes (or unrendered or stale)
     const scenesToRender = scenes.filter(
-      scene => !scene.cache_path || timeline.changedSceneIds.has(scene.id)
+      scene => !scene.cache_path || timeline.changedSceneIds.has(scene.id) || hasSceneChanged(scene)
     );
 
     await Promise.all(
@@ -824,7 +824,7 @@ export function TimelineEditor({
                 <div className="flex justify-between text-sm mt-2 pt-2 border-t border-[hsl(var(--border))]">
                   <span className="text-[hsl(var(--foreground-muted))]">Total to render:</span>
                   <span className="font-medium text-[hsl(var(--foreground))]">
-                    {scenes.filter(s => !s.cache_path || timeline.changedSceneIds.has(s.id)).length}
+                    {scenes.filter(s => !s.cache_path || timeline.changedSceneIds.has(s.id) || hasSceneChanged(s)).length}
                   </span>
                 </div>
               </div>
