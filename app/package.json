@@ -7,7 +7,10 @@
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test test/*.test.mjs",
+    "test:db": "node --test test/db.test.mjs",
+    "test:auth": "node --test test/auth-client.test.mjs"
   },
   "dependencies": {
     "@neondatabase/neon-js": "^0.2.0-beta.1",
