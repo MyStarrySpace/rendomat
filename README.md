@@ -82,7 +82,7 @@ Starts on http://localhost:4321
 ```bash
 cd app && npm run dev
 ```
-Starts on http://localhost:3333
+Starts on http://localhost:3456
 
 ## Animation Presets
 
@@ -153,6 +153,28 @@ Scene duration is automatically calculated based on:
 - `POST /api/ai/generate-slides` - Generate slides from description
 - `POST /api/ai/generate-slides-with-research` - Generate with web research
 
+## Testing
+
+Tests use Node.js built-in test runner (`node:test`) — no extra test dependencies.
+
+```bash
+# Server-side: state management, video lifecycle, cache invalidation, credits, reorder
+node --test server/test/state-management.test.mjs
+
+# Server-side: render pipeline integration (requires running server on :4321)
+node --test server/test/render-pipeline.test.mjs
+
+# App-side: render state logic (change detection, progress, zebra stripes)
+node --test app/test/render-state.test.mjs
+
+# App-side: Neon database models (requires DATABASE_URL env var)
+cd app && npm test
+
+# App-side: individual test suites
+cd app && npm run test:db
+cd app && npm run test:auth
+```
+
 ## Environment Variables
 
 ```bash
@@ -167,18 +189,31 @@ ELEVENLABS_VOICE_ID=       # Voice selection
 # Server
 PORT=4321                  # Render server port
 NEXT_PUBLIC_API_URL=http://localhost:4321
+
+# Cloud deployment (Vercel + Neon)
+DATABASE_URL=              # Neon PostgreSQL connection string
+NEXT_PUBLIC_NEON_AUTH_URL=  # Neon Auth endpoint
 ```
+
+## Cloud Deployment
+
+The `app/` directory deploys to Vercel. Set root directory to `app` in the Vercel dashboard.
+
+Required Vercel env vars: `DATABASE_URL`, `NEXT_PUBLIC_NEON_AUTH_URL`.
 
 ## Technologies
 
-- **Next.js 15** - React framework
+- **Next.js 16** - React framework
 - **Remotion 4** - Video generation
 - **TypeScript** - Type safety
-- **Tailwind CSS** - Styling
+- **Tailwind CSS 4** - Styling
 - **Framer Motion** - UI animations
-- **SQLite** - Database (better-sqlite3)
+- **SQLite** - Local database (better-sqlite3)
+- **Neon PostgreSQL** - Cloud database (Prisma ORM)
+- **Neon Auth** - Authentication
 - **Claude AI** - Content generation
 - **Express** - API server
+- **Electron** - Desktop app
 
 ## Demo Client
 
