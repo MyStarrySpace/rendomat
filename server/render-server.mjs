@@ -1086,7 +1086,7 @@ app.delete('/api/scenes/:id', requireUser, (req, res) => {
 // File Upload API
 // =============================
 
-app.post('/api/upload', upload.single('file'), (req, res) => {
+app.post('/api/upload', requireUser, upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -1106,9 +1106,17 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 });
 
 // Delete uploaded file
-app.delete('/api/uploads/:filename', async (req, res) => {
+app.delete('/api/uploads/:filename', requireUser, async (req, res) => {
   try {
-    const filePath = path.join(uploadsDir, req.params.filename);
+    const filename = req.params.filename;
+    // Prevent path traversal
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({ error: 'Invalid filename' });
+    }
+    const filePath = path.resolve(path.join(uploadsDir, filename));
+    if (!filePath.startsWith(path.resolve(uploadsDir))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
     await fs.unlink(filePath);
     res.json({ success: true });
   } catch (error) {
