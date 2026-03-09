@@ -130,7 +130,21 @@
       "WebFetch(domain:goldmine.marketing)",
       "WebFetch(domain:dansilvestre.com)",
       "WebFetch(domain:toddbrown.me)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(openssl version:*)",
+      "Bash(openssl rand:*)",
+      "Bash(stripe listen:*)",
+      "Bash(npm rebuild:*)",
+      "Bash(NEXT_LINT_DURING_BUILD=false npx next:*)",
+      "Bash(lsof:*)",
+      "WebFetch(domain:rendomat.vercel.app)",
+      "Bash(rm:*)",
+      "Bash(source:*)",
+      "Bash(ln:*)",
+      "Bash(cp:*)",
+      "WebFetch(domain:localhost)",
+      "WebFetch(domain:neon.com)",
+      "Bash(git:*)"
     ]
   }
 }

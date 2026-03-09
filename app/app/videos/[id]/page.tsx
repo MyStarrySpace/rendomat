@@ -60,10 +60,11 @@ function cssAspectRatio(ratio: string): string {
   return ratio.replace(':', '/');
 }
 
-// Scene-aware static preview synced with timeline playhead
+// Scene-aware preview synced with timeline playhead
 function ScenePreview({
   scenes,
   playheadFrame,
+  isPlaying,
   aspectRatio,
   rendering,
   renderingSceneId,
@@ -72,15 +73,45 @@ function ScenePreview({
 }: {
   scenes: Scene[];
   playheadFrame: number;
+  isPlaying: boolean;
   aspectRatio: string;
   rendering: boolean;
   renderingSceneId: number | null;
   onRenderScene: (sceneId: number) => void;
   onRenderAll: () => void;
 }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
   const currentSceneRef = getSceneAtFrame(scenes, playheadFrame);
   const fullScene = currentSceneRef ? scenes.find(s => s.id === currentSceneRef.id) ?? null : null;
   const ar = cssAspectRatio(aspectRatio);
+  const prevSceneIdRef = useRef<number | null>(null);
+
+  // Start/stop native video playback when timeline play state changes
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (!vid || !fullScene?.cache_path) return;
+
+    if (isPlaying) {
+      const sceneLocalTime = (playheadFrame - fullScene.start_frame) / 30;
+      vid.currentTime = sceneLocalTime;
+      vid.play().catch(() => {});
+    } else {
+      vid.pause();
+    }
+
+    prevSceneIdRef.current = fullScene.id;
+  // Only react to play/pause and scene changes, not every frame
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying, fullScene?.id]);
+
+  // When paused, seek to the playhead position
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (!vid || !fullScene?.cache_path || isPlaying) return;
+
+    const sceneLocalTime = (playheadFrame - fullScene.start_frame) / 30;
+    vid.currentTime = sceneLocalTime;
+  }, [playheadFrame, fullScene, isPlaying]);
 
   if (!fullScene) {
     return (
@@ -129,15 +160,15 @@ function ScenePreview({
     );
   }
 
-  // Static frame: paused video at the playhead position within the scene
   const sceneLocalTime = (playheadFrame - fullScene.start_frame) / 30;
 
   return (
     <video
+      ref={videoRef}
       key={fullScene.id}
       className="w-full bg-black"
       style={{ aspectRatio: ar }}
-      src={`${API_BASE}/api/scenes/${fullScene.id}/preview#t=${sceneLocalTime.toFixed(2)}`}
+      src={`${API_BASE}/api/scenes/${fullScene.id}/preview`}
       preload="auto"
       muted
     />
@@ -222,6 +253,7 @@ export default function VideoDetailPage() {
   const [sidePanelMounted, setSidePanelMounted] = useState(false);
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
   const [playheadFrame, setPlayheadFrame] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Build per-scene render progress map from SSE progress data + single-scene render
   const sceneRenderProgress = useMemo(() => {
@@ -1125,6 +1157,7 @@ export default function VideoDetailPage() {
                     <ScenePreview
                       scenes={scenes}
                       playheadFrame={playheadFrame}
+                      isPlaying={isPlaying}
                       aspectRatio={video.aspect_ratio || '16:9'}
                       rendering={rendering}
                       renderingSceneId={renderingSceneId}
@@ -1186,6 +1219,7 @@ export default function VideoDetailPage() {
                 sidePanelContainer={sidePanelRef}
                 onSidePanelToggle={setSidePanelOpen}
                 onPlayheadChange={setPlayheadFrame}
+                onPlayingChange={setIsPlaying}
               />
             </div>
           </div>

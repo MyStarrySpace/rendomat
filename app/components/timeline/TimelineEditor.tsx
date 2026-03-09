@@ -37,6 +37,7 @@ interface TimelineEditorProps {
   sidePanelContainer?: React.RefObject<HTMLDivElement | null>;
   onSidePanelToggle?: (isOpen: boolean) => void;
   onPlayheadChange?: (frame: number) => void;
+  onPlayingChange?: (isPlaying: boolean) => void;
 }
 
 export function TimelineEditor({
@@ -59,6 +60,7 @@ export function TimelineEditor({
   sidePanelContainer,
   onSidePanelToggle,
   onPlayheadChange,
+  onPlayingChange,
 }: TimelineEditorProps) {
   const [showRenderChangedModal, setShowRenderChangedModal] = useState(false);
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
@@ -487,6 +489,11 @@ export function TimelineEditor({
   useEffect(() => {
     onPlayheadChange?.(timeline.playheadFrame);
   }, [timeline.playheadFrame, onPlayheadChange]);
+
+  // Notify parent of playing state changes
+  useEffect(() => {
+    onPlayingChange?.(timeline.isPlaying);
+  }, [timeline.isPlaying, onPlayingChange]);
 
 
   if (scenes.length === 0) {
