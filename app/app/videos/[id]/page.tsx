@@ -35,6 +35,7 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuthenticate } from "@neondatabase/neon-js/auth/react/ui";
+import { UserMenu } from "@/components/UserMenu";
 import { videoApi, sceneApi, clientApi, platformApi, personaApi, transitionApi, audioClipApi, videoClipApi, cloudRenderApi, Video, Scene, Client, EffectivePersonas, Transition, TransitionType, AudioClip, VideoClip, RenderCapabilities, API_BASE } from "@/lib/api";
 import { calculateSceneDuration } from "@/lib/scene-duration";
 import { TimelineEditor, getSceneAtFrame } from "@/components/timeline";
@@ -861,6 +862,7 @@ export default function VideoDetailPage() {
                 </button>
               </div>
             )}
+            <UserMenu />
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               {renderMode === 'cloud' ? (
                 <Button

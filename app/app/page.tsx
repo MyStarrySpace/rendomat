@@ -13,6 +13,7 @@ import {
   revealFromLeft,
   viewportOnce,
 } from "@/lib/motion";
+import { UserMenu } from "@/components/UserMenu";
 
 // -----------------------------------------------------------------------------
 // Page
@@ -37,9 +38,6 @@ export default function Home() {
           </Link>
 
           <div className="flex items-center gap-8">
-            <Link href="/clients" className="link-subtle text-sm">
-              Projects
-            </Link>
             <Link
               href="#download"
               className="link-subtle text-sm flex items-center gap-1"
@@ -55,13 +53,14 @@ export default function Home() {
             </Link>
             <motion.div whileHover={{ x: 2 }} transition={spring.snappy}>
               <Link
-                href="/clients"
+                href="/auth"
                 className="text-sm text-[hsl(var(--foreground))] flex items-center gap-1 hover:opacity-70 transition-opacity"
               >
                 Start creating
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             </motion.div>
+            <UserMenu />
           </div>
         </div>
       </motion.nav>
@@ -434,7 +433,7 @@ export default function Home() {
             className="text-xs text-[hsl(var(--foreground-subtle))] mt-6 text-center"
           >
             Or use the{" "}
-            <Link href="/clients" className="link-subtle">
+            <Link href="/auth" className="link-subtle">
               web editor
             </Link>{" "}
             with cloud rendering — no install needed.
@@ -473,7 +472,7 @@ export default function Home() {
             transition={spring.snappy}
           >
             <Link
-              href="/clients"
+              href="/auth"
               className="inline-flex items-center gap-2 px-6 py-3 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] text-sm hover:opacity-90 transition-opacity"
             >
               Open the editor

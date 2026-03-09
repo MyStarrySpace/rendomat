@@ -46,6 +46,28 @@
   --border-hover: 30 6% 30%;
   --border-focus: 38 65% 50%;
 
+  /* Neon Auth UI theme mapping — ensures Neon CSS resolves to app tokens */
+  --neon-radius: 0;
+  --neon-background: hsl(var(--background));
+  --neon-foreground: hsl(var(--foreground));
+  --neon-card: hsl(var(--surface));
+  --neon-card-foreground: hsl(var(--foreground));
+  --neon-popover: hsl(var(--surface));
+  --neon-popover-foreground: hsl(var(--foreground));
+  --neon-primary: hsl(var(--accent));
+  --neon-primary-foreground: hsl(var(--accent-foreground));
+  --neon-secondary: hsl(var(--background-subtle));
+  --neon-secondary-foreground: hsl(var(--foreground));
+  --neon-muted: hsl(var(--surface));
+  --neon-muted-foreground: hsl(var(--foreground-muted));
+  --neon-accent: hsl(var(--accent));
+  --neon-accent-foreground: hsl(var(--accent-foreground));
+  --neon-destructive: hsl(var(--error));
+  --neon-destructive-foreground: hsl(var(--foreground));
+  --neon-border: hsl(var(--border));
+  --neon-input: hsl(var(--border));
+  --neon-ring: hsl(var(--accent));
+
   /* -----------------------------------------------------------------------------
      TYPOGRAPHY
      Editorial mix: serif headlines, clean sans body

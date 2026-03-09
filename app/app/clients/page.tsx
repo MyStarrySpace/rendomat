@@ -16,6 +16,7 @@ import {
   modalContentVariants,
   spring,
 } from "@/lib/motion";
+import { UserMenu } from "@/components/UserMenu";
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -82,11 +83,14 @@ export default function ClientsPage() {
             Back to Rendomat
           </Link>
 
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button onClick={() => setShowForm(!showForm)} icon={<Plus className="w-4 h-4" />}>
-              New Client
-            </Button>
-          </motion.div>
+          <div className="flex items-center gap-4">
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button onClick={() => setShowForm(!showForm)} icon={<Plus className="w-4 h-4" />}>
+                New Client
+              </Button>
+            </motion.div>
+            <UserMenu />
+          </div>
         </div>
       </nav>
 
