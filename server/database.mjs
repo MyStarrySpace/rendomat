@@ -2,10 +2,10 @@ import Database from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
 
-const dbPath = path.join(process.cwd(), 'data', 'vsl-generator.db');
+const dataDir = process.env.RENDOMAT_DATA_DIR || path.join(process.cwd(), 'data');
+const dbPath = path.join(dataDir, 'vsl-generator.db');
 
 // Ensure data directory exists
-const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
@@ -223,6 +223,17 @@ function initializeDatabase() {
       db.exec(`ALTER TABLE clients ADD COLUMN website_url TEXT`);
       db.exec(`ALTER TABLE clients ADD COLUMN cached_research TEXT`);
     }
+
+    // Check if user_id column exists in clients table
+    const clientTableInfo3 = db.prepare("PRAGMA table_info(clients)").all();
+    const hasUserId = clientTableInfo3.some(col => col.name === 'user_id');
+    if (!hasUserId) {
+      console.log('[database] Running migration: Adding user_id column to clients table');
+      db.exec(`ALTER TABLE clients ADD COLUMN user_id TEXT`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_clients_user ON clients(user_id)`);
+      // Assign existing clients to 'local' user
+      db.exec(`UPDATE clients SET user_id = 'local' WHERE user_id IS NULL`);
+    }
   } catch (error) {
     console.error('[database] Migration error:', error);
   }
@@ -234,17 +245,23 @@ initializeDatabase();
 
 // Client operations
 export const clientDb = {
-  getAll() {
+  getAll(userId) {
+    if (userId) {
+      return db.prepare('SELECT * FROM clients WHERE user_id = ? ORDER BY created_at DESC').all(userId);
+    }
     return db.prepare('SELECT * FROM clients ORDER BY created_at DESC').all();
   },
 
-  getById(id) {
+  getById(id, userId) {
+    if (userId) {
+      return db.prepare('SELECT * FROM clients WHERE id = ? AND user_id = ?').get(id, userId);
+    }
     return db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
   },
 
   create(data) {
     const stmt = db.prepare(
-      'INSERT INTO clients (name, company, industry, default_personas, default_behavior_overrides, portfolio_url, website_url) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO clients (name, company, industry, default_personas, default_behavior_overrides, portfolio_url, website_url, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     );
     const result = stmt.run(
       data.name,
@@ -253,7 +270,8 @@ export const clientDb = {
       data.default_personas ? JSON.stringify(data.default_personas) : null,
       data.default_behavior_overrides ? JSON.stringify(data.default_behavior_overrides) : null,
       data.portfolio_url || null,
-      data.website_url || null
+      data.website_url || null,
+      data.user_id || null
     );
     return result.lastInsertRowid;
   },
@@ -323,6 +341,31 @@ export const videoDb = {
 
   getById(id) {
     return db.prepare('SELECT * FROM videos WHERE id = ?').get(id);
+  },
+
+  getByIdForUser(id, userId) {
+    return db.prepare(`
+      SELECT v.* FROM videos v
+      JOIN clients c ON v.client_id = c.id
+      WHERE v.id = ? AND c.user_id = ?
+    `).get(id, userId);
+  },
+
+  getAllForUser(userId, clientId) {
+    if (clientId) {
+      return db.prepare(`
+        SELECT v.* FROM videos v
+        JOIN clients c ON v.client_id = c.id
+        WHERE v.client_id = ? AND c.user_id = ?
+        ORDER BY v.created_at DESC
+      `).all(clientId, userId);
+    }
+    return db.prepare(`
+      SELECT v.* FROM videos v
+      JOIN clients c ON v.client_id = c.id
+      WHERE c.user_id = ?
+      ORDER BY v.created_at DESC
+    `).all(userId);
   },
 
   create(data) {

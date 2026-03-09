@@ -11,7 +11,7 @@ import { fork } from 'node:child_process';
 
 import { bundle } from '@remotion/bundler';
 import { clientDb, videoDb, sceneDb, transitionDb, audioClipDb, videoClipDb, userDb, creditTransactionDb } from './database.mjs';
-import { authenticateToken, optionalAuth } from './auth-middleware.mjs';
+import { authenticateToken, optionalAuth, requireUser, assertOwnership } from './auth-middleware.mjs';
 import { createCheckoutSession, handleWebhookEvent, constructWebhookEvent, CREDIT_PACKAGES } from './stripe-service.mjs';
 import { renderOnLambda, isLambdaConfigured } from './lambda-renderer.mjs';
 import { renderScene, stitchScenes, muxAudio, overlayVideoClips, cleanCache } from './scene-renderer.mjs';
@@ -35,7 +35,7 @@ const ALLOWED_ORIGINS = (process.env.RENDER_ALLOWED_ORIGINS || '*')
 
 const entryPoint = path.join(process.cwd(), 'remotion', 'index.ts');
 const bundleLocation = path.join(process.cwd(), '.remotion-bundle-server');
-const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+const uploadsDir = process.env.RENDOMAT_UPLOADS_DIR || path.join(process.cwd(), 'public', 'uploads');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -718,52 +718,56 @@ async function renderJobGeneric(jobId, compositionId, inputProps) {
 // Client Management API
 // =============================
 
-app.get('/api/clients', (_req, res) => {
+app.get('/api/clients', requireUser, (req, res) => {
   try {
-    const clients = clientDb.getAll();
+    const clients = clientDb.getAll(req.user.id);
     res.json(clients);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/clients/:id', (req, res) => {
+app.get('/api/clients/:id', requireUser, (req, res) => {
   try {
-    const client = clientDb.getById(req.params.id);
-    if (!client) {
-      return res.status(404).json({ error: 'Client not found' });
-    }
+    const client = clientDb.getById(parseInt(req.params.id), req.user.id);
+    if (!assertOwnership(res, client, 'Client not found')) return;
     res.json(client);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/clients', (req, res) => {
+app.post('/api/clients', requireUser, (req, res) => {
   try {
     const { name, company, industry } = req.body;
     if (!company) {
       return res.status(400).json({ error: 'Company name is required' });
     }
-    const id = clientDb.create({ name: name || '', company, industry: industry || null });
-    res.json(clientDb.getById(id));
+    const id = clientDb.create({ name: name || '', company, industry: industry || null, user_id: req.user.id });
+    res.json(clientDb.getById(id, req.user.id));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/clients/:id', (req, res) => {
+app.put('/api/clients/:id', requireUser, (req, res) => {
   try {
-    const updated = clientDb.update(req.params.id, req.body);
+    const id = parseInt(req.params.id);
+    const client = clientDb.getById(id, req.user.id);
+    if (!assertOwnership(res, client, 'Client not found')) return;
+    const updated = clientDb.update(id, req.body);
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/clients/:id', (req, res) => {
+app.delete('/api/clients/:id', requireUser, (req, res) => {
   try {
-    clientDb.delete(req.params.id);
+    const id = parseInt(req.params.id);
+    const client = clientDb.getById(id, req.user.id);
+    if (!assertOwnership(res, client, 'Client not found')) return;
+    clientDb.delete(id);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -848,14 +852,12 @@ app.post('/api/personas/preview', (req, res) => {
 });
 
 // Get effective personas for a video (considering inheritance from client)
-app.get('/api/videos/:videoId/effective-personas', (req, res) => {
+app.get('/api/videos/:videoId/effective-personas', requireUser, (req, res) => {
   try {
-    const video = videoDb.getById(req.params.videoId);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    const video = videoDb.getByIdForUser(parseInt(req.params.videoId), req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
-    const client = clientDb.getById(video.client_id);
+    const client = clientDb.getById(video.client_id, req.user.id);
     const effective = getEffectivePersonas(video, client);
 
     // Also include the preview of the blended prompt
@@ -874,31 +876,35 @@ app.get('/api/videos/:videoId/effective-personas', (req, res) => {
 // Video Management API
 // =============================
 
-app.get('/api/videos', (req, res) => {
+app.get('/api/videos', requireUser, (req, res) => {
   try {
-    const clientId = req.query.client_id;
-    const videos = videoDb.getAll(clientId);
+    const clientId = req.query.client_id ? parseInt(req.query.client_id) : undefined;
+    const videos = videoDb.getAllForUser(req.user.id, clientId);
     res.json(videos);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/videos/:id', (req, res) => {
+app.get('/api/videos/:id', requireUser, (req, res) => {
   try {
-    const video = videoDb.getById(req.params.id);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    const video = videoDb.getByIdForUser(parseInt(req.params.id), req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
     res.json(video);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/videos', (req, res) => {
+app.post('/api/videos', requireUser, (req, res) => {
   try {
     const { template_id, ...videoData } = req.body;
+
+    // Verify the client belongs to the user
+    if (videoData.client_id) {
+      const client = clientDb.getById(videoData.client_id, req.user.id);
+      if (!assertOwnership(res, client, 'Client not found')) return;
+    }
 
     // If template_id is provided, get template defaults
     let templateDefaults = {};
@@ -933,18 +939,24 @@ app.post('/api/videos', (req, res) => {
   }
 });
 
-app.put('/api/videos/:id', (req, res) => {
+app.put('/api/videos/:id', requireUser, (req, res) => {
   try {
-    const updated = videoDb.update(req.params.id, req.body);
+    const id = parseInt(req.params.id);
+    const video = videoDb.getByIdForUser(id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
+    const updated = videoDb.update(id, req.body);
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/videos/:id', (req, res) => {
+app.delete('/api/videos/:id', requireUser, (req, res) => {
   try {
-    videoDb.delete(req.params.id);
+    const id = parseInt(req.params.id);
+    const video = videoDb.getByIdForUser(id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
+    videoDb.delete(id);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -955,8 +967,10 @@ app.delete('/api/videos/:id', (req, res) => {
 // Scene Management API
 // =============================
 
-app.get('/api/videos/:videoId/scenes', (req, res) => {
+app.get('/api/videos/:videoId/scenes', requireUser, (req, res) => {
   try {
+    const video = videoDb.getByIdForUser(parseInt(req.params.videoId), req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
     const scenes = sceneDb.getAllForVideo(req.params.videoId);
     res.json(scenes);
   } catch (error) {
@@ -964,8 +978,10 @@ app.get('/api/videos/:videoId/scenes', (req, res) => {
   }
 });
 
-app.post('/api/videos/:videoId/scenes', (req, res) => {
+app.post('/api/videos/:videoId/scenes', requireUser, (req, res) => {
   try {
+    const video = videoDb.getByIdForUser(parseInt(req.params.videoId), req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
     const sceneData = { ...req.body, video_id: req.params.videoId };
     const id = sceneDb.create(sceneData);
     res.json(sceneDb.getById(id));
@@ -974,8 +990,12 @@ app.post('/api/videos/:videoId/scenes', (req, res) => {
   }
 });
 
-app.put('/api/scenes/:id', (req, res) => {
+app.put('/api/scenes/:id', requireUser, (req, res) => {
   try {
+    const scene = sceneDb.getById(req.params.id);
+    if (!scene) return res.status(404).json({ error: 'Scene not found' });
+    const video = videoDb.getByIdForUser(scene.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
     const updated = sceneDb.update(req.params.id, req.body);
     res.json(updated);
   } catch (error) {
@@ -984,9 +1004,11 @@ app.put('/api/scenes/:id', (req, res) => {
 });
 
 // Reorder a scene within a video
-app.put('/api/videos/:videoId/scenes/reorder', (req, res) => {
+app.put('/api/videos/:videoId/scenes/reorder', requireUser, (req, res) => {
   try {
     const videoId = parseInt(req.params.videoId, 10);
+    const video = videoDb.getByIdForUser(videoId, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
     const { sceneId, newSceneNumber } = req.body;
     console.log('[scene-reorder] Request body:', JSON.stringify(req.body), 'videoId:', videoId);
 
@@ -1007,7 +1029,7 @@ app.put('/api/videos/:videoId/scenes/reorder', (req, res) => {
 });
 
 // Resize a scene edge and ripple subsequent scenes
-app.put('/api/scenes/:id/resize', (req, res) => {
+app.put('/api/scenes/:id/resize', requireUser, (req, res) => {
   try {
     const sceneId = parseInt(req.params.id, 10);
     const { edge, newFrame } = req.body;
@@ -1020,6 +1042,8 @@ app.put('/api/scenes/:id/resize', (req, res) => {
     if (!scene) {
       return res.status(404).json({ error: 'Scene not found' });
     }
+    const video = videoDb.getByIdForUser(scene.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     console.log('[scene-resize] Resizing scene', { sceneId, edge, newFrame });
 
@@ -1043,12 +1067,14 @@ app.put('/api/scenes/:id/resize', (req, res) => {
   }
 });
 
-app.delete('/api/scenes/:id', (req, res) => {
+app.delete('/api/scenes/:id', requireUser, (req, res) => {
   try {
     const scene = sceneDb.getById(req.params.id);
     if (!scene) {
       return res.status(404).json({ error: 'Scene not found' });
     }
+    const video = videoDb.getByIdForUser(scene.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
     sceneDb.delete(req.params.id);
     res.json({ success: true });
   } catch (error) {
@@ -1344,7 +1370,7 @@ app.post('/api/research/verify-claim', async (req, res) => {
 // =============================
 
 // Render a single scene and return the video file or preview URL
-app.post('/api/scenes/:sceneId/render', async (req, res) => {
+app.post('/api/scenes/:sceneId/render', requireUser, async (req, res) => {
   try {
     const sceneId = parseInt(req.params.sceneId, 10);
     const scene = sceneDb.getById(sceneId);
@@ -1353,10 +1379,8 @@ app.post('/api/scenes/:sceneId/render', async (req, res) => {
       return res.status(404).json({ error: 'Scene not found' });
     }
 
-    const video = videoDb.getById(scene.video_id);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    const video = videoDb.getByIdForUser(scene.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     const { forceRender = false } = req.body;
 
@@ -1421,7 +1445,7 @@ app.post('/api/scenes/:sceneId/render', async (req, res) => {
 });
 
 // Serve a rendered scene preview
-app.get('/api/scenes/:sceneId/preview', async (req, res) => {
+app.get('/api/scenes/:sceneId/preview', requireUser, async (req, res) => {
   try {
     const sceneId = parseInt(req.params.sceneId, 10);
     const scene = sceneDb.getById(sceneId);
@@ -1429,6 +1453,9 @@ app.get('/api/scenes/:sceneId/preview', async (req, res) => {
     if (!scene) {
       return res.status(404).json({ error: 'Scene not found' });
     }
+
+    const video = videoDb.getByIdForUser(scene.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     if (!scene.cache_path) {
       return res.status(404).json({ error: 'Scene not rendered yet' });
@@ -1452,7 +1479,7 @@ app.get('/api/scenes/:sceneId/preview', async (req, res) => {
 });
 
 // Clear scene cache (invalidate when scene is edited)
-app.delete('/api/scenes/:sceneId/cache', async (req, res) => {
+app.delete('/api/scenes/:sceneId/cache', requireUser, async (req, res) => {
   try {
     const sceneId = parseInt(req.params.sceneId, 10);
     const scene = sceneDb.getById(sceneId);
@@ -1460,6 +1487,9 @@ app.delete('/api/scenes/:sceneId/cache', async (req, res) => {
     if (!scene) {
       return res.status(404).json({ error: 'Scene not found' });
     }
+
+    const video = videoDb.getByIdForUser(scene.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     // Clear the cache path in database
     sceneDb.updateCache(sceneId, null, null);
@@ -1707,13 +1737,11 @@ app.post('/api/test/render-spotlights', async (req, res) => {
 // =============================================================================
 
 // Get all transitions for a video
-app.get('/api/videos/:videoId/transitions', (req, res) => {
+app.get('/api/videos/:videoId/transitions', requireUser, (req, res) => {
   try {
     const videoId = parseInt(req.params.videoId, 10);
-    const video = videoDb.getById(videoId);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    const video = videoDb.getByIdForUser(videoId, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
     const transitions = transitionDb.getAllForVideo(videoId);
     res.json(transitions);
   } catch (error) {
@@ -1722,13 +1750,11 @@ app.get('/api/videos/:videoId/transitions', (req, res) => {
 });
 
 // Create or update a transition between two scenes
-app.post('/api/videos/:videoId/transitions', (req, res) => {
+app.post('/api/videos/:videoId/transitions', requireUser, (req, res) => {
   try {
     const videoId = parseInt(req.params.videoId, 10);
-    const video = videoDb.getById(videoId);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    const video = videoDb.getByIdForUser(videoId, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     const { from_scene_number, to_scene_number, transition_type, duration_frames, config } = req.body;
 
@@ -1764,13 +1790,15 @@ app.post('/api/videos/:videoId/transitions', (req, res) => {
 });
 
 // Update a specific transition
-app.put('/api/transitions/:transitionId', (req, res) => {
+app.put('/api/transitions/:transitionId', requireUser, (req, res) => {
   try {
     const transitionId = parseInt(req.params.transitionId, 10);
     const transition = transitionDb.getById(transitionId);
     if (!transition) {
       return res.status(404).json({ error: 'Transition not found' });
     }
+    const video = videoDb.getByIdForUser(transition.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     const updated = transitionDb.update(transitionId, req.body);
     res.json(updated);
@@ -1780,13 +1808,15 @@ app.put('/api/transitions/:transitionId', (req, res) => {
 });
 
 // Delete a transition
-app.delete('/api/transitions/:transitionId', (req, res) => {
+app.delete('/api/transitions/:transitionId', requireUser, (req, res) => {
   try {
     const transitionId = parseInt(req.params.transitionId, 10);
     const transition = transitionDb.getById(transitionId);
     if (!transition) {
       return res.status(404).json({ error: 'Transition not found' });
     }
+    const video = videoDb.getByIdForUser(transition.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     transitionDb.delete(transitionId);
     res.json({ success: true });
@@ -1796,13 +1826,11 @@ app.delete('/api/transitions/:transitionId', (req, res) => {
 });
 
 // Create default transitions for all scene gaps in a video
-app.post('/api/videos/:videoId/transitions/defaults', (req, res) => {
+app.post('/api/videos/:videoId/transitions/defaults', requireUser, (req, res) => {
   try {
     const videoId = parseInt(req.params.videoId, 10);
-    const video = videoDb.getById(videoId);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    const video = videoDb.getByIdForUser(videoId, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     const { type = 'crossfade', duration_frames = 20 } = req.body;
     const created = transitionDb.createDefaultsForVideo(videoId, type, duration_frames);
@@ -2031,13 +2059,11 @@ async function runRenderJob(videoId) {
 }
 
 // POST: Start render (returns immediately, progress via SSE)
-app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
+app.post('/api/videos/:videoId/render-scenes', requireUser, async (req, res) => {
   try {
     const videoId = parseInt(req.params.videoId, 10);
-    const video = videoDb.getById(videoId);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    const video = videoDb.getByIdForUser(videoId, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     const scenes = sceneDb.getAllForVideo(videoId);
     if (scenes.length === 0) {
@@ -2063,13 +2089,11 @@ app.post('/api/videos/:videoId/render-scenes', async (req, res) => {
 });
 
 // GET: Download rendered video
-app.get('/api/videos/:videoId/download', async (req, res) => {
+app.get('/api/videos/:videoId/download', requireUser, async (req, res) => {
   try {
     const videoId = parseInt(req.params.videoId, 10);
-    const video = videoDb.getById(videoId);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    const video = videoDb.getByIdForUser(videoId, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
     if (!video.output_path) {
       return res.status(404).json({ error: 'Video has not been rendered yet' });
     }
@@ -2093,8 +2117,10 @@ app.get('/api/videos/:videoId/download', async (req, res) => {
 // =============================
 
 // List audio clips for a video
-app.get('/api/videos/:videoId/audio-clips', (req, res) => {
+app.get('/api/videos/:videoId/audio-clips', requireUser, (req, res) => {
   try {
+    const video = videoDb.getByIdForUser(parseInt(req.params.videoId), req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
     const clips = audioClipDb.getAllForVideo(parseInt(req.params.videoId, 10));
     res.json(clips);
   } catch (error) {
@@ -2103,11 +2129,11 @@ app.get('/api/videos/:videoId/audio-clips', (req, res) => {
 });
 
 // Upload audio clip
-app.post('/api/videos/:videoId/audio-clips', audioUpload.single('audio'), (req, res) => {
+app.post('/api/videos/:videoId/audio-clips', requireUser, audioUpload.single('audio'), (req, res) => {
   try {
     const videoId = parseInt(req.params.videoId, 10);
-    const video = videoDb.getById(videoId);
-    if (!video) return res.status(404).json({ error: 'Video not found' });
+    const video = videoDb.getByIdForUser(videoId, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     if (!req.file) return res.status(400).json({ error: 'No audio file uploaded' });
 
@@ -2137,10 +2163,12 @@ app.post('/api/videos/:videoId/audio-clips', audioUpload.single('audio'), (req, 
 });
 
 // Get single audio clip
-app.get('/api/audio-clips/:clipId', (req, res) => {
+app.get('/api/audio-clips/:clipId', requireUser, (req, res) => {
   try {
     const clip = audioClipDb.getById(parseInt(req.params.clipId, 10));
     if (!clip) return res.status(404).json({ error: 'Audio clip not found' });
+    const video = videoDb.getByIdForUser(clip.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
     res.json(clip);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2148,10 +2176,14 @@ app.get('/api/audio-clips/:clipId', (req, res) => {
 });
 
 // Update audio clip properties
-app.put('/api/audio-clips/:clipId', (req, res) => {
+app.put('/api/audio-clips/:clipId', requireUser, (req, res) => {
   try {
-    const clip = audioClipDb.update(parseInt(req.params.clipId, 10), req.body);
-    if (!clip) return res.status(404).json({ error: 'Audio clip not found' });
+    const clipId = parseInt(req.params.clipId, 10);
+    const existing = audioClipDb.getById(clipId);
+    if (!existing) return res.status(404).json({ error: 'Audio clip not found' });
+    const video = videoDb.getByIdForUser(existing.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
+    const clip = audioClipDb.update(clipId, req.body);
     res.json(clip);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2159,11 +2191,13 @@ app.put('/api/audio-clips/:clipId', (req, res) => {
 });
 
 // Delete audio clip
-app.delete('/api/audio-clips/:clipId', async (req, res) => {
+app.delete('/api/audio-clips/:clipId', requireUser, async (req, res) => {
   try {
     const clipId = parseInt(req.params.clipId, 10);
     const clip = audioClipDb.getById(clipId);
     if (!clip) return res.status(404).json({ error: 'Audio clip not found' });
+    const video = videoDb.getByIdForUser(clip.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     // Delete the file
     try {
@@ -2180,10 +2214,12 @@ app.delete('/api/audio-clips/:clipId', async (req, res) => {
 });
 
 // Serve audio clip file for playback
-app.get('/api/audio-clips/:clipId/stream', async (req, res) => {
+app.get('/api/audio-clips/:clipId/stream', requireUser, async (req, res) => {
   try {
     const clip = audioClipDb.getById(parseInt(req.params.clipId, 10));
     if (!clip) return res.status(404).json({ error: 'Audio clip not found' });
+    const video = videoDb.getByIdForUser(clip.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     res.setHeader('Content-Type', clip.mime_type || 'audio/mpeg');
     const fileBuffer = await fs.readFile(clip.file_path);
@@ -2198,8 +2234,10 @@ app.get('/api/audio-clips/:clipId/stream', async (req, res) => {
 // =============================
 
 // List video clips for a video
-app.get('/api/videos/:videoId/video-clips', (req, res) => {
+app.get('/api/videos/:videoId/video-clips', requireUser, (req, res) => {
   try {
+    const video = videoDb.getByIdForUser(parseInt(req.params.videoId), req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
     const clips = videoClipDb.getAllForVideo(parseInt(req.params.videoId, 10));
     res.json(clips);
   } catch (error) {
@@ -2208,11 +2246,11 @@ app.get('/api/videos/:videoId/video-clips', (req, res) => {
 });
 
 // Upload video clip
-app.post('/api/videos/:videoId/video-clips', videoUpload.single('video'), async (req, res) => {
+app.post('/api/videos/:videoId/video-clips', requireUser, videoUpload.single('video'), async (req, res) => {
   try {
     const videoId = parseInt(req.params.videoId, 10);
-    const video = videoDb.getById(videoId);
-    if (!video) return res.status(404).json({ error: 'Video not found' });
+    const video = videoDb.getByIdForUser(videoId, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     if (!req.file) return res.status(400).json({ error: 'No video file uploaded' });
 
@@ -2257,10 +2295,12 @@ app.post('/api/videos/:videoId/video-clips', videoUpload.single('video'), async 
 });
 
 // Get single video clip
-app.get('/api/video-clips/:clipId', (req, res) => {
+app.get('/api/video-clips/:clipId', requireUser, (req, res) => {
   try {
     const clip = videoClipDb.getById(parseInt(req.params.clipId, 10));
     if (!clip) return res.status(404).json({ error: 'Video clip not found' });
+    const video = videoDb.getByIdForUser(clip.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
     res.json(clip);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2268,10 +2308,14 @@ app.get('/api/video-clips/:clipId', (req, res) => {
 });
 
 // Update video clip properties
-app.put('/api/video-clips/:clipId', (req, res) => {
+app.put('/api/video-clips/:clipId', requireUser, (req, res) => {
   try {
-    const clip = videoClipDb.update(parseInt(req.params.clipId, 10), req.body);
-    if (!clip) return res.status(404).json({ error: 'Video clip not found' });
+    const clipId = parseInt(req.params.clipId, 10);
+    const existing = videoClipDb.getById(clipId);
+    if (!existing) return res.status(404).json({ error: 'Video clip not found' });
+    const video = videoDb.getByIdForUser(existing.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
+    const clip = videoClipDb.update(clipId, req.body);
     res.json(clip);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2279,11 +2323,13 @@ app.put('/api/video-clips/:clipId', (req, res) => {
 });
 
 // Delete video clip
-app.delete('/api/video-clips/:clipId', async (req, res) => {
+app.delete('/api/video-clips/:clipId', requireUser, async (req, res) => {
   try {
     const clipId = parseInt(req.params.clipId, 10);
     const clip = videoClipDb.getById(clipId);
     if (!clip) return res.status(404).json({ error: 'Video clip not found' });
+    const video = videoDb.getByIdForUser(clip.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     // Delete files (original + normalized)
     for (const filePath of [clip.file_path, clip.normalized_path]) {
@@ -2302,10 +2348,12 @@ app.delete('/api/video-clips/:clipId', async (req, res) => {
 });
 
 // Serve normalized video clip for preview
-app.get('/api/video-clips/:clipId/stream', async (req, res) => {
+app.get('/api/video-clips/:clipId/stream', requireUser, async (req, res) => {
   try {
     const clip = videoClipDb.getById(parseInt(req.params.clipId, 10));
     if (!clip) return res.status(404).json({ error: 'Video clip not found' });
+    const video = videoDb.getByIdForUser(clip.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     const filePath = clip.normalized_path || clip.file_path;
     res.setHeader('Content-Type', 'video/mp4');
@@ -2329,12 +2377,10 @@ app.get('/api/platforms', (_req, res) => {
 });
 
 // Render video for multiple platforms
-app.post('/api/videos/:videoId/render-multi', async (req, res) => {
+app.post('/api/videos/:videoId/render-multi', requireUser, async (req, res) => {
   try {
-    const video = videoDb.getById(req.params.videoId);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    const video = videoDb.getByIdForUser(parseInt(req.params.videoId), req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     const scenes = sceneDb.getAllForVideo(req.params.videoId);
     if (scenes.length === 0) {
@@ -2507,12 +2553,10 @@ app.post('/api/videos/:videoId/render-multi', async (req, res) => {
 });
 
 // Download rendered video for specific platform
-app.get('/api/videos/:videoId/download/:platformId', async (req, res) => {
+app.get('/api/videos/:videoId/download/:platformId', requireUser, async (req, res) => {
   try {
-    const video = videoDb.getById(req.params.videoId);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    const video = videoDb.getByIdForUser(parseInt(req.params.videoId), req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     const platform = PLATFORMS[req.params.platformId];
     if (!platform) {
@@ -2591,9 +2635,9 @@ app.get('/api/videos/:videoId/render-progress', optionalAuth, (req, res) => {
 });
 
 // Serve completed video
-app.get('/api/videos/:videoId/preview', async (req, res) => {
+app.get('/api/videos/:videoId/preview', requireUser, async (req, res) => {
   try {
-    const video = videoDb.getById(req.params.videoId);
+    const video = videoDb.getByIdForUser(parseInt(req.params.videoId), req.user.id);
     if (!video || !video.output_path) {
       return res.status(404).json({ error: 'Video not found or not rendered yet' });
     }
@@ -2618,12 +2662,15 @@ app.get('/api/videos/:videoId/preview', async (req, res) => {
 });
 
 // Serve scene preview
-app.get('/api/scenes/:sceneId/preview', async (req, res) => {
+app.get('/api/scenes/:sceneId/preview', requireUser, async (req, res) => {
   try {
     const scene = sceneDb.getById(req.params.sceneId);
     if (!scene || !scene.cache_path) {
       return res.status(404).json({ error: 'Scene not found or not cached' });
     }
+
+    const video = videoDb.getByIdForUser(scene.video_id, req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     // Check if file exists
     try {
@@ -2762,12 +2809,10 @@ function getThemeById(themeId) {
 }
 
 // Export video to After Effects JSON manifest format
-app.get('/api/videos/:videoId/export-ae', async (req, res) => {
+app.get('/api/videos/:videoId/export-ae', requireUser, async (req, res) => {
   try {
-    const video = videoDb.getById(req.params.videoId);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    const video = videoDb.getByIdForUser(parseInt(req.params.videoId), req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     const scenes = sceneDb.getAllForVideo(req.params.videoId);
     if (scenes.length === 0) {
@@ -2799,12 +2844,10 @@ app.get('/api/videos/:videoId/export-ae', async (req, res) => {
 });
 
 // Export video as self-contained After Effects JSX script
-app.get('/api/videos/:videoId/export-ae/script', async (req, res) => {
+app.get('/api/videos/:videoId/export-ae/script', requireUser, async (req, res) => {
   try {
-    const video = videoDb.getById(req.params.videoId);
-    if (!video) {
-      return res.status(404).json({ error: 'Video not found' });
-    }
+    const video = videoDb.getByIdForUser(parseInt(req.params.videoId), req.user.id);
+    if (!assertOwnership(res, video, 'Video not found')) return;
 
     const scenes = sceneDb.getAllForVideo(req.params.videoId);
     if (scenes.length === 0) {

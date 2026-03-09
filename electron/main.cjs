@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const { spawn } = require('child_process');
@@ -15,6 +15,13 @@ async function startRenderServer() {
     : path.join(process.resourcesPath, 'app');
 
   process.chdir(rootDir);
+
+  // Set data paths — in production use userData for persistence across updates
+  if (!isDev) {
+    const userDataPath = app.getPath('userData');
+    process.env.RENDOMAT_DATA_DIR = path.join(userDataPath, 'data');
+    process.env.RENDOMAT_UPLOADS_DIR = path.join(userDataPath, 'uploads');
+  }
 
   // Dynamic import of the ESM render server (Windows requires file:// URL)
   const serverPath = path.join(rootDir, 'server', 'render-server.mjs');
@@ -80,6 +87,23 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+// IPC handlers for native dialogs
+ipcMain.handle('save-file-dialog', async (_event, options) => {
+  if (!mainWindow) return { canceled: true };
+  return dialog.showSaveDialog(mainWindow, {
+    defaultPath: options?.defaultPath,
+    filters: options?.filters || [{ name: 'Video', extensions: ['mp4'] }],
+  });
+});
+
+ipcMain.handle('show-item-in-folder', (_event, filePath) => {
+  shell.showItemInFolder(filePath);
+});
+
+ipcMain.handle('get-app-path', () => {
+  return app.getPath('userData');
+});
 
 app.whenReady().then(async () => {
   try {

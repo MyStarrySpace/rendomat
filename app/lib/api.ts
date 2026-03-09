@@ -11,6 +11,20 @@ export function authHeaders(token?: string | null): Record<string, string> {
   return headers;
 }
 
+// Module-level auth token — set by AuthSync component
+let _authToken: string | null = null;
+export function setAuthToken(token: string | null) { _authToken = token; }
+
+// Fetch wrapper that auto-injects auth token
+async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const existingHeaders = options.headers as Record<string, string> || {};
+  const headers: Record<string, string> = { ...existingHeaders };
+  if (_authToken) {
+    headers['Authorization'] = `Bearer ${_authToken}`;
+  }
+  return fetch(url, { ...options, headers });
+}
+
 export interface Client {
   id: number;
   name: string;
@@ -95,19 +109,19 @@ export interface Template {
 // Client API
 export const clientApi = {
   async getAll(): Promise<Client[]> {
-    const res = await fetch(`${API_BASE}/api/clients`);
+    const res = await apiFetch(`${API_BASE}/api/clients`);
     if (!res.ok) throw new Error('Failed to fetch clients');
     return res.json();
   },
 
   async getById(id: number): Promise<Client> {
-    const res = await fetch(`${API_BASE}/api/clients/${id}`);
+    const res = await apiFetch(`${API_BASE}/api/clients/${id}`);
     if (!res.ok) throw new Error('Failed to fetch client');
     return res.json();
   },
 
   async create(data: Omit<Client, 'id' | 'created_at' | 'updated_at'>): Promise<Client> {
-    const res = await fetch(`${API_BASE}/api/clients`, {
+    const res = await apiFetch(`${API_BASE}/api/clients`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -117,7 +131,7 @@ export const clientApi = {
   },
 
   async update(id: number, data: Partial<Omit<Client, 'id' | 'created_at' | 'updated_at'>>): Promise<Client> {
-    const res = await fetch(`${API_BASE}/api/clients/${id}`, {
+    const res = await apiFetch(`${API_BASE}/api/clients/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -127,7 +141,7 @@ export const clientApi = {
   },
 
   async delete(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/clients/${id}`, {
+    const res = await apiFetch(`${API_BASE}/api/clients/${id}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to delete client');
@@ -140,19 +154,19 @@ export const videoApi = {
     const url = clientId
       ? `${API_BASE}/api/videos?client_id=${clientId}`
       : `${API_BASE}/api/videos`;
-    const res = await fetch(url);
+    const res = await apiFetch(url);
     if (!res.ok) throw new Error('Failed to fetch videos');
     return res.json();
   },
 
   async getById(id: number): Promise<Video> {
-    const res = await fetch(`${API_BASE}/api/videos/${id}`);
+    const res = await apiFetch(`${API_BASE}/api/videos/${id}`);
     if (!res.ok) throw new Error('Failed to fetch video');
     return res.json();
   },
 
   async create(data: Omit<Video, 'id' | 'created_at' | 'updated_at' | 'output_path'> & { template_id?: string }): Promise<Video> {
-    const res = await fetch(`${API_BASE}/api/videos`, {
+    const res = await apiFetch(`${API_BASE}/api/videos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -162,7 +176,7 @@ export const videoApi = {
   },
 
   async update(id: number, data: Partial<Omit<Video, 'id' | 'created_at' | 'updated_at'>>): Promise<Video> {
-    const res = await fetch(`${API_BASE}/api/videos/${id}`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -172,14 +186,14 @@ export const videoApi = {
   },
 
   async delete(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/videos/${id}`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/${id}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to delete video');
   },
 
   async renderScenes(id: number): Promise<{ status: string; videoId: number; totalScenes?: number }> {
-    const res = await fetch(`${API_BASE}/api/videos/${id}/render-scenes`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/${id}/render-scenes`, {
       method: 'POST',
     });
     if (!res.ok) {
@@ -198,7 +212,7 @@ export const videoApi = {
   },
 
   async downloadVideo(id: number): Promise<Blob> {
-    const res = await fetch(`${API_BASE}/api/videos/${id}/download`);
+    const res = await apiFetch(`${API_BASE}/api/videos/${id}/download`);
     if (!res.ok) {
       let errorMessage = 'Failed to download video';
       try {
@@ -216,13 +230,13 @@ export const videoApi = {
 // Scene API
 export const sceneApi = {
   async getAllForVideo(videoId: number): Promise<Scene[]> {
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/scenes`);
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/scenes`);
     if (!res.ok) throw new Error('Failed to fetch scenes');
     return res.json();
   },
 
   async create(videoId: number, data: Omit<Scene, 'id' | 'video_id' | 'created_at' | 'updated_at'>): Promise<Scene> {
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/scenes`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/scenes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -232,7 +246,7 @@ export const sceneApi = {
   },
 
   async update(sceneId: number, data: Partial<Omit<Scene, 'id' | 'video_id' | 'created_at' | 'updated_at'>>): Promise<Scene> {
-    const res = await fetch(`${API_BASE}/api/scenes/${sceneId}`, {
+    const res = await apiFetch(`${API_BASE}/api/scenes/${sceneId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -248,7 +262,7 @@ export const sceneApi = {
     cache_path: string;
     preview_url: string;
   }> {
-    const res = await fetch(`${API_BASE}/api/scenes/${sceneId}/render`, {
+    const res = await apiFetch(`${API_BASE}/api/scenes/${sceneId}/render`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ forceRender }),
@@ -265,14 +279,14 @@ export const sceneApi = {
   },
 
   async clearCache(sceneId: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/scenes/${sceneId}/cache`, {
+    const res = await apiFetch(`${API_BASE}/api/scenes/${sceneId}/cache`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to clear scene cache');
   },
 
   async reorder(videoId: number, sceneId: number, newSceneNumber: number): Promise<{ scenes: Scene[]; transitions: Transition[] }> {
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/scenes/reorder`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/scenes/reorder`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sceneId, newSceneNumber }),
@@ -282,7 +296,7 @@ export const sceneApi = {
   },
 
   async resize(sceneId: number, edge: 'start' | 'end', newFrame: number): Promise<{ scenes: Scene[] }> {
-    const res = await fetch(`${API_BASE}/api/scenes/${sceneId}/resize`, {
+    const res = await apiFetch(`${API_BASE}/api/scenes/${sceneId}/resize`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ edge, newFrame }),
@@ -295,13 +309,13 @@ export const sceneApi = {
 // Transition API
 export const transitionApi = {
   async getAllForVideo(videoId: number): Promise<Transition[]> {
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/transitions`);
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/transitions`);
     if (!res.ok) throw new Error('Failed to fetch transitions');
     return res.json();
   },
 
   async getTypes(): Promise<TransitionType[]> {
-    const res = await fetch(`${API_BASE}/api/transitions/types`);
+    const res = await apiFetch(`${API_BASE}/api/transitions/types`);
     if (!res.ok) throw new Error('Failed to fetch transition types');
     const data = await res.json();
     return data.types;
@@ -317,7 +331,7 @@ export const transitionApi = {
       config?: Record<string, any>;
     }
   ): Promise<Transition> {
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/transitions`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/transitions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -334,7 +348,7 @@ export const transitionApi = {
       config?: Record<string, any>;
     }
   ): Promise<Transition> {
-    const res = await fetch(`${API_BASE}/api/transitions/${transitionId}`, {
+    const res = await apiFetch(`${API_BASE}/api/transitions/${transitionId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -344,14 +358,14 @@ export const transitionApi = {
   },
 
   async delete(transitionId: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/transitions/${transitionId}`, {
+    const res = await apiFetch(`${API_BASE}/api/transitions/${transitionId}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to delete transition');
   },
 
   async createDefaults(videoId: number, transitionType?: string): Promise<Transition[]> {
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/transitions/defaults`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/transitions/defaults`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ transition_type: transitionType }),
@@ -367,7 +381,7 @@ export const transitionApi = {
     cache_path: string;
     preview_url: string;
   }> {
-    const res = await fetch(`${API_BASE}/api/transitions/${transitionId}/render`, {
+    const res = await apiFetch(`${API_BASE}/api/transitions/${transitionId}/render`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ forceRender }),
@@ -387,13 +401,13 @@ export const transitionApi = {
 // Template API
 export const templateApi = {
   async getAll(): Promise<Template[]> {
-    const res = await fetch(`${API_BASE}/api/templates`);
+    const res = await apiFetch(`${API_BASE}/api/templates`);
     if (!res.ok) throw new Error('Failed to fetch templates');
     return res.json();
   },
 
   async getById(id: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/templates/${id}`);
+    const res = await apiFetch(`${API_BASE}/api/templates/${id}`);
     if (!res.ok) throw new Error('Failed to fetch template');
     return res.json();
   },
@@ -411,13 +425,13 @@ export interface PlatformExportResult {
 
 export const platformApi = {
   async getAll(): Promise<{ platforms: Record<string, any>; aspectRatios: Record<string, any> }> {
-    const res = await fetch(`${API_BASE}/api/platforms`);
+    const res = await apiFetch(`${API_BASE}/api/platforms`);
     if (!res.ok) throw new Error('Failed to fetch platforms');
     return res.json();
   },
 
   async renderMultiPlatform(videoId: number, platforms: string[]): Promise<PlatformExportResult> {
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/render-multi`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/render-multi`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ platforms }),
@@ -427,7 +441,7 @@ export const platformApi = {
   },
 
   async downloadExport(videoId: number, platformId: string): Promise<Blob> {
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/download/${platformId}`);
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/download/${platformId}`);
     if (!res.ok) throw new Error('Failed to download export');
     return res.blob();
   },
@@ -455,7 +469,7 @@ export interface AudioClip {
 // Audio Clip API
 export const audioClipApi = {
   async getAllForVideo(videoId: number): Promise<AudioClip[]> {
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/audio-clips`);
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/audio-clips`);
     if (!res.ok) throw new Error('Failed to fetch audio clips');
     return res.json();
   },
@@ -467,7 +481,7 @@ export const audioClipApi = {
     if (options?.start_frame !== undefined) formData.append('start_frame', String(options.start_frame));
     if (options?.volume !== undefined) formData.append('volume', String(options.volume));
 
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/audio-clips`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/audio-clips`, {
       method: 'POST',
       body: formData,
     });
@@ -476,7 +490,7 @@ export const audioClipApi = {
   },
 
   async update(clipId: number, data: Partial<Pick<AudioClip, 'name' | 'start_frame' | 'duration_frames' | 'trim_start_frame' | 'trim_end_frame' | 'volume'>>): Promise<AudioClip> {
-    const res = await fetch(`${API_BASE}/api/audio-clips/${clipId}`, {
+    const res = await apiFetch(`${API_BASE}/api/audio-clips/${clipId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -486,7 +500,7 @@ export const audioClipApi = {
   },
 
   async delete(clipId: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/audio-clips/${clipId}`, {
+    const res = await apiFetch(`${API_BASE}/api/audio-clips/${clipId}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to delete audio clip');
@@ -524,7 +538,7 @@ export interface VideoClip {
 // Video Clip API
 export const videoClipApi = {
   async getAllForVideo(videoId: number): Promise<VideoClip[]> {
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/video-clips`);
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/video-clips`);
     if (!res.ok) throw new Error('Failed to fetch video clips');
     return res.json();
   },
@@ -535,7 +549,7 @@ export const videoClipApi = {
     if (options?.name) formData.append('name', options.name);
     if (options?.start_frame !== undefined) formData.append('start_frame', String(options.start_frame));
 
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/video-clips`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/video-clips`, {
       method: 'POST',
       body: formData,
     });
@@ -544,7 +558,7 @@ export const videoClipApi = {
   },
 
   async update(clipId: number, data: Partial<Pick<VideoClip, 'name' | 'start_frame' | 'duration_frames' | 'trim_start_frame' | 'trim_end_frame' | 'volume' | 'mute_audio'>>): Promise<VideoClip> {
-    const res = await fetch(`${API_BASE}/api/video-clips/${clipId}`, {
+    const res = await apiFetch(`${API_BASE}/api/video-clips/${clipId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -554,7 +568,7 @@ export const videoClipApi = {
   },
 
   async delete(clipId: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/video-clips/${clipId}`, {
+    const res = await apiFetch(`${API_BASE}/api/video-clips/${clipId}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to delete video clip');
@@ -615,13 +629,13 @@ export interface EffectivePersonas {
 // Persona API
 export const personaApi = {
   async getAll(): Promise<PersonasResponse> {
-    const res = await fetch(`${API_BASE}/api/personas`);
+    const res = await apiFetch(`${API_BASE}/api/personas`);
     if (!res.ok) throw new Error('Failed to fetch personas');
     return res.json();
   },
 
   async getById(id: string): Promise<Persona> {
-    const res = await fetch(`${API_BASE}/api/personas/${id}`);
+    const res = await apiFetch(`${API_BASE}/api/personas/${id}`);
     if (!res.ok) throw new Error('Failed to fetch persona');
     return res.json();
   },
@@ -630,7 +644,7 @@ export const personaApi = {
     personas: string[],
     behaviorOverrides: Record<string, string | string[]> = {}
   ): Promise<PersonaPreview> {
-    const res = await fetch(`${API_BASE}/api/personas/preview`, {
+    const res = await apiFetch(`${API_BASE}/api/personas/preview`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ personas, behaviorOverrides }),
@@ -640,7 +654,7 @@ export const personaApi = {
   },
 
   async getEffectiveForVideo(videoId: number): Promise<EffectivePersonas> {
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/effective-personas`);
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/effective-personas`);
     if (!res.ok) throw new Error('Failed to get effective personas');
     return res.json();
   },
@@ -658,7 +672,7 @@ export const aiApi = {
       behaviorOverrides?: Record<string, string | string[]>;
     } = {}
   ): Promise<{ slides: any[] }> {
-    const res = await fetch(`${API_BASE}/api/ai/generate-slides`, {
+    const res = await apiFetch(`${API_BASE}/api/ai/generate-slides`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -683,7 +697,7 @@ export const aiApi = {
       searchWeb?: boolean;
     } = {}
   ): Promise<ResearchGenerationResult> {
-    const res = await fetch(`${API_BASE}/api/ai/generate-slides-with-research`, {
+    const res = await apiFetch(`${API_BASE}/api/ai/generate-slides-with-research`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -766,7 +780,7 @@ export const researchApi = {
       searchWeb?: boolean;
     } = {}
   ): Promise<ResearchResult> {
-    const res = await fetch(`${API_BASE}/api/research/perform`, {
+    const res = await apiFetch(`${API_BASE}/api/research/perform`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ topic, ...options }),
@@ -782,7 +796,7 @@ export const researchApi = {
       industry?: string;
     } = {}
   ): Promise<{ case_studies: CaseStudy[]; summary: string }> {
-    const res = await fetch(`${API_BASE}/api/research/extract-portfolio`, {
+    const res = await apiFetch(`${API_BASE}/api/research/extract-portfolio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ portfolioUrl, ...options }),
@@ -795,7 +809,7 @@ export const researchApi = {
     claim: string,
     sourceUrls: string[]
   ): Promise<ClaimVerification> {
-    const res = await fetch(`${API_BASE}/api/research/verify-claim`, {
+    const res = await apiFetch(`${API_BASE}/api/research/verify-claim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ claim, sourceUrls }),
@@ -829,7 +843,7 @@ export interface CreditTransaction {
 
 export const userApi = {
   async getMe(token: string): Promise<User> {
-    const res = await fetch(`${API_BASE}/api/users/me`, {
+    const res = await apiFetch(`${API_BASE}/api/users/me`, {
       headers: authHeaders(token),
     });
     if (!res.ok) throw new Error('Failed to fetch user');
@@ -837,7 +851,7 @@ export const userApi = {
   },
 
   async getTransactions(token: string): Promise<CreditTransaction[]> {
-    const res = await fetch(`${API_BASE}/api/users/me/transactions`, {
+    const res = await apiFetch(`${API_BASE}/api/users/me/transactions`, {
       headers: authHeaders(token),
     });
     if (!res.ok) throw new Error('Failed to fetch transactions');
@@ -855,13 +869,13 @@ export interface CreditPackage {
 
 export const billingApi = {
   async getPackages(): Promise<{ packages: CreditPackage[] }> {
-    const res = await fetch(`${API_BASE}/api/billing/packages`);
+    const res = await apiFetch(`${API_BASE}/api/billing/packages`);
     if (!res.ok) throw new Error('Failed to fetch packages');
     return res.json();
   },
 
   async createCheckout(token: string, packageId: string): Promise<{ url: string }> {
-    const res = await fetch(`${API_BASE}/api/billing/checkout`, {
+    const res = await apiFetch(`${API_BASE}/api/billing/checkout`, {
       method: 'POST',
       headers: authHeaders(token),
       body: JSON.stringify({ packageId }),
@@ -927,7 +941,7 @@ export interface GenerateFromUrlResult {
 
 export const urlToVideoApi = {
   async analyzeUrl(url: string): Promise<UrlAnalysis> {
-    const res = await fetch(`${API_BASE}/api/videos/analyze-url`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/analyze-url`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url }),
@@ -940,7 +954,7 @@ export const urlToVideoApi = {
   },
 
   async generateFromUrl(options: GenerateFromUrlOptions): Promise<GenerateFromUrlResult> {
-    const res = await fetch(`${API_BASE}/api/videos/generate-from-url`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/generate-from-url`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(options),
@@ -961,13 +975,13 @@ export interface RenderCapabilities {
 
 export const cloudRenderApi = {
   async getCapabilities(): Promise<RenderCapabilities> {
-    const res = await fetch(`${API_BASE}/api/render/capabilities`);
+    const res = await apiFetch(`${API_BASE}/api/render/capabilities`);
     if (!res.ok) throw new Error('Failed to fetch render capabilities');
     return res.json();
   },
 
   async startCloudRender(videoId: number, token: string): Promise<{ started: boolean; videoId: number }> {
-    const res = await fetch(`${API_BASE}/api/videos/${videoId}/render-cloud`, {
+    const res = await apiFetch(`${API_BASE}/api/videos/${videoId}/render-cloud`, {
       method: 'POST',
       headers: authHeaders(token),
     });
